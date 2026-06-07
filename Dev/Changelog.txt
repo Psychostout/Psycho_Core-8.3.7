@@ -111,3 +111,136 @@
 --------------------------------------------------------------------------------
  Files modified this step: 1  (README.md).
 --------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 4 - VERIFICATION PASS (no code changes)
+--------------------------------------------------------------------------------
+[DOC]    Verified all Step 2/3 report claims against actual file contents.
+           - CMake 4.3.2: present in CMakeLists.txt + contrib/protoc-bnet. OK.
+           - Boost 1.83: Asio guards present (IoContext.h), code unmodified. OK.
+           - P-01 cotire 2.8.12, P-02 FindOpenSSL 1.0/1.2 cap, P-03
+             OpenSSLCrypto legacy callbacks, P-04 RSA.cpp _rsa->n : all still
+             present and UNPATCHED, exactly as reported. OK.
+           - MariaDB 10.6.3: doc-only; no build-system pin added. OK.
+[NOTE]   ENVIRONMENT: repo .git directory no longer present in workspace
+           (excluded from snapshots / did not persist). Working-tree files are
+           intact. Change tracking will rely on this Dev/ log, not git diff.
+
+ CONFIRMED CHANGE INVENTORY (cumulative, Steps 1-3b):
+   MODIFIED: CMakeLists.txt, contrib/protoc-bnet/CMakeLists.txt, README.md
+   ADDED   : Dev/Chatlog.txt, Dev/Changelog.txt, Dev/Psycho_CoreREADME.txt
+   PENDING : P-01 cotire.cmake, P-02 FindOpenSSL.cmake,
+             P-03 OpenSSLCrypto.cpp, P-04 RSA.cpp  (not yet applied)
+
+--------------------------------------------------------------------------------
+ Files modified this step: 0 source/build (verification only) + Dev docs.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 5 - APPLIED OPENSSL-3 / CMAKE-4 BLOCKER PATCHES + DB RESEARCH
+--------------------------------------------------------------------------------
+[BUILD]  dep/cotire/CMake/cotire.cmake  (P-01)
+           - cmake_minimum_required(VERSION 2.8.12) -> (VERSION 3.5)
+           - Reason: CMake 4.x removed compat for minimums < 3.5.
+[BUILD]  cmake/macros/FindOpenSSL.cmake  (P-02)
+           - OPENSSL_EXPECTED_VERSION "1.0" -> "1.1.1"
+           - OPENSSL_MAX_VERSION      "1.2" -> "3.5"
+           - Now accepts OpenSSL 3.x (target 3.0 LTS) instead of rejecting it.
+[CORE]   src/common/Cryptography/OpenSSLCrypto.cpp  (P-03)
+           - Guarded legacy thread-locking callbacks behind
+             #if OPENSSL_VERSION_NUMBER < 0x10100000L.
+           - Added no-op threadsSetup()/threadsCleanup() for OpenSSL >=1.1.0/3.x
+             (libssl is internally thread-safe there; call sites unchanged).
+           - Verified branch selection with the C preprocessor (cpp).
+[NOTE]   P-04 src/common/Cryptography/RSA.cpp - NO CHANGE NEEDED.
+           Re-audit: the `_rsa->n` access is already inside the pre-1.1.0
+           #else branch; the >=1.1.0 path already uses RSA_get0_key().
+           Step 2 had over-flagged this; corrected here.
+[DOC]    Identified correct WORLD database for this core:
+           - TDB 837.20101 (2020-10-20), TrinityCore master/BfA 8.3.x branch.
+           - World file : TDB_full_world_837.20101_2020_10_20.sql
+           - Hotfixes   : TDB_full_hotfixes_837.20101_2020_10_20.sql
+           - Archive    : TDB_full_837.20101_2020_10_20.7z (GitHub release).
+           - sql/base/ here ships only auth + characters; world/hotfixes come
+             from this TDB. Updates.EnableDatabases = 15 (all 4 DBs).
+
+ BLOCKER STATUS AFTER THIS STEP:
+   P-01 DONE | P-02 DONE | P-03 DONE | P-04 N/A (already guarded)
+   -> The 4 reported blockers are now resolved for an OpenSSL 3.x + CMake 4.3.2
+      configure/compile. (Full build still not yet executed in this env.)
+
+--------------------------------------------------------------------------------
+ Files modified this step: 3 build/source
+   (cotire.cmake, FindOpenSSL.cmake, OpenSSLCrypto.cpp) + Dev docs.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 6 - VERIFY P-01..P-04 + MODULE RESEARCH
+--------------------------------------------------------------------------------
+[BUILD]  cmake/macros/FindOpenSSL.cmake  (P-02 HARDENING)
+           - During deep verification found ENSURE_VERSION_RANGE uses an
+             EXCLUSIVE upper bound, so MAX "3.5" would reject OpenSSL 3.5.x.
+           - Raised OPENSSL_MAX_VERSION "3.5" -> "3.6" (added comment).
+           - Now accepts full 1.1.1 .. 3.5.x; rejects 1.0.x. Re-tested via
+             Python replication of the cmake normalize/compare math.
+[VERIFY] Confirmed P-01 (cotire 3.5), P-03 (OpenSSLCrypto guards balanced +
+           header/namespace/include order correct), P-04 (RSA.cpp only opaque
+           access is in the pre-1.1.0 #else; 3.x uses RSA_get0_key) all correct.
+[VERIFY] Bonus: HMAC.h + CryptoHash.h legacy ctx APIs already version-guarded;
+           ARC4/AES use EVP_CIPHER_CTX (RC4 = 3.x legacy provider, runtime note).
+[DOC]    Added Dev/ModuleSupport_Research.txt - module-support integration plan
+           (3 options; recommends Option B: AC-style top-level modules/ folder
+           feeding the core's existing script system). NO module code written.
+[DOC]    Updated Chatlog.txt + Psycho_CoreREADME.txt.
+
+ BLOCKER STATUS: P-01 DONE | P-02 DONE (hardened) | P-03 DONE | P-04 N/A.
+
+--------------------------------------------------------------------------------
+ Files modified this step: 1 build/source (FindOpenSSL.cmake cap 3.5->3.6)
+   + 1 new doc (ModuleSupport_Research.txt) + Dev docs.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 7 - OPTION B DEEP RESEARCH (NO CODE CHANGES)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/ModuleSupport_Research_Deep.txt - file-by-file integration
+           plan for the AC-style modules/ system, validated against THIS repo:
+             * ~10/11 helper macros already exist; only CopyModuleConfig +
+               ConfigureModules.cmake + modules/CMakeLists.txt + modules/ dir new.
+             * Build flow + worldserver linkage + hot-reload path traced.
+             * Module SQL auto-applies via the updates_include DB table.
+             * Loader '-' naming gotcha noted; BfA vs WotLK source caveat noted.
+             * Integration steps S1-S7 + open decisions D1-D6 listed.
+[NOTE]   NO core/build files modified this step (research only, per request).
+
+--------------------------------------------------------------------------------
+ Files modified this step: 0 build/source.
+   New doc: Dev/ModuleSupport_Research_Deep.txt + Dev docs updated.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 8 - README LOGO + FINAL MODULE-PLAN VERIFICATION
+--------------------------------------------------------------------------------
+[ASSET]  Added assets/Psychocore.swordofsarg2.png (copied from user upload).
+[DOC]    README.md - inserted the PsychoCore logo in TWO places:
+           - centered under the title (# Psycho_Core 8.3.7 ...)
+           - centered in the middle of the page (before "## Repository layout")
+           - used <p align="center"><img src="assets/..." width="420"></p>.
+[VERIFY] Final module-support check (NO code written):
+           - Confirmed SCRIPTS default = "static" (options.cmake L25) -> setting
+             MODULES default = "static" is correct/consistent. (static recommended,
+             dynamic allowed.)
+           - Confirmed per-module cache var pattern + the
+             WITH_DYNAMIC_LINKING_FORCED mechanism we must mirror for modules.
+           - Confirmed wire-up points (top CMakeLists includes, src/server
+             add_subdirectory order, worldserver link + dynamic-dep hook).
+           - VERDICT: Option B plan is 100% confirmed; awaiting user go/no-go.
+
+--------------------------------------------------------------------------------
+ Files modified this step: 1 doc (README.md) + 1 new asset. NO build/source.
+--------------------------------------------------------------------------------

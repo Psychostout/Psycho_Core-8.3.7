@@ -25,8 +25,12 @@
 
 # http://www.slproweb.com/products/Win32OpenSSL.html
 
-set(OPENSSL_EXPECTED_VERSION "1.0")
-set(OPENSSL_MAX_VERSION "1.2")
+# Psycho_Core: raised to accept OpenSSL 1.1.1 .. 3.5.x (target 3.0 LTS).
+# Original was EXPECTED "1.0" / MAX "1.2" which rejected OpenSSL 3.x.
+# NOTE: ENSURE_VERSION_RANGE uses an EXCLUSIVE upper bound (min <= found < max),
+# so MAX is set to "3.6" to allow the whole 3.0.x .. 3.5.x range inclusive.
+set(OPENSSL_EXPECTED_VERSION "1.1.1")
+set(OPENSSL_MAX_VERSION "3.6")
 
 SET(_OPENSSL_ROOT_HINTS
   "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (32-bit)_is1;Inno Setup: App Path]"

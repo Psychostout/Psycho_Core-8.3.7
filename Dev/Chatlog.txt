@@ -178,5 +178,241 @@ AGENT:
 
 
 --------------------------------------------------------------------------------
+[2026-06-07] -- STEP 4 (verification of Step 2/3 claims)
+--------------------------------------------------------------------------------
+USER (Step 4):
+  - Verify which files were actually changed to back the Step 2 report claims
+    (CMake bump, Boost/OpenSSL audit + P-01..P-04, MariaDB 10.6.3).
+
+AGENT (Step 4 findings):
+  - IMPORTANT ENVIRONMENT NOTE: the cloned repo's .git directory is NO LONGER
+    present in the workspace (snapshots exclude sensitive git paths; .git did
+    not persist). So `git diff`/`git status` no longer work. All WORKING-TREE
+    FILES are intact - verification was done by reading file CONTENTS directly
+    (more authoritative than a diff anyway). Going forward we track changes via
+    this Dev/ log, not git.
+
+  - VERIFIED CLAIM 2 (CMake 4.3.2) - TRUE:
+      * CMakeLists.txt:12              -> cmake_minimum_required(VERSION 4.3.2)
+      * contrib/protoc-bnet/CMakeLists.txt:1 -> (VERSION 4.3.2)
+      * No other non-dep cmake_minimum_required left on an old version.
+
+  - VERIFIED CLAIM 3 (Boost/OpenSSL audit) - TRUE & still UNPATCHED:
+      * Boost: src/common/Asio/IoContext.h has BOOST_VERSION >= 106600 guards
+        + io_service path -> confirms 1.83 works unmodified. (No code changed.)
+      * P-02: FindOpenSSL.cmake lines 28-29 still EXPECTED "1.0" / MAX "1.2".
+      * P-03: OpenSSLCrypto.cpp lines 47-64 still use CRYPTO_num_locks /
+        CRYPTO_set_locking_callback / CRYPTO_THREADID_set_callback.
+      * P-04: RSA.cpp line 101 still `BN_copy(bn.BN(), _rsa->n);`
+        (note: line 98 already uses RSA_get0_key for a different read).
+      * P-01: dep/cotire/CMake/cotire.cmake:40 still cmake_minimum_required 2.8.12.
+      -> All four blockers confirmed present and NOT yet patched (as reported).
+
+  - VERIFIED CLAIM 4 (MariaDB 10.6.3) - TRUE (doc-only):
+      * 10.6.3 appears only in README.md + Dev/ docs.
+      * No version pin added to FindMySQL.cmake / cmake / CMakeLists.txt.
+
+  - NET FILES CHANGED BY THIS PROJECT SO FAR:
+      MODIFIED: CMakeLists.txt
+      MODIFIED: contrib/protoc-bnet/CMakeLists.txt
+      MODIFIED: README.md
+      ADDED   : Dev/Chatlog.txt, Dev/Changelog.txt, Dev/Psycho_CoreREADME.txt
+      UNCHANGED (pending approval): cotire.cmake, FindOpenSSL.cmake,
+                OpenSSLCrypto.cpp, RSA.cpp
+
+  - Updated all 3 Dev/ documents. Reporting back; awaiting Step 5.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 5
+--------------------------------------------------------------------------------
+USER (Step 5):
+  1. Apply P-01..P-04 (so OpenSSL 3.x + CMake 4.3.2 can configure/compile).
+  2. Find the correct TrinityCore WORLD database.
+  3. Report back; wait for next step.
+
+AGENT (Step 5 actions):
+  PART 1 - PATCHES APPLIED:
+    * P-01 dep/cotire/CMake/cotire.cmake
+        cmake_minimum_required 2.8.12 -> 3.5  (CMake 4.x needs >= 3.5). DONE.
+    * P-02 cmake/macros/FindOpenSSL.cmake
+        OPENSSL_EXPECTED_VERSION "1.0" -> "1.1.1"
+        OPENSSL_MAX_VERSION      "1.2" -> "3.5"   (now accepts OpenSSL 3.x). DONE.
+    * P-03 src/common/Cryptography/OpenSSLCrypto.cpp
+        Wrapped legacy threading callbacks (CRYPTO_num_locks /
+        CRYPTO_set_locking_callback / CRYPTO_THREADID_*) in
+        #if OPENSSL_VERSION_NUMBER < 0x10100000L; added no-op threadsSetup/
+        threadsCleanup for >=1.1.0/3.x. Verified with `cpp` preprocessor that:
+          - 3.x branch -> legacy code excluded, no-op funcs used.
+          - 1.0.x branch -> legacy code retained. DONE.
+    * P-04 src/common/Cryptography/RSA.cpp
+        RE-AUDIT CORRECTION: line 101 `_rsa->n` is ALREADY inside an
+        #else (OPENSSL_VERSION_NUMBER < 0x10100000L) branch; the >=1.1.0 path
+        uses RSA_get0_key(). So P-04 needs NO fix. (Step 2 over-flagged it.)
+        No other unguarded opaque-struct access found in RSA.cpp.
+
+  PART 2 - CORRECT WORLD DATABASE:
+    * This core is BfA 8.3.x (build 34769) -> TDB branch "837".
+    * CORRECT/FINAL release: TDB 837.20101 (released 2020-10-20, master,
+      commit f0a87e1) - the last 8.3.x TDB.
+    * Confirmed sql/base/ here has ONLY auth_database.sql + characters_
+      database.sql (no base world/hotfixes) -> world+hotfixes MUST come from
+      the TDB download. Updates.EnableDatabases = 15 (all 4 DBs managed).
+    * Download (GitHub release "TDB837.20101", Assets):
+        Archive : TDB_full_837.20101_2020_10_20.7z
+          https://github.com/TrinityCore/TrinityCore/releases/download/TDB837.20101/TDB_full_837.20101_2020_10_20.7z
+        Inside it:
+          TDB_full_world_837.20101_2020_10_20.sql      (WORLD database)
+          TDB_full_hotfixes_837.20101_2020_10_20.sql   (HOTFIXES database)
+        Place the .sql files next to the worldserver binary; the auto-updater
+        imports them on first run (do NOT rename them).
+
+  - Updated all 3 Dev/ documents. Reporting back; awaiting next step.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 6
+--------------------------------------------------------------------------------
+USER (Step 6):
+  1. Verify P-01..P-04 are 100% fixed correctly.
+  2. Research how to integrate Module support (DON'T implement yet); report back.
+
+AGENT (Step 6 actions):
+  PART 1 - DEEP VERIFICATION OF P-01..P-04:
+    * P-01 cotire.cmake: line 40 = cmake_minimum_required(VERSION 3.5). Only
+      remaining "2.8.12" strings are in Dev docs (history), not CMake files.
+      Also noted cotire is ONLY loaded when CMAKE_VERSION < 3.16, so under
+      CMake 4.3.2 it isn't even used (fix is belt-and-suspenders). VERIFIED.
+    * P-02 FindOpenSSL.cmake: re-derived the ENSURE_VERSION_RANGE math in
+      Python (NORMALIZE_VERSION = maj*10000+min*100+patch; range is
+      min <= found < max, EXCLUSIVE upper). Found EDGE CASE: with MAX "3.5",
+      OpenSSL 3.5.x would be REJECTED (3.5.0 == max -> excluded).
+      -> IMPROVEMENT APPLIED: raised cap "3.5" -> "3.6" so the full
+         1.1.1 .. 3.5.x range is accepted; 1.0.x still rejected. Re-tested:
+         1.0.2 NO, 1.1.0 NO, 1.1.1 YES, 3.0.x YES, 3.4.x YES, 3.5.x YES,
+         3.6.0 NO. Target 3.0 LTS passes. VERIFIED.
+    * P-03 OpenSSLCrypto.cpp: preprocessor directives balanced (3x #if / 3x
+      #endif); both branches define threadsSetup/threadsCleanup; header
+      declares them in namespace OpenSSLCrypto (so the qualified defs are
+      valid); <openssl/crypto.h> included BEFORE the guard so
+      OPENSSL_VERSION_NUMBER is defined. cpp-preprocessor test (Step 5)
+      confirmed correct branch selection. VERIFIED.
+    * P-04 RSA.cpp: full audit - the ONLY opaque-struct access (_rsa->n,
+      line 101) is inside the pre-1.1.0 #else; the 1.1+/3.x path uses
+      RSA_get0_key (line 98). No other unguarded access in RSA.cpp/RSA.h.
+      Correctly "already safe". VERIFIED.
+    * BONUS sweep: HMAC.h and CryptoHash.h legacy ctx APIs
+      (HMAC_CTX_init/cleanup, EVP_MD_CTX_create/destroy) are ALREADY guarded
+      with the same <0x10100000L #if/#else; 3.x path uses *_new/*_free.
+      ARC4/AES use EVP_CIPHER_CTX (fine on 3.x; RC4 is in the 3.x "legacy"
+      provider -> compiles; may need legacy provider loaded at runtime - noted).
+      => Whole crypto module looks OpenSSL-3 compile-ready.
+    VERDICT: P-01/P-02/P-03 = 100% fixed (P-02 hardened further);
+             P-04 = correctly needs no change. CONFIRMED.
+
+  PART 2 - MODULE SUPPORT RESEARCH (no implementation):
+    * Key finding: this core ALREADY has a script-module system with
+      auto-discovery (ConfigureScripts.cmake), static/dynamic linkage, an empty
+      "Custom" module, AND hot-reload (ScriptReloadMgr + dynamic ScriptLoader).
+    * Researched AzerothCore modules/ pattern + RageGate PluginManager.
+    * Wrote full plan to Dev/ModuleSupport_Research.txt with 3 options:
+        A) just use Custom/ (trivial, not real modules)
+        B) RECOMMENDED: top-level modules/ (AC-style) feeding the existing
+           script system - community-standard, minimal core edits (mostly CMake)
+        C) full runtime PluginManager port (overkill; core already has dynamic+
+           hot reload).
+    * Flagged open decisions (static vs dynamic default, SQL location, BfA API
+      porting of existing AC modules) for the user before implementing.
+
+  - Updated all Dev/ documents. Reporting back; awaiting next step.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 7
+--------------------------------------------------------------------------------
+USER (Step 7):
+  1. Do MORE research into Option B (AC-style top-level modules/ folder feeding
+     the core's existing script system).
+  2. DO NOT CHANGE ANYTHING. Report back; wait for Step 8.
+
+AGENT (Step 7 - RESEARCH ONLY, zero code/build changes):
+  - Fetched real AzerothCore source: modules/CMakeLists.txt,
+    ConfigureScripts.cmake, ConfigureModules.cmake.
+  - KEY FINDING: AC's modules/ system is a near-copy of the script-module system
+    pointed at a top-level modules/ dir. This repo's script system is
+    STRUCTURALLY IDENTICAL to AC's (shared TrinityCore ancestor) -> Option B is
+    a small, low-risk lift.
+  - Audited which helper macros AC needs vs what THIS repo already has:
+      * ~10/11 already present (GetScriptModuleList, GetProjectNameOf*,
+        ScriptModuleNameToVariable, GetNativeSharedLibraryName, GetInstallOffset,
+        IsDynamicLinkingRequired, ConfigureScriptLoader, CollectSourceFiles,
+        CollectIncludeDirectories, GroupSources, ScriptLoader template).
+      * MISSING only: CopyModuleConfig (conf copy) + a modules-base file
+        (ConfigureModules.cmake) + modules/CMakeLists.txt + modules/ dir.
+  - Traced the exact build flow (scripts/CMakeLists.txt + worldserver linkage +
+    WORLDSERVER_DYNAMIC_SCRIPT_MODULES_DEPENDENCIES + generated loader + hot
+    reload via ScriptReloadMgr). A module just needs Add<Name>Scripts().
+  - Found a naming gotcha: THIS repo's ConfigureScriptLoader does NOT strip '-'
+    (AC does). So either name dirs without '-' or add the regex in our loader
+    (recommended, keeps mod-<name>).
+  - Verified MODULE SQL path: DB updater reads dirs from the `updates_include`
+    table and scans recursively (NOT hardcoded). So module SQL auto-applies by
+    (A) dropping into existing sql/custom dirs, or (B) inserting an
+    updates_include row pointing at the module's sql/. Updates.EnableDatabases
+    (15) + AutoSetup (1) already set.
+  - Confirmed BfA-vs-WotLK reality: the FRAMEWORK ports cleanly; existing AC
+    mod-* SOURCE will NOT compile on 8.3 unchanged (different APIs). Our
+    mod-example must target this repo's ScriptMgr.
+  - Wrote full file-by-file plan to Dev/ModuleSupport_Research_Deep.txt
+    (integration steps S1-S7, blast radius, SQL strategy, open decisions D1-D6).
+  - Updated Dev docs. NOTHING in the core changed. Awaiting Step 8.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 8
+--------------------------------------------------------------------------------
+USER (Step 8):
+  1. Default linkage static (allow dynamic) - only confirm if 100% correct;
+     do ONE final verification of how to add module support; report, await OK.
+  2. Add Psychocore.swordofsarg2.png to README.md: under the title AND in the
+     middle of the page. (Image attached to /home/user/uploads/.)
+  3. Report back; wait for Step 9.
+
+AGENT (Step 8 actions):
+  TASK 1 - FINAL MODULE-SUPPORT VERIFICATION (no code written):
+    * CONFIRMED static-default is CORRECT and CONSISTENT: cmake/options.cmake
+      line 25 sets SCRIPTS default = "static" already. Matching MODULES default
+      to "static" mirrors the core's own convention.
+    * CONFIRMED per-module cache vars: options.cmake loops modules and sets each
+      to "default" (-> inherits SCRIPTS/MODULES), choices default/disabled/
+      static/dynamic. We replicate this for MODULE_<N>.
+    * CONFIRMED critical detail: options.cmake uses IsDynamicLinkingRequired ->
+      WITH_DYNAMIC_LINKING_FORCED -> BUILD_SHARED_LIBS. We MUST add an
+      IsDynamicLinkingModulesRequired equivalent so a dynamic module forces
+      shared libs (else a dynamic module would fail to link). Noted in plan.
+    * CONFIRMED wire-up points exist exactly as planned:
+        - top CMakeLists: include(ConfigureScripts) L59, include(options) L62.
+        - src/server/CMakeLists.txt: add_subdirectory order L26-32 (insert
+          'modules' before worldserver).
+        - worldserver/CMakeLists.txt: links 'scripts' L50; dynamic dep hook
+          L72-73 (mirror for modules).
+    VERDICT: 100% confident in the Option B plan. Static default = correct.
+             Awaiting user's OK before implementing.
+
+  TASK 2 - README IMAGE:
+    * Copied uploads/Psychocore.swordofsarg2.png -> repo assets/ (public asset,
+      not Dev tracking).
+    * Inserted centered <img> (width 420) in TWO places in README.md:
+        (1) directly under the title "# Psycho_Core 8.3.7 - Reforged + Modernized"
+        (2) in the middle of the page, just before "## Repository layout".
+    * Used inline HTML <p align=center><img ...></p> so it renders centered.
+    NOTE: in-app preview sandbox can't load some external resources, but a local
+    relative image like assets/... displays fine in GitHub and locally.
+
+  - Updated Dev docs. Reporting back; awaiting Step 9 (and the go/no-go on
+    implementing module support).
+
+
+--------------------------------------------------------------------------------
  (New entries appended below as the conversation continues.)
 --------------------------------------------------------------------------------

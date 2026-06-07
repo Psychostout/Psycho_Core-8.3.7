@@ -21,6 +21,12 @@
 #include <thread>
 #include <mutex>
 
+// Psycho_Core: OpenSSL >= 1.1.0 is internally thread-safe and removed the
+// manual locking API (CRYPTO_num_locks / CRYPTO_set_locking_callback /
+// CRYPTO_THREADID_*). These symbols do not exist in OpenSSL 1.1+/3.x, so the
+// legacy callback setup below is compiled only for OpenSSL < 1.1.0.
+#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
+
 std::vector<std::mutex*> cryptoLocks;
 void ValgrindRandomSetup();
 
@@ -129,4 +135,14 @@ void ValgrindRandomSetup()
         valgrind_rand.status = &Valgrind_RAND_status;
     RAND_set_rand_method(&valgrind_rand);
 }
-#endif
+#endif // VALGRIND
+
+#else // OPENSSL_VERSION_NUMBER >= 0x10100000L
+
+// Psycho_Core: OpenSSL >= 1.1.0 initializes itself and is internally
+// thread-safe; the legacy locking callbacks were removed. These become
+// no-ops so the call sites in Main.cpp keep working unchanged.
+void OpenSSLCrypto::threadsSetup() { }
+void OpenSSLCrypto::threadsCleanup() { }
+
+#endif // OPENSSL_VERSION_NUMBER < 0x10100000L

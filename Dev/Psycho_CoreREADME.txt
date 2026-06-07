@@ -2,7 +2,7 @@
  PSYCHO_CORE 8.3.7  -  BUILD / PLAN / REFERENCE
 ================================================================================
  Maintained by: Arena.ai Agent + User
- Last updated  : 2026-06-07 (Step 3b)
+ Last updated  : 2026-06-07 (Step 8)
  Repo path     : /home/user/Psycho_Core-8.3.7
  Upstream      : https://github.com/Psychostout/Psycho_Core-8.3.7
 ================================================================================
@@ -106,8 +106,44 @@
  [X] Step 3  - Converted user's LegionCore 7.3.5 README -> Psycho_Core 8.3.7
                README.md. Stripped Legion/Reforged/nonexistent content; aligned
                to real repo state + Step 2 version targets. (DONE)
- [ ] Step 4  - (awaiting instructions)
+ [X] Step 4  - Verified all Step 2/3 claims against real file contents.
+               Confirmed change inventory below; P-01..P-04 still unpatched.
+               Noted: .git is gone from workspace -> track via Dev/ log. (DONE)
+ [X] Step 5  - Applied P-01/P-02/P-03 (OpenSSL 3.x + CMake 4.3.2 blockers);
+               P-04 found already-guarded (no change). Identified correct world
+               DB = TDB 837.20101. (DONE)
+ [X] Step 6  - Deep-verified P-01..P-04 (all correct; P-02 cap hardened
+               3.5->3.6 to fix exclusive-upper-bound edge case). Researched
+               module support -> Dev/ModuleSupport_Research.txt (recommend
+               Option B: AC-style modules/ folder). No module code yet. (DONE)
+ [X] Step 7  - Deep Option B research. Confirmed AC modules/ system maps onto
+               this repo with ~10/11 macros already present; wrote file-by-file
+               plan (Dev/ModuleSupport_Research_Deep.txt). NO code changed. (DONE)
+ [~] Step 8  - Added PsychoCore logo to README (under title + mid-page).
+               Final-verified Option B plan (static default CONFIRMED correct).
+               Implementation NOT started - awaiting user go/no-go. 
+ [ ] Step 9  - (pending; implement Option B if approved)
  ...
+
+ CONFIRMED CHANGE INVENTORY (cumulative):
+   MODIFIED: CMakeLists.txt (cmake 3.8->4.3.2)
+   MODIFIED: contrib/protoc-bnet/CMakeLists.txt (cmake 3.8->4.3.2)
+   MODIFIED: README.md (Legion->BfA rewrite; Dev refs removed; blocker table
+             updated to "applied"; added World database/TDB section)
+   MODIFIED: dep/cotire/CMake/cotire.cmake (P-01: min 2.8.12 -> 3.5)
+   MODIFIED: cmake/macros/FindOpenSSL.cmake (P-02: 1.0/1.2 -> 1.1.1/3.5)
+   MODIFIED: src/common/Cryptography/OpenSSLCrypto.cpp (P-03: guard legacy
+             callbacks; no-op on OpenSSL >=1.1.0/3.x)
+   ADDED   : Dev/Chatlog.txt, Dev/Changelog.txt, Dev/Psycho_CoreREADME.txt
+   N/A     : P-04 RSA.cpp - already guarded, untouched
+
+ WORLD DATABASE (for this BfA 8.3.x core):
+   TDB 837.20101 (2020-10-20) - final 8.3.x TrinityCore DB.
+   Archive : TDB_full_837.20101_2020_10_20.7z
+     https://github.com/TrinityCore/TrinityCore/releases/download/TDB837.20101/TDB_full_837.20101_2020_10_20.7z
+   World   : TDB_full_world_837.20101_2020_10_20.sql
+   Hotfixes: TDB_full_hotfixes_837.20101_2020_10_20.sql
+   (sql/base/ ships only auth + characters; world/hotfixes from the TDB.)
  General TC build flow for reference:
    1. Install prerequisites (cmake, gcc/g++, boost, openssl, mariadb, etc.)
    2. mkdir build && cd build

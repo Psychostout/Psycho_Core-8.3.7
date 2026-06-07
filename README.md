@@ -1,5 +1,9 @@
 # Psycho_Core 8.3.7 — Reforged + Modernized
 
+<p align="center">
+  <img src="assets/Psychocore.swordofsarg2.png" alt="PsychoCore — BFA 8.3.7" width="420">
+</p>
+
 > **IMPORTANT REMINDER: CURRENTLY UNDER DEVELOPMENT BY A COMPLETE NOOB WITH AN INTERNET CONNECTION!**
 
 ![Status](https://img.shields.io/badge/status-in--development-yellow)
@@ -93,18 +97,17 @@ databases, extract client data with the tools in `src/tools/`, and start the ser
 
 ## Build status
 
-> ⚠️ **No full build has been verified yet in this development pass.** The toolchain
-> version bumps are in place, but the OpenSSL-3 code patches below must be applied
-> first before a clean configure/compile is expected.
+> ⚠️ **No full build has been executed yet in this development pass**, but the
+> known OpenSSL-3 / CMake-4 source blockers have now been resolved (see below).
 
-### Known blockers (must be fixed before a CMake 4.3.2 + OpenSSL 3.x build)
+### OpenSSL 3.x / CMake 4.3.2 compatibility fixes (applied)
 
-| ID | File | Issue |
+| ID | File | Fix |
 |---|---|---|
-| **P-01** | `dep/cotire/CMake/cotire.cmake` | Declares `cmake_minimum_required(2.8.12)`. CMake 4.x rejects minimums < 3.5 → configure errors. |
-| **P-02** | `cmake/macros/FindOpenSSL.cmake` | Hard-caps `OPENSSL_MAX_VERSION "1.2"` → rejects OpenSSL 3.x. Cap must be raised and the floor set to 1.1.1. |
-| **P-03** | `src/common/Cryptography/OpenSSLCrypto.cpp` | Uses legacy threading callbacks (`CRYPTO_num_locks`, `CRYPTO_set_locking_callback`, `CRYPTO_THREADID_set_callback`) removed in OpenSSL 1.1+. Must be guarded as a no-op on 1.1+/3.x. |
-| **P-04** | `src/common/Cryptography/RSA.cpp` | Direct opaque-struct access (`_rsa->n`) is illegal under OpenSSL 1.1+/3.x. Must use `RSA_get0_key()`. |
+| **P-01** ✅ | `dep/cotire/CMake/cotire.cmake` | `cmake_minimum_required` raised `2.8.12 → 3.5` (CMake 4.x rejects minimums < 3.5). |
+| **P-02** ✅ | `cmake/macros/FindOpenSSL.cmake` | Version range raised: floor `1.0 → 1.1.1`, cap `1.2 → 3.6` (exclusive upper bound) so the full OpenSSL `1.1.1 … 3.5.x` range is accepted. |
+| **P-03** ✅ | `src/common/Cryptography/OpenSSLCrypto.cpp` | Legacy threading callbacks (`CRYPTO_num_locks`, `CRYPTO_set_locking_callback`, `CRYPTO_THREADID_*`) guarded behind `OPENSSL_VERSION_NUMBER < 0x10100000L`; no-op `threadsSetup`/`threadsCleanup` on OpenSSL 1.1+/3.x. |
+| **P-04** ⚪ | `src/common/Cryptography/RSA.cpp` | No change needed — the `_rsa->n` access is already inside the pre-1.1.0 `#else` branch; the 1.1+/3.x path uses `RSA_get0_key()`. |
 
 ### What is expected to build (TrinityCore BfA targets)
 
@@ -116,6 +119,10 @@ databases, extract client data with the tools in `src/tools/`, and start the ser
 * `src/tools/` extractors (map, vmap, mmap)
 
 ---
+
+<p align="center">
+  <img src="assets/Psychocore.swordofsarg2.png" alt="PsychoCore — BFA 8.3.7" width="420">
+</p>
 
 ## Repository layout
 
@@ -142,6 +149,26 @@ Psycho_Core-8.3.7/
 │   └── tools/                  Map/vmap/mmap extractors
 └── revision_data.h.in.cmake    Embeds git SHA into the binary
 ```
+
+---
+
+## World database (TDB)
+
+This core targets BfA **8.3.x**, so it uses the TrinityCore **TDB 837** database
+line. `sql/base/` only ships the **auth** and **characters** base SQL — the
+**world** and **hotfixes** data come from the TDB download.
+
+* **Release:** [`TDB 837.20101`](https://github.com/TrinityCore/TrinityCore/releases/tag/TDB837.20101) (2020-10-20) — the final 8.3.x TDB.
+* **Archive:** `TDB_full_837.20101_2020_10_20.7z`
+  ([direct link](https://github.com/TrinityCore/TrinityCore/releases/download/TDB837.20101/TDB_full_837.20101_2020_10_20.7z))
+* **Inside the archive:**
+  * `TDB_full_world_837.20101_2020_10_20.sql` → **world** database
+  * `TDB_full_hotfixes_837.20101_2020_10_20.sql` → **hotfixes** database
+
+Extract the `.sql` files next to your `worldserver` binary (**do not rename
+them**); with the auto-updater enabled (`Updates.EnableDatabases = 15`) they are
+imported automatically on first run. Run `sql/create/create_mysql.sql` first to
+create the databases and user.
 
 ---
 

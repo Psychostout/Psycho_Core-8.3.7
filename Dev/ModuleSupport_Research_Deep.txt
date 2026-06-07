@@ -1,0 +1,195 @@
+================================================================================
+ PSYCHO_CORE 8.3.7 - OPTION B DEEP DIVE (AzerothCore-style modules/)
+================================================================================
+ Status : RESEARCH ONLY (Step 7) - NOTHING CHANGED. Awaiting Step 8 to build.
+ Date   : 2026-06-07
+ Goal   : Map AC's modules/ system onto THIS repo precisely, file-by-file.
+================================================================================
+
+
+0. HEADLINE FINDING
+--------------------------------------------------------------------------------
+ Option B is a SMALL lift here. AzerothCore's modules/ system is essentially a
+ COPY of the script-module system pointed at a top-level modules/ dir instead of
+ src/server/scripts/. This repo's script system (ConfigureScripts.cmake +
+ src/server/scripts/CMakeLists.txt + ScriptLoader.cpp.in.cmake) is STRUCTURALLY
+ IDENTICAL to AC's (same TrinityCore ancestor; functions match nearly verbatim).
+ => We can replicate the proven AC approach with high confidence.
+
+
+1. SIDE-BY-SIDE: AC modules system vs WHAT THIS REPO ALREADY HAS
+--------------------------------------------------------------------------------
+ AC needs these helpers (from ConfigureModules.cmake + ConfigureScripts.cmake).
+ Status of an equivalent already present in THIS repo:
+
+   Helper / mechanism                     Present here?   Where
+   ------------------------------------   -------------   --------------------------
+   GetScriptsBasePath / module list       YES             cmake/macros/ConfigureScripts.cmake
+   GetScriptModuleList (GLOB dirs)        YES             ConfigureScripts.cmake
+   GetProjectNameOfScriptModule           YES             ConfigureScripts.cmake
+   ScriptModuleNameToVariable             YES             ConfigureScripts.cmake
+   GetNativeSharedLibraryName             YES             ConfigureScripts.cmake
+   GetInstallOffset                       YES             ConfigureScripts.cmake
+   IsDynamicLinkingRequired               YES             ConfigureScripts.cmake
+   ConfigureScriptLoader (gen loader)     YES             src/server/scripts/CMakeLists.txt
+   CollectSourceFiles / IncludeDirs       YES             cmake/macros/AutoCollect.cmake
+   GroupSources                           YES             cmake/macros/GroupSources.cmake
+   ScriptLoader template (.cpp.in.cmake)  YES             src/server/scripts/ScriptLoader.cpp.in.cmake
+   Per-module <mod>.cmake OPTIONAL include NOT YET         (1 foreach + include OPTIONAL)
+   CopyModuleConfig (conf/*.conf.dist)    MISSING          (need to add ~10 lines)
+   ConfigureModules.cmake (modules/ base) NOT YET          (new file, mirrors ConfigureScripts)
+   modules/CMakeLists.txt                 NOT YET          (new file, mirrors scripts/CMakeLists)
+   modules/ dir + ModulesLoader template  NOT YET          (new files)
+
+ => ~90% of the machinery exists. New work is mostly NEW files that REUSE the
+    existing functions, plus ~3 tiny edits to existing files.
+
+
+2. HOW THE SCRIPT/MODULE BUILD ACTUALLY WORKS (verified in this repo)
+--------------------------------------------------------------------------------
+ src/server/scripts/CMakeLists.txt does, per module dir:
+   - linkage = SCRIPTS_<MODULE> (dynamic | static | disabled), default from
+     SCRIPTS=dynamic/static; "minimal" uses a whitelist (Commands, Spells).
+   - DYNAMIC: CollectSourceFiles -> ConfigureScriptLoader(...ON...) -> generate
+     gen_scriptloader/<mod>/ScriptLoader.cpp -> add_library(<proj> SHARED ...)
+        target_link_libraries(<proj> PRIVATE trinity-core-interface PUBLIC game)
+        install to ${INSTALL_OFFSET} (= <prefix>/bin/scripts on unix).
+   - STATIC: sources appended to PRIVATE_SOURCES; module name -> STATIC list.
+   - At end:
+        ConfigureScriptLoader("static" ... OFF ${STATIC_SCRIPT_MODULES})
+        add_library(scripts STATIC ScriptLoader.h <static-loader> ${PRIVATE_SOURCES})
+        set(WORLDSERVER_DYNAMIC_SCRIPT_MODULES_DEPENDENCIES ... PARENT_SCOPE)
+ worldserver/CMakeLists.txt then:
+        target_link_libraries(worldserver PUBLIC scripts game readline ...)
+        add_dependencies(worldserver ${WORLDSERVER_DYNAMIC_SCRIPT_MODULES_DEPENDENCIES})
+
+ The generated loader (ScriptLoader.cpp.in.cmake) defines:
+   - AddScripts() that calls each Add<Module>Scripts();
+   - when dynamic: also exports GetScriptModule/GetScriptModuleRevisionHash/
+     GetBuildDirective via extern "C" (THIS is what enables HOT RELOAD via
+     src/server/game/Scripting/ScriptReloadMgr.cpp).
+
+ KEY: a "module" only needs to provide a function:
+        void Add<ModuleName>Scripts();
+   ...which calls its AddSC_* registrators. Everything else is generated.
+
+
+3. WHAT A MODULE FOLDER LOOKS LIKE (target layout for THIS repo)
+--------------------------------------------------------------------------------
+   modules/
+     CMakeLists.txt                 # mirrors scripts/CMakeLists.txt, scans mod-*
+     ModulesLoader.cpp.in.cmake     # mirrors ScriptLoader.cpp.in.cmake (or reuse)
+     README.md
+     mod-example/
+       mod-example.cmake            # OPTIONAL: extra find_package/link/include
+       conf/
+         mod-example.conf.dist      # OPTIONAL: copied next to worldserver
+       sql/
+         world/ characters/ ...     # OPTIONAL: custom SQL (see section 5)
+       src/
+         mod_example.cpp            # PlayerScript/WorldScript + AddSC_mod_example()
+         mod_example_loader.cpp     # void AddmodexampleScripts(){ AddSC_mod_example(); }
+
+ NOTE on loader-fn naming: ConfigureScriptLoader builds "Add${MODULE}Scripts()"
+ from the directory name. AC strips '-' to '_' (string(REGEX REPLACE - _ ...)).
+ THIS repo's ConfigureScriptLoader does NOT strip '-'. So either:
+   (a) name module dirs without '-' (e.g. modexample), or
+   (b) add the same REGEX REPLACE to our modules loader (recommended; keeps the
+       familiar mod-<name> convention).
+
+
+4. EXACT INTEGRATION STEPS (for Step 8 - NOT done yet)
+--------------------------------------------------------------------------------
+ (S1) Add cmake/macros/ConfigureModules.cmake (new) - mirror AC:
+        GetModulesBasePath -> ${CMAKE_SOURCE_DIR}/modules
+        GetPathToModuleSource (<mod>/src), GetProjectNameOfModuleName (mod_<n>),
+        GetModuleSourceList (GLOB), ModuleNameToVariable (MODULE_<N>),
+        IsDynamicLinkingModulesRequired.
+ (S2) Add modules/CMakeLists.txt (new) - mirror scripts/CMakeLists.txt but:
+        - read MODULES=dynamic/static (new build option), per-module MODULE_<N>.
+        - build dynamic mods as own SHARED libs; static mods into a single
+          `modules` STATIC lib (loader name "static").
+        - reuse ConfigureScriptLoader (add '-'->'_' regex) + a ModulesLoader
+          template, OR generate AddModulesScripts() that calls each
+          Add<mod>Scripts().
+        - include("${...}/modules/<mod>/<mod>.cmake" OPTIONAL) per module.
+        - CopyModuleConfig for each conf/*.conf.dist.
+        - export WORLDSERVER_DYNAMIC_MODULES_DEPENDENCIES to parent scope.
+ (S3) Edit src/server/CMakeLists.txt: add_subdirectory(modules) [from repo root,
+        so really add at top-level CMakeLists or via src; pick consistent spot].
+        (AC puts modules/ at repo ROOT and add_subdirectory(modules) near scripts.)
+ (S4) Edit src/server/worldserver/CMakeLists.txt:
+        target_link_libraries(worldserver PUBLIC ... modules)  # static mods
+        add_dependencies(worldserver ${WORLDSERVER_DYNAMIC_MODULES_DEPENDENCIES})
+ (S5) Add CopyModuleConfig macro (e.g. in ConfigureScripts.cmake or a new
+        ConfigureModules.cmake) to copy conf/*.conf.dist to the bin/etc dirs,
+        mirroring how worldserver.conf.dist is copied.
+ (S6) Add modules/mod-example (a tiny "Hello World" PlayerScript) so the build
+        graph + config + hot reload can be smoke-tested.
+ (S7) Add top-level build option:  option/cache MODULES "static" (or "dynamic").
+        Reuse the existing SCRIPTS plumbing style.
+
+ BLAST RADIUS: ~2 small edits to existing CMake (src/server + worldserver),
+ 1 tiny macro addition (CopyModuleConfig), and otherwise NEW files. NO changes
+ to live game C++ (ScriptMgr already invokes AddScripts()).
+
+
+5. MODULE SQL - HOW IT GETS APPLIED (verified)
+--------------------------------------------------------------------------------
+ The DB auto-updater (src/server/database/Updater/UpdateFetcher.cpp) does NOT
+ hardcode SQL paths. It reads directories from the DB table `updates_include`:
+     SELECT `path`, `state` FROM `updates_include`
+ then FillFileListRecursively() scans each path recursively. A leading "$"
+ in path is replaced with the SourceDirectory.
+
+ => TWO ways to auto-apply module SQL (no core C++ change either way):
+   (A) EASIEST: tell users to drop module SQL into the already-registered
+       sql/custom/{world,characters,auth,hotfixes} dirs (these are pre-listed in
+       updates_include in the base auth DB). Works immediately.
+   (B) PROPER: have each module ship sql/<db>/... and INSERT a row into
+       `updates_include` (e.g. '$/modules/mod-x/sql/world','MODULE') so the
+       updater scans it. AC effectively does (A)/(B)-style via data/sql/custom.
+ Requires: Updates.EnableDatabases=15 (already set) + Updates.AutoSetup=1
+           (already 1) + a valid SourceDirectory at runtime.
+
+
+6. C++ API COMPATIBILITY (BfA 8.3 vs AC WotLK 3.3.5)
+--------------------------------------------------------------------------------
+ - The MODULE FRAMEWORK (cmake glue, loader generation, hot reload) is core-
+   version-agnostic and ports cleanly. CONFIRMED by structural match.
+ - INDIVIDUAL module SOURCE is NOT portable: existing AC `mod-*` repos target
+   WotLK 3.3.5 APIs and will NOT compile on this BfA 8.3 core unchanged
+   (different ScriptMgr hooks, signatures, opcodes, DB2 vs DBC, etc.).
+   => Our mod-example must be written against THIS repo's ScriptMgr API
+      (e.g. class X : public PlayerScript { ... }; void AddSC_x(){ new X(); }).
+ - Script base classes/hooks available are whatever src/server/game/Scripting/
+   ScriptMgr.h exposes in this 8.3 tree (to be enumerated in Step 8).
+
+
+7. OPEN DECISIONS (carry over to Step 8)
+--------------------------------------------------------------------------------
+ D1. Default linkage: MODULES=static (single binary, simplest) vs dynamic
+     (hot reload, separate .so/.dll). Recommend default = static, allow dynamic.
+ D2. Module dir naming: keep "mod-<name>" (add '-'->'_' in loader) [recommended]
+     vs plain "<name>".
+ D3. Module SQL strategy: 5(A) quick (use sql/custom) vs 5(B) proper
+     (per-module sql/ + updates_include row). Recommend support 5(B), document 5(A).
+ D4. Where modules/ lives: top-level (AC convention) [recommended] vs under src/.
+ D5. Build option name: MODULES (AC-compatible) [recommended].
+ D6. Ship a mod-example? Recommend YES (smoke test + template).
+
+
+8. SOURCES (fetched this step)
+--------------------------------------------------------------------------------
+ - AzerothCore modules/CMakeLists.txt (raw, master) - the modules build engine.
+ - AzerothCore src/cmake/macros/ConfigureScripts.cmake (raw) - matches ours.
+ - AzerothCore src/cmake/macros/ConfigureModules.cmake (raw) - the modules base
+   helpers we'd mirror.
+ - This repo: src/server/scripts/CMakeLists.txt, ScriptLoader.cpp.in.cmake,
+   cmake/macros/ConfigureScripts.cmake, AutoCollect.cmake,
+   src/server/worldserver/CMakeLists.txt, src/server/CMakeLists.txt,
+   database/Updater/DBUpdater.cpp + UpdateFetcher.cpp.
+
+================================================================================
+ END - design fully mapped. No files changed. Ready to implement on Step 8.
+================================================================================
