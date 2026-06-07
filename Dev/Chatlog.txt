@@ -1,0 +1,182 @@
+================================================================================
+ PSYCHO_CORE 8.3.7 - PROJECT CHAT LOG
+================================================================================
+ Purpose : Running record of the conversation between the user and the agent.
+ Timezone: Australia/Adelaide (ACST)
+ Started : 2026-06-07
+================================================================================
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- INITIAL REQUEST
+--------------------------------------------------------------------------------
+USER:
+  "Please download/clone https://github.com/Psychostout/Psycho_Core-8.3.7
+   and wait for step 1."
+
+AGENT:
+  - Cloned the repository into /home/user/Psycho_Core-8.3.7
+  - Result: SUCCESS (exit 0)
+      * 15,439 files, ~2.1 GB
+      * Branch: main, HEAD commit a02d2b5 ("Base")
+  - Identified as a TrinityCore-based WoW server core.
+  - Reported back and awaited Step 1.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 1
+--------------------------------------------------------------------------------
+USER (Step 1):
+  1. Verify all complete files.
+  2. Verify the game version.
+  3. Verify cmake, boost, openssl, mariadb etc. versions required.
+  4. Create a Dev folder with 3 .txt docs:
+       - Chatlog.txt   (copy of our chat)
+       - Changelog.txt (record changes we make)
+       - Psycho_CoreREADME (build/plan tracking)
+  5. Report back and wait for Step 2.
+
+AGENT (Step 1 actions):
+  1. FILE COMPLETENESS:
+       - git status: working tree clean, up to date with origin/main.
+       - git fsck --full: no errors / no corruption.
+       - Verified all 15,439 tracked files exist on disk (none missing).
+       - git diff --stat: empty (working tree matches index, no truncation).
+       - No .gitmodules => all dependencies vendored under dep/.
+       - VERDICT: All files complete and intact.
+
+  2. GAME VERSION:
+       - Codebase = TrinityCore (master-era), README references master/3.3.5.
+       - DB2Stores.cpp data-version assertions reference:
+           "last ... added in 8.3.0 (34769)"
+       - VERDICT: World of Warcraft - Battle for Azeroth,
+                  patch 8.3.0, client build 34769.
+                  (Repo name "8.3.7" is the project label.)
+
+  3. DEPENDENCY VERSIONS REQUIRED:
+       - CMake   : >= 3.8 (cmake_minimum_required). 3.16+ recommended.
+       - Boost   : >= 1.58 (Linux), >= 1.66 (Windows). PackageList notes 1.55.
+                   Components: system filesystem thread program_options
+                               iostreams regex
+       - OpenSSL : >= 1.0, < 1.2 (expects 1.0.x / 1.1.x; 1.0.2 or 1.1.1).
+       - MySQL/MariaDB: client lib + server. MariaDB 10.x recommended
+                        (FindMySQL.cmake locates mysql_config / libmysqlclient).
+       - Compiler: GCC >= 6.3.0  |  MSVC >= 19.24 (VS 2019 16.4)  |  Clang.
+       - C++ standard: C++14.
+       - Vendored deps (dep/): bzip2 1.0.6, zlib 1.2.11, fmt 4.0.0,
+         jemalloc 3.6.0, protobuf 2.6.1, rapidjson 1.1.0, gSOAP 2.8.49,
+         CascLib, recastnavigation, g3dlite, utf8cpp 2.3.4, SFMT, efsw,
+         boost-process 0.5, cotire, readline.
+
+  4. Created Dev/ folder with Chatlog.txt, Changelog.txt, Psycho_CoreREADME.txt.
+
+  5. Reported back; awaiting Step 2.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 2
+--------------------------------------------------------------------------------
+USER (Step 2):
+  1. CRITICAL REMINDER: After EVERY step the Dev/ documents MUST be updated.
+  2. Bump CMake version to 4.3.2 (it is a real version).
+  3. Figure out how far we can SAFELY bump Boost and OpenSSL.
+     Preference: Boost 1.83+, OpenSSL 3+.
+  4. Recommend MariaDB only - use version 10.6.3.
+  5. Report back and wait for Step 3.
+
+AGENT (Step 2 actions):
+  - RESEARCH:
+      * Confirmed CMake 4.3.2 is real (Kitware release 2026-04-23).
+      * Modern TrinityCore master now requires OpenSSL >= 3.x,
+        Boost >= 1.78, CMake >= 3.24 -> proves these versions are viable
+        for the TC codebase in general.
+      * TC dev statement: OpenSSL 1.0 unsupported; 1.1.1 minimum; "3.0 works too".
+  - CODE AUDIT (this 8.3.x Base specifically):
+      * CMakeLists.txt: minimum was 3.8.
+      * cmake/macros/FindOpenSSL.cmake hard-caps OPENSSL_MAX_VERSION "1.2"
+        -> would REJECT OpenSSL 3.x until changed.
+      * src/common/Cryptography/CryptoHash.h already OpenSSL 1.1-ready
+        (EVP_MD_CTX_new, version guards). GOOD.
+      * src/common/Cryptography/OpenSSLCrypto.cpp uses LEGACY threading
+        callbacks (CRYPTO_num_locks, CRYPTO_set_locking_callback,
+        CRYPTO_THREADID_set_callback) -> REMOVED in OpenSSL 1.1+, absent in
+        3.x. MUST be guarded/removed for a 3.x build.
+      * src/common/Cryptography/RSA.cpp line ~101 uses direct opaque-struct
+        access (_rsa->n) -> illegal under OpenSSL 1.1+/3.x. MUST be fixed
+        (use RSA_get0_key, already partially used in same file).
+      * Boost Asio code (src/common/Asio/*) already has BOOST_VERSION guards
+        for >=1.66 / >=1.70 -> forward-compatible with Boost 1.83.
+  - CHANGES MADE:
+      * CMakeLists.txt: cmake_minimum_required 3.8 -> 4.3.2.
+      * contrib/protoc-bnet/CMakeLists.txt: 3.8 -> 4.3.2 (consistency).
+  - FLAGGED (needs decision before it will build):
+      * dep/cotire/CMake/cotire.cmake declares cmake_minimum_required 2.8.12.
+        CMake 4.x removed support for minimums < 3.5 -> will error.
+        (Vendored dep; left untouched pending user go-ahead.)
+      * FindOpenSSL.cmake max-version cap + OpenSSLCrypto.cpp + RSA.cpp
+        must be patched before OpenSSL 3.x will compile.
+  - RECOMMENDED SAFE TARGET VERSIONS (see README for detail):
+      * Boost   : 1.83 (safe; 1.86 max recommended - avoid 1.87 io_service removal)
+      * OpenSSL : 3.0.x LTS (3.0.13+), works after the 3 code patches above
+      * MariaDB : 10.6.3 (as requested; 10.6 is an LTS line)
+      * CMake   : 4.3.2 (done) - pending cotire fix
+  - Updated all 3 Dev/ documents. Reported back; awaiting Step 3.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 3
+--------------------------------------------------------------------------------
+USER (Step 3):
+  - Provided their old LegionCore 7.3.5 README.md and asked to convert it for
+    Psycho_Core 8.3.7, removing anything that doesn't apply here.
+  - Report back for Step 4.
+
+AGENT (Step 3 actions):
+  - VERIFIED ACTUAL REPO STATE before writing (did NOT copy false claims):
+      * CURRENT_EXPANSION = EXPANSION_BATTLE_FOR_AZEROTH (7), build 34769,
+        patch 8.3.0  -> this is BfA, NOT Legion 7.3.5.
+      * C++ standard = C++14 (not C++20).
+      * Servers present: bnetserver + worldserver, proto (with Client/),
+        tools (map/vmap/mmap extractors).
+      * worldserver.conf.dist = 4191 lines / ~599 settings;
+        bnetserver.conf.dist = 403 lines.
+      * NOT present (so removed from README): SoloCraft, CMakePresets.json,
+        compile_deps/, docs/, BattlePay/Reforged content, MariaDB Connector
+        vendored source, setup_deps scripts.
+  - REMOVED Legion-specific / nonexistent content:
+      * Legion 26972 / EXPANSION_LEGION  -> BfA 34769 / BATTLE_FOR_AZEROTH.
+      * Reforged merge table, BattlePay, BrawlersGuild, Demon Invasion, etc.
+      * compile_deps, CMakePresets, docs/* links, SoloCraft section,
+        French->English config story, Windows-only toolchain claims we can't
+        verify, "bnetserver builds" green badge (we have NOT built yet).
+  - ADJUSTED to truth for this repo:
+      * Badges: CMake 4.3.2, C++14, Boost 1.83, OpenSSL 3.0 LTS,
+        MariaDB 10.6.3, BfA 8.3.0 (34769).
+      * Build status honestly marked "no full build verified yet" and lists
+        the P-01..P-04 blockers from Step 2.
+      * Repo layout, config knobs, requirements table all match real files.
+  - Wrote new /home/user/Psycho_Core-8.3.7/README.md (overwrote upstream TC one).
+  - Updated all 3 Dev/ documents. Reporting back; awaiting Step 4.
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 3b (follow-up to Step 3)
+--------------------------------------------------------------------------------
+USER:
+  - Remove the Dev/ folder block (Chatlog.txt / Changelog.txt /
+    Psycho_CoreREADME.txt) from README.md - dev stuff is private to user+agent.
+
+AGENT:
+  - Removed the Dev/ subtree from the README "Repository layout" code block.
+  - Also removed the "Dev tracking" row from the Highlights table (it likewise
+    advertised the Dev/ folder) so the README has NO reference to it anywhere.
+  - Verified: grep for Dev/ | Chatlog | Changelog | Psycho_CoreREADME in
+    README.md = CLEAN.
+  - Note: the Dev/ folder itself is kept on disk (private tracking); only its
+    mentions in the public README were removed.
+  - Updated all 3 Dev/ documents.
+
+
+--------------------------------------------------------------------------------
+ (New entries appended below as the conversation continues.)
+--------------------------------------------------------------------------------
