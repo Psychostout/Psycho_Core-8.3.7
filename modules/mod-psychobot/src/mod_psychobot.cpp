@@ -18,6 +18,8 @@
 #include "Log.h"
 #include "RBAC.h"
 #include "PsychobotMgr.h"
+#include "PsychobotPopulationMgr.h"
+#include "PsychobotAhBot.h"
 
 using namespace psychobot;
 
@@ -32,8 +34,12 @@ public:
     void OnConfigLoad(bool reload) override
     {
         bool enabled = sConfigMgr->GetBoolDefault("Psychobot.Enable", false);
-        TC_LOG_INFO("module.psychobot", "mod-psychobot config %s (Psychobot.Enable = %u).",
-            reload ? "reloaded" : "loaded", enabled ? 1 : 0);
+        // Stage 3/4: (re)load population/scaling + ahbot config too.
+        sPsychobotPopulation->LoadConfig();
+        sPsychobotAhBot->LoadConfig();
+        TC_LOG_INFO("module.psychobot", "mod-psychobot config %s (Psychobot.Enable = %u, RandomBots = %u).",
+            reload ? "reloaded" : "loaded", enabled ? 1 : 0,
+            sPsychobotPopulation->Config().enable ? 1 : 0);
     }
 
     void OnUpdate(uint32 diff) override
@@ -41,6 +47,7 @@ public:
         if (!sConfigMgr->GetBoolDefault("Psychobot.Enable", false))
             return;
         sPsychobotMgr->UpdateAI(diff);
+        sPsychobotAhBot->Update(diff);
     }
 };
 
@@ -73,6 +80,8 @@ public:
             { "add",    rbac::RBAC_PERM_COMMAND_GPS, false, &HandleAddCommand,    "" },
             { "remove", rbac::RBAC_PERM_COMMAND_GPS, false, &HandleRemoveCommand, "" },
             { "list",   rbac::RBAC_PERM_COMMAND_GPS, false, &HandleListCommand,   "" },
+            { "spec",   rbac::RBAC_PERM_COMMAND_GPS, false, &HandleSpecCommand,   "" },
+            { "group",  rbac::RBAC_PERM_COMMAND_GPS, false, &HandleGroupCommand,  "" },
         };
         static std::vector<ChatCommand> commandTable =
         {
@@ -101,6 +110,22 @@ public:
     {
         Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
         handler->SendSysMessage(sPsychobotMgr->ListBots(master).c_str());
+        return true;
+    }
+
+    static bool HandleSpecCommand(ChatHandler* handler, char const* args)
+    {
+        Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        std::string a = args ? args : "";
+        handler->SendSysMessage(sPsychobotMgr->SetSpec(master, a).c_str());
+        return true;
+    }
+
+    static bool HandleGroupCommand(ChatHandler* handler, char const* args)
+    {
+        Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        std::string name = args ? args : "";
+        handler->SendSysMessage(sPsychobotMgr->GroupBot(master, name).c_str());
         return true;
     }
 };

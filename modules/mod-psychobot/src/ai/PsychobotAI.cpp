@@ -9,6 +9,11 @@
 
 #include "PsychobotAI.h"
 #include "PsychobotStrategies.h"
+#include "PsychobotClassAI.h"
+#include "PsychobotTalentMgr.h"
+#include "PsychobotGearMgr.h"
+#include "PsychobotPopulationMgr.h"
+#include "PsychobotGroupMgr.h"
 #include "Player.h"
 #include "Unit.h"
 #include "MotionMaster.h"
@@ -29,16 +34,31 @@ namespace psychobot
 
     PsychobotAI::PsychobotAI(Player* bot, ObjectGuid masterGuid)
         : _bot(bot), _masterGuid(masterGuid), _state(BotState::NonCombat),
-          _updateDelay(0), _currentEngine(nullptr)
+          _updateDelay(0), _specApplied(false), _currentEngine(nullptr)
     {
         _nonCombatEngine = std::make_unique<Engine>(this);
         _combatEngine    = std::make_unique<Engine>(this);
+        _classAI         = std::make_unique<ClassAI>(this);
 
-        // Install the Stage 1 generic strategies (follow / basic combat).
+        // Install the generic strategies (follow / class-rotation combat).
         BuildNonCombatEngine(this, _nonCombatEngine.get());
         BuildCombatEngine(this, _combatEngine.get());
 
         _currentEngine = _nonCombatEngine.get();
+    }
+
+    void PsychobotAI::EnsureSpecAndTalents()
+    {
+        if (_specApplied || !_bot)
+            return;
+        // Stage 2: give the bot its class default spec + a basic talent build.
+        TalentMgr::SetupSpec(_bot, /*specIndex*/ -1, /*preferColumn*/ 0);
+        _specApplied = true;
+    }
+
+    std::string PsychobotAI::DoClassRotation(Unit* target)
+    {
+        return _classAI ? _classAI->DoRotation(target) : std::string();
     }
 
     PsychobotAI::~PsychobotAI() = default;
@@ -75,6 +95,18 @@ namespace psychobot
             return;
         _updateDelay = 0;
 
+        // Stage 3 scaling gate: SmartScale / BotActiveAlone /
+        // DisabledWithoutRealPlayer may pause this bot's AI to save CPU.
+        // (Master-owned alts stay active when random-bot scaling is disabled.)
+        if (!sPsychobotPopulation->ShouldBotBeActive(_bot))
+            return;
+
+        // One-time: ensure the bot has a spec + talents (Stage 2).
+        EnsureSpecAndTalents();
+
+        // Stage 3: keep gear roughly level-appropriate (cheap; persistence-gated).
+        GearMgr::GearUp(_bot);
+
         UpdateState();
 
         if (_currentEngine)
@@ -99,10 +131,15 @@ namespace psychobot
         if (!_bot)
             return nullptr;
 
-        // Prefer the bot's own victim; else mirror the master's selection.
+        // Prefer the bot's own victim if it's still valid.
         if (Unit* victim = _bot->GetVictim())
             return victim;
 
+        // In a group: assist the tank/leader (Stage 4 group play).
+        if (Unit* assist = GroupMgr::GetGroupAssistTarget(_bot))
+            return assist;
+
+        // Else mirror the master's selection.
         if (Player* master = GetMaster())
             if (Unit* sel = master->GetSelectedUnit())
                 return sel;

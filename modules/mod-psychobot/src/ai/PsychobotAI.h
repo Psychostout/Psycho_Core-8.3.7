@@ -61,6 +61,12 @@ namespace psychobot
 
         BotState GetState() const { return _state; }
 
+        // Class rotation entry point (used by the combat strategy).
+        std::string DoClassRotation(Unit* target);
+
+        // Apply BfA spec + talents to this bot (idempotent).
+        void EnsureSpecAndTalents();
+
     private:
         void   UpdateState();                  // combat vs non-combat engine swap
 
@@ -68,10 +74,12 @@ namespace psychobot
         ObjectGuid _masterGuid;
         BotState   _state;
         uint32     _updateDelay;               // ms accumulator (throttle)
+        bool       _specApplied;               // talents applied once
 
         std::unique_ptr<Engine> _nonCombatEngine;
         std::unique_ptr<Engine> _combatEngine;
         Engine*    _currentEngine;
+        std::unique_ptr<class ClassAI> _classAI;
     };
 }
 

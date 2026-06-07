@@ -1,0 +1,86 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ STAGE 2 - CLASSES + BfA TALENTS  : RESEARCH + PLAN  (Step 12.5)
+================================================================================
+
+1. BfA 8.3 TALENT MODEL (researched + verified vs our core)
+--------------------------------------------------------------------------------
+ - Talents = 7 rows (TierID 0-6) x 3 choices (ColumnIndex 0-2); rows unlock at
+   levels 15/30/45/60/75/90/100. Changed only in rested areas. (wowpedia/icy-veins)
+ - PvP talents = separate pool (3 chosen + 1 CC-breaker). Defer to a later stage.
+ - OUR CORE (verified):
+     TalentEntry { ID, TierID, ColumnIndex, ClassID, SpecID, SpellID, ... }
+     sTalentStore (DB2)  +  GetTalentsByPosition(class, tier, column).
+     ChrSpecializationEntry { ID, ClassID, OrderIndex, Role, ... }
+     sChrSpecializationStore + GetChrSpecializationByIndex(class,index) +
+       GetDefaultChrSpecializationForClass(class).
+     Player: SetPrimarySpecialization(specId), ActivateTalentGroup(spec),
+       LearnTalent(talentId,&onCd), GetPrimarySpecialization(),
+       LearnPvpTalent(...), ResetTalents().
+ => TALENT REWRITE = replace WotLK points/tabs with: pick spec -> activate spec
+    -> for tier 0..6 pick a column -> LearnTalent the talent at that position.
+
+2. FULL 8.3 SPEC/ROLE MATRIX (12 classes, 36 specs) - researched
+--------------------------------------------------------------------------------
+ Warrior(1)     : Arms dps, Fury dps, Protection tank
+ Paladin(2)     : Holy heal, Protection tank, Retribution dps
+ Hunter(3)      : BeastMastery dps(ranged+pet), Marksmanship dps(ranged), Survival dps(melee)
+ Rogue(4)       : Assassination dps, Outlaw dps, Subtlety dps (all melee)
+ Priest(5)      : Discipline heal, Holy heal, Shadow dps(caster)
+ DeathKnight(6) : Blood tank, Frost dps, Unholy dps(+ghoul) (melee)
+ Shaman(7)      : Elemental dps(caster), Enhancement dps(melee), Restoration heal
+ Mage(8)        : Arcane dps, Fire dps, Frost dps (all caster)
+ Warlock(9)     : Affliction dps, Demonology dps(+pet), Destruction dps (caster)
+ Monk(10)       : Brewmaster tank, Mistweaver heal, Windwalker dps(melee)
+ Druid(11)      : Balance dps(caster), Feral dps(melee), Guardian tank, Restoration heal
+ DemonHunter(12): Havoc dps(melee), Vengeance tank (ONLY 2 specs)
+
+3. ARCHITECTURE DECISION (verifiable now, fills out as data arrives)
+--------------------------------------------------------------------------------
+ PROBLEM: 36 hand-written rotations with exact 8.3 spell-name lists is huge AND
+ cannot be validated without the 8.3.7 client DB2 (spell IDs/names) which the
+ user doesn't have on this machine yet.
+ SOLUTION: a DATA-DRIVEN class-AI framework:
+   - PsychobotTalentMgr: BfA talent rewrite (spec + LearnTalent loop). Generic,
+     works for ALL classes/specs purely from DB2 (no per-class code).
+   - ClassAI (base) + a SPELL-PRIORITY rotation: each spec provides an ordered
+     list of spell NAMES (builders/spenders/cooldowns) + simple conditions
+     (target in melee/range, resource >= X, aura missing). The engine resolves
+     names -> known spell IDs at runtime via the ServerFacade (so it self-adapts
+     to whatever the client DB2 actually has; no hardcoded WotLK IDs).
+   - Per class: a ClassSpec table (specId/role/rotation names). DK = FULLY
+     populated vertical slice; other classes = spec rows registered + rotation
+     tables stubbed with their known signature spells (ready to refine once the
+     client DB2 is loaded and we can confirm names).
+ BENEFIT: compiles + runs now; class content = filling string tables, not new
+   C++ per spell; matches your "copy a class, edit names" workflow but data-driven.
+
+4. WHAT STAGE 2 DELIVERS THIS STEP
+--------------------------------------------------------------------------------
+ [x] PsychobotTalentMgr (BfA spec + talent application) - generic, all classes.
+ [x] ClassAI rotation engine (spell-priority, name-resolved, role-aware).
+ [x] ClassSpecRegistry: all 12 classes x their specs + roles (from the matrix).
+ [x] DK vertical slice: Blood/Frost/Unholy rotations populated (signature spells).
+ [x] All other classes: specs registered + rotation tables seeded with each
+     spec's signature spells (DPS first; heal/tank get a basic priority).
+ [x] Wire ClassAI into PsychobotAI (combat engine uses the class rotation;
+     non-combat still follows master from Stage 1).
+ [x] .psychobot spec <name> command hook to (re)apply talents/spec (optional).
+
+5. VERIFICATION PLAN
+--------------------------------------------------------------------------------
+ - Cross-check every core API used (talent/spec/spell) vs headers.
+ - Confirm name->id resolution path (ServerFacade.GetSpellIdByName) is the only
+   spell-name dependency (so missing DB2 only means "spell not found", not a crash).
+ - Brace/paren balance; include audit; loader unchanged.
+ - HONEST: rotations are seeded with researched signature spell NAMES; their
+   correctness/tuning is confirmed only after the 8.3.7 client DB2 is loaded.
+   The FRAMEWORK is complete and correct; per-spec spell lists are refinement.
+
+================================================================================

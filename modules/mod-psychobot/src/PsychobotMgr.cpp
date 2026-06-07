@@ -8,11 +8,15 @@
  */
 
 #include "PsychobotMgr.h"
+#include "PsychobotPopulationMgr.h"
+#include "PsychobotGroupMgr.h"
 #include "ai/PsychobotAI.h"
+#include "ai/PsychobotTalentMgr.h"
 #include "Player.h"
 #include "ObjectAccessor.h"
 #include "Config.h"
 #include "Log.h"
+#include <cstdlib>
 
 namespace psychobot
 {
@@ -104,6 +108,47 @@ namespace psychobot
         return out;
     }
 
+    std::string PsychobotMgr::SetSpec(Player* /*master*/, std::string const& args)
+    {
+        // Parse "<charname> <specIndex>".
+        std::string name = args;
+        int32 specIndex = -1;
+        size_t sp = args.find_last_of(' ');
+        if (sp != std::string::npos)
+        {
+            name = args.substr(0, sp);
+            specIndex = std::atoi(args.substr(sp + 1).c_str());
+        }
+        if (name.empty())
+            return "Usage: .psychobot spec <charactername> <specIndex 0-3>";
+
+        Player* bot = ObjectAccessor::FindConnectedPlayerByName(name);
+        if (!bot || !IsBot(bot->GetGUID()))
+            return "'" + name + "' is not an active Psychobot.";
+
+        // Reset to allow re-speccing, then apply the requested spec.
+        bot->SetPrimarySpecialization(0);
+        TalentMgr::SetupSpec(bot, specIndex, 0);
+        return "Re-specced Psychobot '" + bot->GetName() + "' to spec index "
+             + std::to_string(specIndex) + ".";
+    }
+
+    std::string PsychobotMgr::GroupBot(Player* master, std::string const& charName)
+    {
+        if (!master)
+            return "No master.";
+        if (charName.empty())
+            return "Usage: .psychobot group <charactername>";
+
+        Player* bot = ObjectAccessor::FindConnectedPlayerByName(charName);
+        if (!bot || !IsBot(bot->GetGUID()))
+            return "'" + charName + "' is not an active Psychobot.";
+
+        if (GroupMgr::InviteToGroup(master, bot))
+            return "Added '" + bot->GetName() + "' to your party (role assigned).";
+        return "Could not add '" + bot->GetName() + "' to your party (full / already grouped?).";
+    }
+
     void PsychobotMgr::OnPlayerLogout(Player* player)
     {
         if (!player)
@@ -125,6 +170,10 @@ namespace psychobot
 
     void PsychobotMgr::UpdateAI(uint32 diff)
     {
+        // Stage 3: drive the population/scaling system every tick (it decides
+        // which bots are active and, with Phase A, tops up the random-bot pool).
+        sPsychobotPopulation->Update(diff);
+
         if (_bots.empty())
             return;
 

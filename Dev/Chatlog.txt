@@ -876,3 +876,87 @@ AGENT: Built modules/mod-psychobot (renamed from skeleton), 13 files ~1066 LOC,
   CAVEAT: not compile-tested (no toolchain in sandbox); needs real build + 8.3.7
   client data (mmaps/vmaps/DB2) to fully test movement/spell-name resolution.
   Updated Dev docs. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12.5: BUILD STAGE 2 (Classes + BfA talents)
+--------------------------------------------------------------------------------
+USER: Research all classes (talents/specs/rotations); plan/verify; build Stage 2
+      (talent rewrite -> DK vertical slice -> 10 classes -> add Monk+DH); verify.
+
+AGENT: Researched BfA talent model (7x3 tiers, rested-area) + full 12-class/
+  36-spec/role matrix; verified core data (TalentEntry/ChrSpecializationEntry/
+  sDB2Manager APIs). Wrote plan 03_STAGE2_CLASSES_PLAN.txt. Built:
+   - PsychobotTalentMgr (generic BfA spec+talent application, all classes).
+   - PsychobotClassAI (data-driven spell-priority rotation, name-resolved via
+     ServerFacade -> no hardcoded IDs, unknown spells skipped safely).
+   - PsychobotClassRegistry (ALL 12 classes/36 specs; DK FULL vertical slice;
+     Monk+DH net-new; others seeded w/ signature spells).
+   - Wired into PsychobotAI (spec/talents on first tick; combat runs rotation);
+     added .psychobot spec command.
+  VERIFY: 15 files ~1557 LOC, balanced; APIs cross-checked; GetTalentsByPosition
+  bounds-safe (matches core); spec-before-talents ordering correct.
+  CAVEAT: rotations use researched signature spell NAMES; exact tuning confirmed
+  only after 8.3.7 client DB2 is loaded. Framework complete; not compile-tested.
+  Updated Dev docs. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12.6: BUILD STAGE 3 (World behaviour + scaling)
+--------------------------------------------------------------------------------
+USER: Build Stage 3 (population, gear/inventory/quest/travel + my Cata-Patch
+      scaling); verify; report.
+
+AGENT: Mined the user's Cata-Patch for exact scaling design+config keys, verified
+  core APIs, wrote plan 04_STAGE3_WORLD_PLAN.txt, then built:
+   - PsychobotPopulationMgr (random-bot population + FULL scaling system
+     replicated from user's Cata-Patch: BotActiveAlone, SmartScale,
+     DisabledWithoutRealPlayer, rotating roster, force-active near real players).
+   - PsychobotGearMgr (quality/level/proficiency-filtered gear logic; safe no-op
+     until item DB2 present).
+   - World-behaviour strategies: GrindAction (masterless bots seek+fight nearby
+     hostiles to level), RestAction; NoMasterTrigger.
+   - Wired: ShouldBotBeActive scaling gate + GearUp into AI tick; population tick
+     in PsychobotMgr; config (re)load in WorldScript; ~18 new conf keys.
+  VERIFY: 19 files ~2033 LOC, all balanced; every core API cross-checked; includes
+  consistent. CAVEAT: open-world SPAWN of new bots needs Phase A socketless login
+  (marked TODO); scaling/gear/world-behaviour logic complete on managed bots now;
+  exact gear item picks need 8.3.7 DB2. Not compile-tested.
+  Updated Dev docs. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12.7: BUILD STAGE 4 (Group content + extras)
+--------------------------------------------------------------------------------
+USER: Build Stage 4 (grouping/roles, dungeons/DF, BG/Arena tactics, ahbot,
+      hardening); verify; ALSO explain why we need client data (can't we find it
+      online?). Report.
+
+AGENT: Built Stage 4:
+   - PsychobotGroupMgr: party invite + LFG role assignment from spec, group
+     assist target, healer heal-target (most-injured member), BG/dungeon checks.
+   - Group-aware combat: GetCurrentTarget prefers group assist target; healers
+     route to GetGroupHealTarget (heal friendlies, not enemies).
+   - PsychobotAhBot scaffold (config-gated no-op until item DB2).
+   - .psychobot group command; ahbot ticked/config-loaded; conf keys added.
+  VERIFY: 23 files ~2409 LOC, all balanced; every Group/LFG/Ah API cross-checked
+  vs headers; Group() ctor public; includes complete.
+  CAVEAT: BG/dungeon TACTICS (map objectives) are framework-level; ahbot posting
+  + exact gear/spell picks need 8.3.7 client DB2; Phase A socketless login still
+  pending. Not compile-tested.
+  Also answered the "why client data" question (DB2 = server-side spell/item/
+  talent/map definitions; mmaps/vmaps = navmesh/LOS; can't be downloaded as
+  ready-to-use server files - must be extracted from a client by our tools).
+  Updated Dev docs. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12.8: FULL RE-AUDIT (pre-compile)
+--------------------------------------------------------------------------------
+USER: Re-check EVERYTHING - make sure we didn't miss anything. Report.
+AGENT: Ran a 29-point skeptical re-audit of mod-psychobot (4 stages, 23 files,
+  2409 LOC). All PASS: header/impl method parity; unique_ptr complete-type at
+  dtor; build collection recurses; SpecRole enum fwd-decl matches; all singleton
+  headers present; all std headers present; unique guards; aggregate inits match;
+  CanUseItem overload ok; DB2 calls qualified; default-arg only in header; full
+  build chain (modules->worldserver->AddModulesScripts->loader->AddSC) intact;
+  all 23 files MyCode-headered; everything OFF by default; earlier blockers still
+  fixed; only 2 safe-no-op TODOs; all braces balanced. No issues found.
+  Unchanged caveat: not compile-tested (no toolchain/client here); Phase A
+  socketless login is the one deferred feature. Updated Dev docs.

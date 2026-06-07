@@ -1,0 +1,72 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ STAGE 3 - WORLD BEHAVIOUR (V2) : PLAN  (Step 12.6)
+================================================================================
+ Goal: bots behave like players in the open world - a managed POPULATION that
+ levels/gears, plus per-bot world behaviour (rest, gather, quest stubs), plus
+ the user's Cata-Patch SCALING features (the production performance system).
+
+ SCOPE NOTE: full open-world random-bot population normally requires socketless
+ bot login (Phase A), which is deferred. So Stage 3 builds the COMPLETE
+ population + gear + scaling FRAMEWORK now (config-gated, verifiable), wired to
+ the same already-online management path as Stage 1, with the socketless-spawn
+ hook clearly marked for when Phase A lands. The SCALING/gear/world-behaviour
+ LOGIC is fully implemented and correct now.
+
+1. POPULATION MANAGER (PsychobotPopulationMgr) - replicates user's Cata-Patch
+--------------------------------------------------------------------------------
+ Replicated from YOUR Mangos-Bots Cata-Patch (same design + config keys):
+   - Min/Max random bots, per-interval add rate, min/max level, maxLevelChance.
+   - SmartScale: reduce active roster when world tick ms rises (diff floor/ceil).
+   - BotActiveAlone: only a % of bots tick when no real player nearby; rotating
+     active roster every N seconds; force-active within radius/zone/map/guild of
+     a real player.
+   - DisabledWithoutRealPlayer: bots inactive when no real player online; login/
+     logout delays.
+   - syncLevelWithPlayers: cap bot level to highest online real player.
+ Core APIs verified: TeleportTo, GiveLevel, World::GetAllSessions (count real
+ players), getLevel, GetMapId/zone.
+
+2. GEAR / INVENTORY (PsychobotGearMgr)
+--------------------------------------------------------------------------------
+   - GearUp(bot): give level-appropriate gear via StoreNewItemInBestSlots /
+     EquipNewItem (verified). Quality cap (randomGearQualityLimit),
+     preferClassArmorType, equipmentPersistence (stop re-rolling at a level).
+   - Basic inventory: ensure bags/food/drink (stubs that no-op safely until the
+     8.3.7 item DB2 is available to pick exact item IDs).
+   NOTE: exact item selection needs the client item DB2; framework picks by
+   class/armor-type/quality and degrades gracefully if data is absent.
+
+3. WORLD-BEHAVIOUR STRATEGY (non-combat additions)
+--------------------------------------------------------------------------------
+   Added to the non-combat engine (alongside Stage 1 follow):
+   - RestAction: eat/drink when low and out of combat (stub-safe).
+   - GrindAction (population bots only): when no master, wander/seek a nearby
+     hostile to fight (drives leveling). Master-owned bots keep following.
+   - Quest/vendor/repair: scaffolded actions that are safe no-ops until item/
+     quest data is wired (Stage 3 framework; refined later).
+
+4. CONFIG (mirrors user's keys)
+--------------------------------------------------------------------------------
+   Psychobot.RandomBots.Enable, Min/Max, MinLevel/MaxLevel, MaxLevelChance,
+   PerIntervalMin/Max, ActiveAlone, ActiveAloneDuration, ActiveAloneRadius,
+   SmartScale, SmartScaleDiffFloor/Ceiling, DisabledWithoutRealPlayer,
+   LoginDelay/LogoutDelay, SyncLevelWithPlayers, GearQualityLimit,
+   PreferClassArmorType, EquipmentPersistence, EquipmentPersistenceLevel.
+
+5. VERIFICATION
+--------------------------------------------------------------------------------
+   - Cross-check every core API (teleport/level/gear/quest/sessions) vs headers.
+   - Brace/paren balance + include audit.
+   - Confirm scaling math is sound and config-gated (off by default).
+   - HONEST: open-world SPAWNING of brand-new bots needs Phase A socketless
+     login (marked TODO); everything else (scaling decisions, gear logic,
+     world behaviour) is complete and operates on managed bots now.
+
+================================================================================

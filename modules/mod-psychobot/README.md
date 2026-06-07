@@ -16,15 +16,22 @@ Player-driven combat bots for **Psycho_Core 8.3.7** (TrinityCore BfA).
 Built on the module system; AI uses a clean-room ike3-style
 Strategy/Action/Value/Trigger engine.
 
-## Status: Stage 1 — Foundation + Main AI
-- ✅ Module skeleton + build wiring (loader, WorldScript tick, command).
-- ✅ AI engine core (Engine / Action / Trigger / Strategy).
-- ✅ `PsychobotMgr` singleton, ticked from `WorldScript::OnUpdate`.
-- ✅ `PsychobotAI` per-bot brain with a TC-8.3 "ServerFacade" seam
-  (spell cast, target, movement) — the only place that touches core combat APIs.
-- ✅ Generic strategies: **follow master** (non-combat) + **basic attack** (combat).
-- ⏳ Later stages: socketless auto-login, class rotations + BfA talents (Stage 2),
-  world population + travel (Stage 3), groups/dungeons/BG/ahbot (Stage 4).
+## Status: Stages 1–4 implemented
+- ✅ **Stage 1 — Foundation + Main AI:** module + AI engine (Engine/Action/Trigger/
+  Strategy), `PsychobotMgr` ticked from `WorldScript::OnUpdate`, `PsychobotAI`
+  per-bot brain with a TC-8.3 ServerFacade seam, follow + basic combat.
+- ✅ **Stage 2 — Classes + BfA talents:** generic `PsychobotTalentMgr` (spec +
+  7×3 talent grid), data-driven name-resolved spell-priority rotations for all
+  12 classes / 36 specs (DK full slice; Monk + Demon Hunter included).
+- ✅ **Stage 3 — World behaviour + scaling:** `PsychobotPopulationMgr`
+  (BotActiveAlone / SmartScale / DisabledWithoutRealPlayer), `PsychobotGearMgr`,
+  grind/rest world behaviour.
+- ✅ **Stage 4 — Group content + extras:** `PsychobotGroupMgr` (party invite +
+  LFG role assignment from spec, group assist target, healer heal-target),
+  group-aware combat, BG/dungeon awareness, `PsychobotAhBot` scaffold.
+- ⏳ Pending: **socketless auto-login (Phase A)** for offline alts + open-world
+  population spawning; exact spell/gear/AH item data (needs 8.3.7 client DB2);
+  per-spec rotation tuning; BG/dungeon tactic maps.
 
 > **V1 scope = "alts as bots":** Stage 1 manages a character that is **already
 > online**. Auto-login of offline alts (socketless `WorldSession`) is a later stage.
@@ -42,6 +49,8 @@ Strategy/Action/Value/Trigger engine.
 | `.psychobot add <charname>` | Take control of an online character as your bot (it follows + fights). |
 | `.psychobot remove <charname>` | Release a bot. |
 | `.psychobot list` | List your active bots. |
+| `.psychobot spec <charname> <0-3>` | Set the bot's specialization + talents. |
+| `.psychobot group <charname>` | Add the bot to your party (role auto-assigned). |
 
 ## Layout
 ```

@@ -36,6 +36,8 @@ namespace psychobot
         std::string AddBot(Player* master, std::string const& charName);
         std::string RemoveBot(Player* master, std::string const& charName);
         std::string ListBots(Player* master);
+        std::string SetSpec(Player* master, std::string const& args);   // "<name> <specIndex>"
+        std::string GroupBot(Player* master, std::string const& charName); // add bot to master's party
 
         // Called when a connected player whom we manage as a bot is detected,
         // or when a master logs out (cleanup).

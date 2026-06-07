@@ -51,6 +51,14 @@ namespace psychobot
         }
     };
 
+    // Active when the bot has no master (an open-world / population bot).
+    class NoMasterTrigger : public Trigger
+    {
+    public:
+        NoMasterTrigger(PsychobotAI* ai) : Trigger(ai, "no master") { }
+        bool IsActive() override { return _ai->GetMaster() == nullptr; }
+    };
+
     // ======================================================================
     // ACTIONS
     // ======================================================================
@@ -68,7 +76,7 @@ namespace psychobot
         }
     };
 
-    // Engage the current target with melee + autoattack.
+    // Engage the current target: run the class rotation + keep autoattack going.
     class AttackTargetAction : public Action
     {
     public:
@@ -85,16 +93,62 @@ namespace psychobot
             if (!_ai->IsAlive(target) || !bot->IsValidAttackTarget(target))
                 return false;
 
-            // Select + start attacking (autoattack); move into melee.
+            // Select + start autoattacking.
             bot->SetSelection(target->GetGUID());
-
             if (bot->GetVictim() != target)
                 bot->Attack(target, true);
 
-            // Close to melee range if needed.
+            // Positioning: melee specs chase; the rotation handles ranged casts.
             if (bot->GetDistance(target) > 5.0f)
                 bot->GetMotionMaster()->MoveChase(target);
 
+            // Stage 2: run the data-driven class rotation (casts a spell if one
+            // is known + usable; otherwise autoattack carries the fight).
+            _ai->DoClassRotation(target);
+            return true;
+        }
+    };
+
+    // World-behaviour: a masterless (population) bot seeks a nearby hostile to
+    // fight, which drives leveling. Master-owned bots use follow instead.
+    class GrindAction : public Action
+    {
+    public:
+        GrindAction(PsychobotAI* ai) : Action(ai, "grind") { }
+        bool IsUseful() override { return _ai->GetMaster() == nullptr; }
+        bool Execute(Event const& /*event*/) override
+        {
+            Player* bot = _ai->GetBot();
+            if (!bot)
+                return false;
+
+            // Find a nearby attackable hostile within a generous radius.
+            Unit* enemy = bot->SelectNearbyTarget(nullptr, 40.0f);
+            if (!enemy || !_ai->IsAlive(enemy) || !bot->IsValidAttackTarget(enemy))
+                return false;
+
+            bot->SetSelection(enemy->GetGUID());
+            bot->Attack(enemy, true);
+            bot->GetMotionMaster()->MoveChase(enemy);
+            return true;
+        }
+    };
+
+    // World-behaviour: rest when low and safe (placeholder - eat/drink wiring
+    // arrives with item data; for now it simply stops to regen via standing).
+    class RestAction : public Action
+    {
+    public:
+        RestAction(PsychobotAI* ai) : Action(ai, "rest") { }
+        bool IsUseful() override
+        {
+            Player* bot = _ai->GetBot();
+            return bot && !bot->IsInCombat() && bot->GetHealthPct() < 50.0f;
+        }
+        bool Execute(Event const& /*event*/) override
+        {
+            // Stop and let natural out-of-combat regen tick. (Food/drink later.)
+            _ai->StopMoving();
             return true;
         }
     };
@@ -103,16 +157,18 @@ namespace psychobot
     // STRATEGIES
     // ======================================================================
 
-    // Non-combat: keep up with the master.
+    // Non-combat: follow the master if owned; rest if hurt; otherwise (no
+    // master) grind nearby hostiles to level up.
     class FollowStrategy : public Strategy
     {
     public:
         FollowStrategy(PsychobotAI* ai) : Strategy(ai, "follow") { }
         void InitTriggers(std::vector<TriggerNode>& out) override
         {
-            // If far from master -> follow (high relevance). Always allow a
-            // low-relevance follow so the bot trails even when close.
             out.push_back({ "far from master", "follow master", 10.0f });
+            out.push_back({ "no master",       "rest",           6.0f });
+            out.push_back({ "no master",       "grind",          5.0f });
+            // Low-relevance trailing follow when owned + close.
             out.push_back({ "",                "follow master",  1.0f });
         }
     };
@@ -138,8 +194,11 @@ namespace psychobot
     {
         engine->RegisterTrigger(new HasTargetTrigger(ai));
         engine->RegisterTrigger(new FarFromMasterTrigger(ai));
+        engine->RegisterTrigger(new NoMasterTrigger(ai));
         engine->RegisterAction(new FollowMasterAction(ai));
         engine->RegisterAction(new AttackTargetAction(ai));
+        engine->RegisterAction(new GrindAction(ai));
+        engine->RegisterAction(new RestAction(ai));
     }
 
     void BuildNonCombatEngine(PsychobotAI* ai, Engine* engine)
