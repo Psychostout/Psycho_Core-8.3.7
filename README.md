@@ -152,6 +152,28 @@ Psycho_Core-8.3.7/
 
 ---
 
+## Modules
+
+Psycho_Core supports **drop-in modules** (AzerothCore `mod-<name>` style) via a
+top-level [`modules/`](modules/) folder that plugs into the core's script system.
+Modules support **static** linkage (compiled into `worldserver`) or **dynamic**
+linkage (separate `.so`/`.dll` with hot-reload).
+
+```bash
+cd modules && git clone <module-repo> mod-<name> && cd ..
+cmake -S . -B build -DMODULES=static && cmake --build build -j
+```
+
+- Template / example: [`modules/mod-skeleton/`](modules/mod-skeleton/)
+- Build a module: [`docs/HOW_TO_BUILD_A_MODULE.md`](docs/HOW_TO_BUILD_A_MODULE.md)
+- Install modules: [`docs/HOW_TO_INSTALL_MODULES.md`](docs/HOW_TO_INSTALL_MODULES.md)
+- Module folder docs: [`modules/README.md`](modules/README.md)
+
+> ⚠️ This is a **BfA 8.3.x** core — modules written for other cores/expansions
+> (e.g. AzerothCore WotLK 3.3.5) won't compile unmodified. Start from `mod-skeleton`.
+
+---
+
 ## World database (TDB)
 
 This core targets BfA **8.3.x**, so it uses the TrinityCore **TDB 837** database

@@ -414,5 +414,65 @@ AGENT (Step 8 actions):
 
 
 --------------------------------------------------------------------------------
+[2026-06-07] -- STEP 9
+--------------------------------------------------------------------------------
+USER (Step 9):
+  1. Implement module support.
+  2. Verify and fix any errors.
+  3. Make a skeleton module for THIS core + docs (README, how to build/install).
+  4. Compile an API reference (.txt) of important APIs (spells, talents, pathing,
+     etc.) for module authors; list anything missed.
+  5. Report back; wait for Step 10.
+
+AGENT (Step 9 actions):
+  IMPLEMENTED OPTION B (static default, dynamic allowed):
+    NEW   cmake/macros/ConfigureModules.cmake - module-base helpers
+          (GetModulesBasePath/GetModuleSourceList/ModuleNameToVariable/
+           GetProjectNameOfModuleName/GetLoaderNameOfModuleName/
+           IsDynamicLinkingModulesRequired/CopyModuleConfig + '-'->'_' handling).
+    NEW   modules/CMakeLists.txt - build engine mirroring scripts/CMakeLists.txt
+          (per-module static/dynamic, generated loader, install, conf copy,
+           optional <mod>.cmake include, WORLDSERVER_DYNAMIC_MODULES_DEPENDENCIES).
+    NEW   modules/ModulesLoader.cpp.in.cmake + modules/ModulesLoader.h
+          (generates AddModulesScripts()).
+    EDIT  CMakeLists.txt - include(ConfigureModules); add_subdirectory(modules)
+          placed BEFORE src so the target/deps var exist for worldserver.
+    EDIT  cmake/options.cmake - MODULES option (default "static"), per-module
+          MODULE_<N> cache vars, and IsDynamicLinkingModulesRequired -> force
+          BUILD_SHARED_LIBS if any module is dynamic.
+    EDIT  src/server/worldserver/CMakeLists.txt - link 'modules' + add_dependencies
+          on WORLDSERVER_DYNAMIC_MODULES_DEPENDENCIES.
+    EDIT  src/server/game/Scripting/ScriptMgr.cpp - forward-declare + call
+          AddModulesScripts() right after the static script loader in Initialize().
+
+  VERIFY + FIXES:
+    * CMake balance checks (if/foreach/function) all balanced.
+    * Confirmed lazy target resolution makes 'modules before src' ordering safe;
+      trinity-core-interface defined earlier (ConfigureBaseTargets L71).
+    * Confirmed CollectSourceFiles/CollectIncludeDirectories signatures + PARENT_
+      SCOPE behavior match the proven scripts/ usage.
+    * BUG FOUND + FIXED: skeleton called player->GetLevel(); this 8.3 tree uses
+      getLevel() (lowercase) - verified 42x getLevel vs 1x GetLevel in scripts.
+      Fixed mod_skeleton.cpp.
+    * Verified all skeleton APIs against real headers: PlayerScript(char const*),
+      WorldScript::OnConfigLoad(bool), ChatHandler(session).SendSysMessage,
+      sConfigMgr GetBoolDefault/GetStringDefault, TC_LOG_INFO printf-style,
+      all includes exist.
+
+  SKELETON MODULE (modules/mod-skeleton/):
+    src/mod_skeleton.cpp (PlayerScript+WorldScript+AddSC_mod_skeleton),
+    src/mod_skeleton_loader.cpp (Addmod_skeletonScripts),
+    conf/mod_skeleton.conf.dist, sql/world/mod_skeleton_example.sql,
+    mod-skeleton.cmake (optional hook), README.md.
+
+  DOCS:
+    docs/HOW_TO_BUILD_A_MODULE.md, docs/HOW_TO_INSTALL_MODULES.md,
+    modules/README.md, Dev/ModuleAPI_Reference.txt (sections 1-13 incl. a
+    "did I miss anything" checklist). README.md gained a Modules section.
+
+  - Updated Dev docs. Reporting back; awaiting Step 10.
+
+
+--------------------------------------------------------------------------------
  (New entries appended below as the conversation continues.)
 --------------------------------------------------------------------------------

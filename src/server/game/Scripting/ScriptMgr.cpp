@@ -1128,6 +1128,11 @@ ScriptMgr* ScriptMgr::instance()
     return &instance;
 }
 
+// Psycho_Core: provided by the always-built "modules" static library
+// (modules/ModulesLoader.h). Forward-declared here so the game library can
+// invoke it without depending on the modules include directory.
+void AddModulesScripts();
+
 void ScriptMgr::Initialize()
 {
     ASSERT(sSpellMgr->GetSpellInfo(SPELL_HOTSWAP_VISUAL_SPELL_EFFECT, DIFFICULTY_NONE)
@@ -1154,6 +1159,10 @@ void ScriptMgr::Initialize()
     ASSERT(_script_loader_callback,
            "Script loader callback wasn't registered!");
     _script_loader_callback();
+
+    // Psycho_Core: load all statically-linked modules (modules/ folder).
+    // AddModulesScripts() is provided by the always-built "modules" library.
+    AddModulesScripts();
 
     // Initialize all dynamic scripts
     // and finishes the context switch to do

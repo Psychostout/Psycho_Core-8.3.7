@@ -1,0 +1,236 @@
+================================================================================
+ PSYCHO_CORE 8.3.7 - MODULE API REFERENCE (for module authors)
+================================================================================
+ Core   : TrinityCore-based, World of Warcraft Battle for Azeroth 8.3.0 (34769)
+ C++    : C++14
+ Note   : Signatures below were taken from THIS repo's headers. Always re-check
+          the header (path given) - APIs differ from WotLK/3.3.5 cores.
+ If you think something important is missing, see section 13 (gaps/checklist).
+================================================================================
+
+
+1. SCRIPT SYSTEM ENTRY POINTS
+--------------------------------------------------------------------------------
+ Header: src/server/game/Scripting/ScriptMgr.h
+ - Every script is a subclass of one of the *Script base classes (below).
+ - Construct it with a globally-UNIQUE name string: MyScript("module_my_script").
+ - Register via a free function:  void AddSC_<name>() { new MyScript(); }
+ - A module's loader (Add<module>Scripts) calls each AddSC_*.
+ - Startup path: worldserver Main.cpp -> sScriptMgr->SetScriptLoader(AddScripts)
+   -> ScriptMgr::Initialize() runs AddScripts() then AddModulesScripts().
+
+
+2. SCRIPT BASE CLASSES (all in ScriptMgr.h, all TC_GAME_API)
+--------------------------------------------------------------------------------
+ SpellScriptLoader        - attach SpellScript/AuraScript to a spell
+ ServerScript             - packet send/recv, socket open/close
+ WorldScript              - OnConfigLoad, OnStartup, OnShutdown, OnUpdate, OnMotdChange
+ FormulaScript            - XP/honor/gray-level/group-rate formula tweaks
+ WorldMapScript / InstanceMapScript / BattlegroundMapScript - per-map logic
+ ItemScript               - OnUse, OnQuestAccept, OnExpire, OnRemove, OnCastItemCombatSpell
+ UnitScript               - OnDamage, OnHeal, generic unit calc hooks
+ CreatureScript           - GetAI() factory for creature AI (see ScriptedCreature.h)
+ GameObjectScript         - GO gossip/use/AI
+ AreaTriggerScript / OnlyOnceAreaTriggerScript - on enter areatrigger
+ BattlegroundScript / OutdoorPvPScript - PvP systems
+ CommandScript            - register chat commands (GM/.commands)
+ WeatherScript, AuctionHouseScript, ConditionScript, VehicleScript,
+ DynamicObjectScript, TransportScript, AchievementCriteriaScript,
+ PlayerScript, AccountScript, GuildScript, GroupScript,
+ AreaTriggerEntityScript, ConversationScript, SceneScript, QuestScript
+
+
+3. PlayerScript HOOKS  (ScriptMgr.h ~line 615; class PlayerScript : UnitScript)
+--------------------------------------------------------------------------------
+ Most-used module hooks (override only what you need):
+   OnLogin(Player*, bool firstLogin)        OnLogout(Player*)
+   OnCreate(Player*)                         OnDelete(ObjectGuid, uint32 account)
+   OnSave(Player*)                           OnLevelChanged(Player*, uint8 oldLevel)
+   OnGiveXP(Player*, uint32& amount, Unit* victim)   <-- can modify XP
+   OnMoneyChanged(Player*, int64& amount)            <-- can modify money
+   OnReputationChange(Player*, uint32 faction, int32& standing, bool incremental)
+   OnFreeTalentPointsChanged(Player*, uint32)        OnTalentsReset(Player*, bool noCost)
+   OnPVPKill(Player* killer, Player* killed)         OnCreatureKill(Player*, Creature*)
+   OnPlayerKilledByCreature(Creature*, Player*)
+   OnDuelRequest/Start/End(...)
+   OnChat(Player*, type, lang, std::string& msg [, target/group/guild/channel])
+   OnSpellCast(Player*, Spell*, bool skipCheck)
+   OnUpdateZone(Player*, uint32 newZone, uint32 newArea)   OnMapChanged(Player*)
+   OnQuestStatusChange(Player*, uint32 questId)
+   OnBindToInstance(...)  OnPlayerRepop(Player*)  OnMovieComplete(...)
+   OnPlayerChoiceResponse(Player*, choiceId, responseId)
+   OnTextEmote(...)  OnClearEmote(Player*)
+
+
+4. PLAYER API  (src/server/game/Entities/Player/Player.h)
+--------------------------------------------------------------------------------
+ Identity/session:
+   WorldSession* GetSession() const
+   std::string GetName() const           ObjectGuid GetGUID() const
+ Level / XP:
+   uint8 GetLevel() const                void GiveLevel(uint8 level)
+   void GiveXP(uint32 xp, Unit* victim)  (see Player.h)
+ Money:
+   uint64 GetMoney() const               bool ModifyMoney(int64 amount, bool sendError=true)
+ Items:
+   bool AddItem(uint32 itemId, uint32 count)
+ Teleport / position:
+   bool TeleportTo(uint32 mapId, float x, float y, float z, float o, ...)
+   (also TeleportTo(WorldLocation const&, ...))
+ Spells / talents (THIS is the BfA talent model - NOT 3.3.5 talent points):
+   bool HasSpell(uint32 spell) const
+   void LearnSpell(uint32 spellId, bool dependent, int32 fromSkill=0, ...)
+   void RemoveSpell(uint32 spellId, bool disabled=false, bool learnLowRank=true, ...)
+   void LearnSpellHighestRank(uint32 spellId)
+   TalentLearnResult LearnTalent(uint32 talentId, int32* spellOnCooldown)
+   bool ResetTalents(bool noCost=false)  uint32 GetNextResetTalentsCost() const
+   uint8 GetActiveTalentGroup() const    (specialization/talent group)
+   SpecializationInfo _specializationInfo (ResetTalentsCost/Time, ActiveGroup)
+ Persistence:
+   void SaveToDB(bool create=false)
+ NOTE: BfA uses specialization + PvP talents + class talents stored per spec;
+       there is no "free talent point" economy like WotLK. Use LearnTalent/
+       ResetTalents and the SpecializationInfo, not 3.3.5-era talent-point APIs.
+
+
+5. UNIT / COMBAT / AURA API  (src/server/game/Entities/Unit/Unit.h)
+--------------------------------------------------------------------------------
+ Spell casting (many overloads ~line 1324):
+   void CastSpell(Unit* victim, uint32 spellId, bool triggered, ...)
+   void CastSpell(Unit* victim, uint32 spellId, TriggerCastFlags=TRIGGERED_NONE, ...)
+   void CastSpell(float x,float y,float z, uint32 spellId, bool triggered, ...)
+   void CastSpell(GameObject* go, uint32 spellId, bool triggered, ...)
+ Auras:
+   Aura* AddAura(uint32 spellId, Unit* target)
+   bool HasAura(uint32 spellId, ...) const     Aura* GetAura(uint32 spellId, ...) const
+   void RemoveAura(...) / RemoveAurasDueToSpell(uint32 spellId)
+ Stats/health/power:
+   uint64 GetHealth()/GetMaxHealth(); void SetHealth(...); ModifyHealth(...)
+   GetPower(Powers)/SetPower(Powers, ...)
+   bool IsAlive()/IsInCombat(); void SetInCombatWith(Unit*)
+ Movement entry: GetMotionMaster() -> see section 6.
+
+
+6. PATHING / MOVEMENT  (src/server/game/Movement/MotionMaster.h)
+--------------------------------------------------------------------------------
+ Get via unit->GetMotionMaster(); key calls:
+   MoveIdle()                      MoveTargetedHome()
+   MoveRandom(float spawndist)     MoveFollow(Unit*, dist, angle, slot)
+   MoveChase(Unit*, dist, angle)   MoveConfused()   MoveFleeing(Unit*, time)
+   MovePoint(uint32 id, Position const&, bool generatePath=true)
+   MovePoint(uint32 id, x,y,z, bool generatePath=true)
+   MoveCloserAndStop(id, Unit*, distance)
+   MoveLand/MoveTakeoff(id, Position const&)
+   MoveCharge(x,y,z, speed=SPEED_CHARGE, id=EVENT_CHARGE, generatePath, target,...)
+   MoveCharge(PathGenerator const&, ...)
+   MoveKnockbackFrom(srcX, srcY, speedXY, speedZ, ...)
+   MoveJump(Position const&, speedXY, speedZ, id=EVENT_JUMP, hasOrientation, ...)
+   MoveJumpTo(angle, speedXY, speedZ)
+   MoveCirclePath(x,y,z, radius, clockwise, stepCount)
+   MoveSmoothPath(pointId, Position const* points, size, walk, fly)
+   MoveAlongSplineChain(pointId, dbChainId|chain, walk)
+   MoveFall(id=0)                  MoveSeekAssistance(x,y,z)
+   MovementExpired(bool reset=true)
+ Low-level pathing: src/server/game/Movement/PathGenerator.h (PathGenerator:
+   CalculatePath(x,y,z, forceDest=false); GetPath(); GetPathType()).
+ Requires mmaps extracted (mmaps_generator) for navmesh pathing.
+
+
+7. CREATURE AI  (src/server/game/AI/ + src/server/game/Scripting/ScriptedCreature.h)
+--------------------------------------------------------------------------------
+ - CreatureScript::GetAI(Creature*) returns a new CreatureAI subclass.
+ - Common bases: ScriptedAI, BossAI (with EventMap + SummonList).
+ - Key overrides: Reset(), JustEngagedWith(Unit*)/EnterCombat, UpdateAI(uint32 diff),
+   JustDied(Unit*), JustSummoned(Creature*), MovementInform(type, id),
+   DamageTaken(Unit*, uint32& damage), SpellHit(...), DoCast(...).
+ - EventMap (src/server/game/AI/CoreAI/...) for timed ability scheduling.
+ - SmartAI/SmartScripts (DB-driven AI) is also available.
+
+
+8. CHAT & COMMANDS  (src/server/game/Chat/Chat.h)
+--------------------------------------------------------------------------------
+ ChatHandler(player->GetSession()) then:
+   void SendSysMessage(char const* str, bool escape=false)
+   void SendSysMessage(uint32 stringEntry)              (localized)
+   void PSendSysMessage(fmt, args...)                   (printf-style)
+   bool HasPermission(uint32 permission) const
+ CommandScript: return a Trinity::ChatCommands::ChatCommandTable describing your
+   commands (name, rbac permission, console-allowed, handler). See existing
+   src/server/scripts/Commands/cs_*.cpp for the current 8.3 command syntax.
+ RBAC permissions: src/server/game/Accounts/RBAC.h (rbac::RBAC_PERM_*).
+
+
+9. GAMEOBJECTS / ITEMS / GOSSIP
+--------------------------------------------------------------------------------
+ GameObjectScript: OnGossipHello, OnGossipSelect, OnReportUse, GetAI(GameObject*).
+ ItemScript: OnUse(Player*, Item*, SpellCastTargets const&), OnQuestAccept, OnExpire, OnRemove.
+ Gossip (src/server/game/Miscellaneous/GossipDef.h):
+   player->PlayerTalkClass->GetGossipMenu().AddMenuItem(...);
+   AddGossipItemFor(player, icon, text, sender, action) helpers;
+   SendGossipMenuFor(player, npcTextId, guid); CloseGossipMenuFor(player);
+
+
+10. WORLD / EVENTS / TIME
+--------------------------------------------------------------------------------
+ World singleton: sWorld (src/server/game/World/World.h)
+   sWorld->GetIntConfig(...) / GetBoolConfig(...) / GetFloatConfig(...)
+   sWorld->SendWorldText(...), GetGameTime(), GetPlayerCount(), ShutdownServ(...)
+ Game events: sGameEventMgr (src/server/game/Globals/...)
+ Map access: sMapMgr (src/server/game/Maps/MapManager.h);
+   ObjectAccessor::FindPlayer(ObjectGuid), FindConnectedPlayer(...).
+ Scheduling inside a script: TaskScheduler (src/server/game/...),
+   or EventMap for AI. WorldScript::OnUpdate(uint32 diff) for global ticks.
+
+
+11. SPELLS / SPELLINFO / SPELLSCRIPT
+--------------------------------------------------------------------------------
+ SpellInfo: sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE)
+   (src/server/game/Spells/SpellInfo.h, SpellMgr.h). 8.3 spells are keyed by
+   (id, Difficulty) - always pass a Difficulty.
+ SpellScript / AuraScript (src/server/game/Spells/Auras/ + Spells/):
+   Hook handlers (OnEffectHitTarget, OnCast, OnHit, DoCheckCast, OnApply/OnRemove
+   for auras). Register via SpellScriptLoader::GetSpellScript()/GetAuraScript().
+ DBC/DB2 data: src/server/game/DataStores/DB2Stores.h (sSpellNameStore, etc).
+
+
+12. DATABASE ACCESS FROM A MODULE
+--------------------------------------------------------------------------------
+ Pools: WorldDatabase, CharacterDatabase, LoginDatabase (and HotfixDatabase).
+   QueryResult r = WorldDatabase.Query("SELECT ...");
+   WorldDatabase.Execute("UPDATE ...");
+   Prepared statements + async via CharacterDatabase.AsyncQuery(...).
+ Config: sConfigMgr->GetBoolDefault/GetIntDefault/GetStringDefault/GetFloatDefault
+   (src/server/shared/... Config). Module conf keys live under [worldserver].
+ Logging: TC_LOG_INFO/ERROR/DEBUG("module.<name>", "...", args)  (Log.h).
+ Module SQL auto-apply: insert into the DB's `updates_include` table a row
+   ('$/modules/mod-<n>/sql/<db>', 'MODULE') OR drop files in sql/custom/<db>/.
+
+
+13. GAPS / "DID I MISS ANYTHING?" CHECKLIST  (things module authors also need)
+--------------------------------------------------------------------------------
+ Important areas NOT to forget (present in this core; explore as needed):
+  [ ] RBAC permissions for commands  -> src/server/game/Accounts/RBAC.h
+  [ ] Localization / string entries  -> trinity_string table + GetTrinityString
+  [ ] Achievements/Criteria scripts  -> AchievementCriteriaScript
+  [ ] Conversations & Scenes (BfA)   -> ConversationScript, SceneScript
+  [ ] PlayerChoice (BfA UI choices)  -> PlayerScript::OnPlayerChoiceResponse
+  [ ] AreaTrigger entities (BfA)     -> AreaTriggerEntityScript / AreaTriggerAI
+  [ ] Battlegrounds/Arena & OutdoorPvP-> BattlegroundScript / OutdoorPvPScript
+  [ ] Guild/Group hooks              -> GuildScript / GroupScript
+  [ ] Vehicles                       -> VehicleScript
+  [ ] Transports / paths             -> TransportScript + spline chains
+  [ ] Phasing (PhaseShift)           -> PhasingHandler (src/server/game/Phasing)
+  [ ] Garrison/Scenario (Legion/BfA) -> src/server/game/... (if your module needs)
+  [ ] Hotfix DB2 data (BfA client)   -> hotfixes DB + DB2Stores
+  [ ] Anti-cheat / movement validation considerations for custom teleports
+  [ ] Threading: scripts run on the world/map update thread - avoid blocking;
+      use AsyncQuery + TaskScheduler. Dynamic modules can be hot-reloaded, so
+      don't hold raw pointers across reloads.
+  [ ] Save/persistence: custom per-character data -> own table in characters DB.
+
+ If you (the user) want any of the above expanded into copy-paste examples,
+ say which and I'll add them to the skeleton or this reference.
+
+================================================================================
+ END - cross-check signatures against the cited headers before relying on them.
+================================================================================

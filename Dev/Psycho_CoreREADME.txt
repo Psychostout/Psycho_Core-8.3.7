@@ -2,7 +2,7 @@
  PSYCHO_CORE 8.3.7  -  BUILD / PLAN / REFERENCE
 ================================================================================
  Maintained by: Arena.ai Agent + User
- Last updated  : 2026-06-07 (Step 8)
+ Last updated  : 2026-06-07 (Step 9)
  Repo path     : /home/user/Psycho_Core-8.3.7
  Upstream      : https://github.com/Psychostout/Psycho_Core-8.3.7
 ================================================================================
@@ -119,11 +119,26 @@
  [X] Step 7  - Deep Option B research. Confirmed AC modules/ system maps onto
                this repo with ~10/11 macros already present; wrote file-by-file
                plan (Dev/ModuleSupport_Research_Deep.txt). NO code changed. (DONE)
- [~] Step 8  - Added PsychoCore logo to README (under title + mid-page).
+ [X] Step 8  - Added PsychoCore logo to README (under title + mid-page).
                Final-verified Option B plan (static default CONFIRMED correct).
-               Implementation NOT started - awaiting user go/no-go. 
- [ ] Step 9  - (pending; implement Option B if approved)
+ [X] Step 9  - IMPLEMENTED module support (Option B, static default). Added
+               ConfigureModules.cmake + modules/ engine + loader; wired into
+               options/top CMake/worldserver/ScriptMgr. Built mod-skeleton +
+               docs (HOW_TO_BUILD/INSTALL, modules/README) +
+               Dev/ModuleAPI_Reference.txt. Fixed GetLevel->getLevel bug.
+               (Not compile-tested in sandbox - no toolchain.) (DONE)
+ [ ] Step 10 - (awaiting instructions)
  ...
+
+ MODULE SYSTEM FILES (Step 9):
+   cmake/macros/ConfigureModules.cmake
+   modules/CMakeLists.txt, modules/ModulesLoader.cpp.in.cmake, modules/ModulesLoader.h
+   modules/README.md, modules/mod-skeleton/* (src, conf, sql, .cmake, README)
+   docs/HOW_TO_BUILD_A_MODULE.md, docs/HOW_TO_INSTALL_MODULES.md
+   Dev/ModuleAPI_Reference.txt
+   EDITS: CMakeLists.txt, cmake/options.cmake,
+          src/server/worldserver/CMakeLists.txt,
+          src/server/game/Scripting/ScriptMgr.cpp
 
  CONFIRMED CHANGE INVENTORY (cumulative):
    MODIFIED: CMakeLists.txt (cmake 3.8->4.3.2)

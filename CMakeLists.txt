@@ -57,6 +57,7 @@ endif()
 include(CheckCXXSourceRuns)
 include(CheckIncludeFiles)
 include(ConfigureScripts)
+include(ConfigureModules)
 
 # set default buildoptions and print them
 include(cmake/options.cmake)
@@ -88,6 +89,13 @@ include(cmake/showoptions.cmake)
 
 # add dependencies
 add_subdirectory(dep)
+
+# add modules (top-level modules/ folder - Psycho_Core module system)
+# Configured BEFORE src so the "modules" target + dynamic-module deps exist
+# when worldserver / the static script loader reference them.
+if (NOT MODULES STREQUAL "none")
+  add_subdirectory(modules)
+endif()
 
 # add core sources
 add_subdirectory(src)

@@ -1,0 +1,26 @@
+-- ============================================================================
+-- Psycho_Core mod-skeleton : example WORLD database SQL
+-- ============================================================================
+-- This file is a NON-DESTRUCTIVE example. It does nothing on its own beyond a
+-- harmless no-op. Replace its contents with your module's real world data
+-- (creature_template additions, gossip, npc_text, etc).
+--
+-- HOW MODULE SQL IS APPLIED (Psycho_Core / TrinityCore auto-updater):
+--   The updater scans directories listed in the `updates_include` table of the
+--   target database and applies new .sql files recursively. Two ways to use it:
+--
+--   (A) QUICK: copy this file into the already-registered custom folder:
+--         sql/custom/world/
+--       It will be applied automatically on next worldserver start
+--       (Updates.EnableDatabases = 15, Updates.AutoSetup = 1).
+--
+--   (B) PROPER (per-module): register THIS module's sql/world folder once by
+--       inserting a row into the WORLD database's updates_include table:
+--         INSERT IGNORE INTO `updates_include` (`path`, `state`)
+--         VALUES ('$/modules/mod-skeleton/sql/world', 'MODULE');
+--       ('$' is replaced by your configured SourceDirectory at runtime.)
+--       After that, files dropped in this folder are auto-applied.
+-- ============================================================================
+
+-- No-op example (safe to run):
+SELECT 1;

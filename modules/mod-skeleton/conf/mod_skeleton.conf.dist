@@ -1,0 +1,23 @@
+########################################
+# Psycho_Core mod-skeleton configuration
+########################################
+#
+# Copy this file to "mod_skeleton.conf" (drop the .dist) in your server's
+# configs/modules directory, or merge the keys into worldserver.conf.
+# Keys are read with sConfigMgr (same as worldserver.conf).
+#
+[worldserver]
+
+#
+#    Skeleton.Enable
+#        Description: Master on/off switch for the skeleton module.
+#        Default:     0 (disabled)
+#
+Skeleton.Enable = 0
+
+#
+#    Skeleton.WelcomeMessage
+#        Description: System message shown to a player on login when enabled.
+#        Default:     "Welcome to Psycho_Core! (mod-skeleton example)"
+#
+Skeleton.WelcomeMessage = "Welcome to Psycho_Core! (mod-skeleton example)"

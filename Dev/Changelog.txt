@@ -224,6 +224,39 @@
 
 
 --------------------------------------------------------------------------------
+[2026-06-07] STEP 9 - IMPLEMENT MODULE SUPPORT (Option B) + SKELETON + DOCS
+--------------------------------------------------------------------------------
+[BUILD]  NEW cmake/macros/ConfigureModules.cmake (module-base helper macros).
+[BUILD]  NEW modules/CMakeLists.txt (module build engine; static/dynamic).
+[BUILD]  NEW modules/ModulesLoader.cpp.in.cmake + modules/ModulesLoader.h.
+[BUILD]  EDIT CMakeLists.txt: include(ConfigureModules); add_subdirectory(modules)
+           BEFORE src (guarded by MODULES != none).
+[BUILD]  EDIT cmake/options.cmake: add MODULES option (default "static"),
+           per-module MODULE_<N> cache vars, force shared libs if a module is
+           dynamic (IsDynamicLinkingModulesRequired).
+[BUILD]  EDIT src/server/worldserver/CMakeLists.txt: link 'modules' + depend on
+           WORLDSERVER_DYNAMIC_MODULES_DEPENDENCIES.
+[CORE]   EDIT src/server/game/Scripting/ScriptMgr.cpp: forward-declare and call
+           AddModulesScripts() after the static script loader in Initialize().
+[FIX]    Skeleton bug: GetLevel() -> getLevel() (this 8.3 tree uses lowercase).
+[MODULE] NEW modules/mod-skeleton/ (working example: PlayerScript + WorldScript,
+           loader, conf, example world SQL, optional .cmake, README).
+[DOC]    NEW docs/HOW_TO_BUILD_A_MODULE.md, docs/HOW_TO_INSTALL_MODULES.md,
+           modules/README.md, Dev/ModuleAPI_Reference.txt.
+[DOC]    README.md: added a "Modules" section.
+
+ MODULE SYSTEM: static default (matches core SCRIPTS default), dynamic allowed,
+ per-module overrides via MODULE_MOD_<NAME>; hot reload available with dynamic.
+ NOTE: not compile-tested in this sandbox (no cmake/boost/openssl/mariadb here);
+ verified by header/signature cross-check + CMake structure balance.
+
+--------------------------------------------------------------------------------
+ Files modified this step: 4 edits (CMakeLists.txt, options.cmake,
+   worldserver/CMakeLists.txt, ScriptMgr.cpp) + many new module/doc files.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
 [2026-06-07] STEP 8 - README LOGO + FINAL MODULE-PLAN VERIFICATION
 --------------------------------------------------------------------------------
 [ASSET]  Added assets/Psychocore.swordofsarg2.png (copied from user upload).
