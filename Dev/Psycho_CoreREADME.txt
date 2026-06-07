@@ -1,8 +1,15 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
 ================================================================================
  PSYCHO_CORE 8.3.7  -  BUILD / PLAN / REFERENCE
 ================================================================================
  Maintained by: Arena.ai Agent + User
- Last updated  : 2026-06-07 (Step 9)
+ Last updated  : 2026-06-07 (Step 12.4 - Stage 1 built)
  Repo path     : /home/user/Psycho_Core-8.3.7
  Upstream      : https://github.com/Psychostout/Psycho_Core-8.3.7
 ================================================================================

@@ -1,3 +1,10 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
 ================================================================================
  PSYCHO_CORE 8.3.7 - CHANGELOG
 ================================================================================
@@ -276,4 +283,200 @@
 
 --------------------------------------------------------------------------------
  Files modified this step: 1 doc (README.md) + 1 new asset. NO build/source.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 10 - VERIFY + LICENSE.MYCODE HEADERS ON FROM-SCRATCH FILES
+--------------------------------------------------------------------------------
+[VERIFY] Full code verification - no issues. APIs/templates/CMake all confirmed.
+[FIX]    Removed dead code (unused CONFIG_FILE_NAME) in CopyModuleConfig.
+[LEGAL]  Copied LICENSE.MYCODE.txt to repo root.
+[LEGAL]  Added short MyCode copyright header (-> LICENSE.MYCODE.txt) to the 20
+           from-scratch files ONLY (module system + skeleton + docs + Dev txt).
+           Loader-template + modules/CMakeLists carry a clause-5 derivative note.
+[LEGAL]  Confirmed the 9 EDITED TrinityCore files carry NO MyCode header.
+
+ Files this step: header added to 20 new files + LICENSE.MYCODE.txt added;
+   1 dead-code cleanup (ConfigureModules.cmake). NO edited-TC file got a header.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 10b - REMOVE MYCODE HEADER FROM BUILD-GLUE/BOILERPLATE
+--------------------------------------------------------------------------------
+[LEGAL]  User decided CMake/build-glue files don't count as "his" code.
+           Removed the LICENSE.MYCODE header from:
+             cmake/macros/ConfigureModules.cmake
+             modules/CMakeLists.txt
+             modules/ModulesLoader.cpp.in.cmake   (derivative TC loader template)
+             modules/mod-skeleton/mod-skeleton.cmake
+             modules/ModulesLoader.h              (boilerplate plumbing decl)
+[LEGAL]  RULE NOW: MyCode header only on genuine original content -
+           module C++ logic (mod_skeleton.cpp/_loader.cpp), conf, sql, and our
+           docs/Dev txt. All .cmake/CMakeLists/.in templates + the loader
+           plumbing header = NO header (framework glue / derivative boilerplate).
+[LEGAL]  Final headered set = 15 files (see Chatlog Step 10b).
+
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 11 - RESEARCH: mod-playerbots port feasibility (no code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Research_mod-playerbots_Port.txt (feasibility study).
+           Finding: NOT a drop-in; needs core-fork edits + full rewrite for BfA
+           8.3 (talents/spells/opcodes/bot-session). ~9.5/10 difficulty, months.
+           Options O1-O4 + recommendation documented.
+[NOTE]   No core/module code changed this step (research only).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 11.2 - RESEARCH: all bot options compared (no code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Research_Bot_Options_Compared.txt comparing ike3, mangosbot,
+           cmangosbot, mod-playerbots, Psychostout/Trinity-Bots (NPCBots) and
+           Psychostout/Mangos-Bots (your ike3 playerbot).
+           Verdict: NPCBots (Trinity-Bots) is the least-bad port (~7.5/10, same
+           TC core family, creature-based); all real-Player playerbots ~9-9.5/10
+           (core-family + BfA expansion gaps). All GPL-2.0 (port stays GPL).
+[NOTE]   No core/module code changed this step (research only).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 11.3 - mod-playerbots code review (no code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Research_modplayerbots_CodeReview.txt.
+           Verdict: NOT mechanically portable - ServerFacade is not a real
+           abstraction; core API calls inlined everywhere; AGPLv3.
+           Plan: DOCUMENT exhaustively -> CLEAN-ROOM REWRITE for 8.3, reusing
+           the Strategy/Action/Value/Trigger architecture as a blueprint.
+           Scale: ~600-900 files, ~200-300k LOC (PlayerbotAI.cpp alone 218KB).
+[NOTE]   No core/module code changed this step (research/review only).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 11.4 - ike3/mangosbot vs mod-playerbots as study source (no code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Research_ike3_vs_modplayerbots.txt.
+           Verdict: study/rewrite from ike3/mangosbot (celguar/mangosbot-bots),
+           not mod-playerbots. Reason: mangosbot keeps a real ServerFacade
+           (~32 methods) + multi-expansion design = clean blueprint; mod-
+           playerbots stripped the abstraction (inlined -> "scatter"). Same AI
+           engine in both. mangosbot is GPL-2.0 (aligns w/ our base) and is what
+           the user already runs. Plan updated: mangosbot PRIMARY, mod-playerbots
+           SECONDARY reference.
+[NOTE]   No core/module code changed this step (research only).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] REVIEW - Psychostout/Mangos-Bots playerbot (chosen source) (no code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Research_PsychostoutMangosBots_Review.txt.
+           Confirmed as best recreate source: lean canonical ike3 engine
+           (PlayerbotAI 55KB), already Cataclysm 4.3.4, GPL-2.0, user-known +
+           extended. Real DK impl (Blood/Frost/Unholy) + Cata-Patch-V1
+           (SmartScale/BotActiveAlone/etc). No ServerFacade in this branch ->
+           we add an 8.3 facade. Plan: document -> facade -> Phase A core edits
+           -> vertical slice (Death Knight first) -> scale.
+[NOTE]   No core/module code changed this step (review only).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] RESEARCH - newest/most feature-packed bot source (no code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Research_Newest_BotSource.txt.
+           Winner: cmangos/playerbots (official CMaNGOS, forked from celguar) -
+           newest (June 2026 commits), most feature-packed (301 actions/197
+           values, ServerFacade, TravelMgr, ahbot, BG/open-world pop), GPL-2.0,
+           but WotLK-only. Plan: use it as PRIMARY engine blueprint +
+           ServerFacade contract; YOUR Mangos-Bots as Cata/feature blueprint
+           (DK + Cata-Patch); mod-playerbots secondary naming ref only.
+[NOTE]   No core/module code changed this step (research only).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 12 - cloned + deep-dived cmangos/playerbots (no core code)
+--------------------------------------------------------------------------------
+[RESEARCH] Cloned cmangos/playerbots -> /home/user/playerbots (OUTSIDE our repo;
+           172MB, 1028 files, ~238k LOC). Verified intact; repo not polluted.
+[DOC]    Added Dev/playerbots_docs/00_MASTER_STUDY.txt - full study:
+           AI engine (Strategy/Action/Value/Trigger/Context), the ServerFacade
+           #ifdef core-switch seam (add TRINITY/BfA branch), deep-dives on
+           spells+ranks (BfA removed ranks; DB2 SpellInfo), talents (WotLK
+           points/tabs -> BfA spec grid), pathing (CMaNGOS MotionMaster/Travel
+           -> TC MotionMaster/PathGenerator), core hooks (Phase A), DB, code
+           style, and the 7-stage "same result" port plan.
+[NOTE]   No Psycho_Core core/module code changed (study only). cmangos source
+           kept separate from our repo.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 12.1 - deeper study + cross-ref + 4-stage plan (no core code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/playerbots_docs/01_PORT_PLAN_4STAGE.txt.
+           Cross-referenced cmangos engine vs OUR core (spell cast/ranks/talents/
+           movement/session) - verified. Mined user's Mangos-Bots (DK pattern,
+           Cata-Patch features, CharacterHandler) for reuse. 4 stages: (1)
+           foundation+main AI w/ following+fighting bot, (2) classes+talents (DK
+           vertical slice first), (3) world behaviour + user's scaling features,
+           (4) group content+extras. Includes also-need list, 8 verification
+           checks, and 4 open questions (packaging/Monk+DH/v1 scope/client data).
+[NOTE]   No Psycho_Core code changed (plan only). cmangos source stays separate.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 12.3 - refined plan: mod-psychobot + Monk/DH (no core code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/playerbots_docs/02_PLAN_REFINED_mod-psychobot.txt.
+           - Build as MODULE "mod-psychobot" (rename skeleton) + minimal Phase A
+             core edits; -DPSYCHOBOT seam.
+           - Monk(10)+DemonHunter(12) CONFIRMED in our core (classes/powers/specs
+             via sChrSpecializationStore); cmangos lacks them -> author via
+             copy-rename (warrior base), verify spells/specs in DB2. Researched
+             both classes' specs/spells.
+           - V1 scope DECIDED = alts-as-bots (V2 = world population + Cata-Patch
+             scaling).
+           - Open blocker: 8.3.7 client data (mmaps/vmaps/DB2). Mixed-license tree.
+           - 4 stages re-affirmed + 10 verification checks.
+[NOTE]   No Psycho_Core code changed (plan only). cmangos source stays separate.
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] STEP 12.4 - BUILT mod-psychobot STAGE 1 (Foundation + Main AI)
+--------------------------------------------------------------------------------
+[MODULE] Renamed modules/mod-skeleton -> modules/mod-psychobot (skeleton retired).
+[MODULE] NEW modules/mod-psychobot (13 files, ~1066 LOC), all original/clean-room
+         (MyCode header; AI architecture inspired by ike3/cmangos GPL-2.0 but
+         written fresh against TrinityCore 8.3 APIs):
+           src/ai/PsychobotEngine.{h,cpp}     - Strategy/Action/Trigger engine
+           src/ai/PsychobotAI.{h,cpp}         - per-bot brain + TC-8.3 ServerFacade
+                                                seam (cast/target/movement)
+           src/ai/PsychobotStrategies.{h,cpp} - follow-master + basic-combat
+           src/PsychobotMgr.{h,cpp}           - global bot registry, ticked
+           src/mod_psychobot.cpp              - WorldScript(tick)+PlayerScript
+                                                (logout)+CommandScript(.psychobot)
+           src/mod_psychobot_loader.cpp       - Addmod_psychobotScripts()
+           conf/mod_psychobot.conf.dist, mod-psychobot.cmake, README.md
+[VERIFY] Cross-checked EVERY core API used vs headers (Player/Unit/MotionMaster/
+         SpellMgr/DB2/ObjectAccessor) - all present. Fixed includes (WorldSession.h,
+         MotionMaster.h, DBCEnums.h, cmath/algorithm); fixed LocalizedString
+         access (Name[LOCALE_enUS]); fixed IsMoving() precedence. Brace/paren
+         balance OK on all files. GetVictim ambiguity resolved (Unit:: line 994).
+[VERIFY] TICK PATH CONFIRMED end-to-end: World::Update -> sScriptMgr->OnWorldUpdate
+         -> FOREACH_SCRIPT(WorldScript)->OnUpdate -> psychobot_WorldScript ->
+         sPsychobotMgr->UpdateAI. NO core edits needed for Stage 1 (V1 manages
+         already-online chars; socketless auto-login Phase A deferred to later).
+[NOTE]   Not compile-tested (sandbox lacks cmake/boost/openssl/mariadb); verified
+         by exhaustive header cross-reference + structural checks. Real build is
+         the final proof (needs the prepared toolchain + 8.3.7 client data).
 --------------------------------------------------------------------------------

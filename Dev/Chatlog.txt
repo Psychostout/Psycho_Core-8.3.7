@@ -1,3 +1,10 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
 ================================================================================
  PSYCHO_CORE 8.3.7 - PROJECT CHAT LOG
 ================================================================================
@@ -474,5 +481,398 @@ AGENT (Step 9 actions):
 
 
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 10
+--------------------------------------------------------------------------------
+USER (Step 10):
+  1. Verify everything is 100% coded, no issues.
+  2. Report what was written completely from scratch.
+  3. Add LICENSE.MYCODE header (commented, at top) to ONLY from-scratch files;
+     never on files we merely edited. (LICENSE.MYCODE.txt attached.)
+  4. Report; wait for Step 11.
+  USER RULE clarified: "if we write it from scratch it's mine; if it's edited
+  it's not mine." + "every file we write" + short-pointer header format.
+
+AGENT (Step 10 actions):
+  TASK 1 - VERIFICATION (no issues):
+    * Re-checked all skeleton APIs vs real headers: getLevel(), GetName()
+      (std::string const&), GetSession(), ChatHandler.SendSysMessage,
+      sConfigMgr Get*Default, PlayerScript(char const*), WorldScript,
+      OnLogin/OnLevelChanged/OnConfigLoad overrides - all correct.
+    * Loader-name regex (mod-skeleton -> Addmod_skeletonScripts) matches.
+    * Template vars (TRINITY_SCRIPTS_FORWARD_DECL/INVOKE/CURRENT_SCRIPT_PROJECT/
+      IS_DYNAMIC_SCRIPTLOADER) match between generator and template.
+    * CMake balance OK (if/foreach/function) in all new+edited cmake.
+    * C++ brace/paren balance OK. OpenSSLCrypto #if/#endif balanced.
+    * Cleaned 1 piece of dead code (unused CONFIG_FILE_NAME in CopyModuleConfig).
+    * NOTE: still not compile-tested (sandbox lacks cmake/boost/openssl/mariadb);
+      verified by header cross-check + structural balance.
+
+  TASK 2 - FROM-SCRATCH INVENTORY (see report). Base core = TrinityCore/MaNGOS
+    (NOT ours). Only the MODULE SYSTEM + skeleton + docs/Dev were written by us.
+
+  TASK 3 - LICENSE HEADERS:
+    * Copied LICENSE.MYCODE.txt into repo root.
+    * Added short-pointer MyCode header (Copyright (c) 2026 Psychostout, points
+      to LICENSE.MYCODE.txt) to the 20 from-scratch files ONLY:
+        cmake/macros/ConfigureModules.cmake, modules/CMakeLists.txt,
+        modules/ModulesLoader.cpp.in.cmake, modules/ModulesLoader.h,
+        modules/README.md, modules/mod-skeleton/{src/*.cpp, conf, sql, .cmake,
+        README}, docs/HOW_TO_*.md, Dev/*.txt.
+    * HONESTY NOTE: ModulesLoader.cpp.in.cmake and modules/CMakeLists.txt mirror
+      TrinityCore GPL templates; their headers include a clause-5 note that
+      proprietary claims cover only the original from-scratch portions.
+    * Verified the 9 EDITED TC files carry NO MyCode header (correct).
+    * Verified headers didn't break file structure (braces/guards/cmakedefine).
+
+  - Updated Dev docs. Reporting back; awaiting Step 11.
+
+
+--------------------------------------------------------------------------------
  (New entries appended below as the conversation continues.)
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 10b (follow-up)
+--------------------------------------------------------------------------------
+USER: CMake files don't count as his code.
+AGENT:
+  - Removed MyCode header from all CMake/build-glue + loader boilerplate:
+    ConfigureModules.cmake, modules/CMakeLists.txt, ModulesLoader.cpp.in.cmake,
+    mod-skeleton.cmake, and ModulesLoader.h (plumbing decl).
+  - Recommended (and applied) removing it from ModulesLoader.h too for a clean,
+    defensible rule: header only on real source/config/sql/docs.
+  - FINAL headered set (15): Dev/*.txt (6), docs/HOW_TO_*.md (2),
+    modules/README.md, modules/mod-skeleton/README.md,
+    mod-skeleton/{conf, sql, src/mod_skeleton.cpp, src/mod_skeleton_loader.cpp}.
+  - Edited TC files: still zero headers.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 11
+--------------------------------------------------------------------------------
+USER: Question - module system is close to AzerothCore's; how hard to port
+      mod-playerbots? Research/review and report; wait for Step 12.
+
+AGENT (research only, nothing built):
+  - Clarified the misconception: only our BUILD/MODULE SYSTEM is AC-like; that's
+    the easy 1%. mod-playerbots depends on hundreds of GAME-ENGINE APIs that are
+    totally different between AC (WotLK 3.3.5) and this core (TC BfA 8.3).
+  - CONFIRMED via multiple authoritative sources (mod-playerbots wiki, deepwiki,
+    ZhengPeiRu21/liyunfan1223 READMEs): mod-playerbots is NOT a drop-in - it
+    REQUIRES a custom AzerothCore FORK with base-code modifications. It ships its
+    own azerothcore-wotlk 'Playerbot' branch containing core edits.
+  - Scale: hundreds of files, ~200-300k LOC (ike3 -> mangosbot -> AC lineage),
+    full Strategy/Action/Value AI driving real Player objects.
+  - Verified the hard blockers in OUR headers:
+      * WorldSession ctor REQUIRES a WorldSocket (bots need socketless sessions
+        -> core edit).
+      * BfA talents (SpecializationInfo/GetActiveTalentGroup) vs 3.3.5 talent
+        points -> all talent/build logic must be rewritten.
+      * 465 BfA opcode handlers / DB2 items / different spells -> rotations etc.
+        all WotLK-specific and must be rewritten.
+  - Verdict: ~9.5/10 difficulty; months of full-time engine work; not a feasible
+    solo/noob port. Wrote full feasibility report to
+    Dev/Research_mod-playerbots_Port.txt with options O1-O4 and a recommendation
+    (check for an existing BfA bot first; else a small from-scratch companion
+    module is the only near-term win; full port = long roadmap, do core bot-
+    session support as Phase A first).
+  - Updated Dev docs. Awaiting Step 12.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 11.2
+--------------------------------------------------------------------------------
+USER: What about ike3? mangosbot? cmangosbot? Psychostout/Trinity-Bots? And my
+      own Psychostout/Mangos-Bots playerbot? Review/research ALL options. Wait 12.
+
+AGENT (research only, nothing built):
+  - Looked at both user repos directly + the wider bot ecosystem.
+  - KEY FRAMING: every bot project is on the wrong side of TWO gaps vs our core:
+      GAP1 core family (MaNGOS/CMaNGOS/AC vs TrinityCore),
+      GAP2 expansion (Vanilla/TBC/WotLK/Cata vs BfA 8.3). None target BfA8.3 TC.
+  - Family tree: Blueboy->ike3->{mangosbot(CMaNGOS), cmangosbot, AC mod-playerbots}
+      = SAME PlayerbotAI lineage (real-Player bots). NPCBots(trickerer)=DIFFERENT
+      (pet-like AI creatures).
+  - FINDINGS:
+      * Psychostout/Trinity-Bots = YOUR fork of trickerer NPCBots; explicitly
+        "TrinityCore 3.3.5 / AzerothCore wotlk"; pet-like minions; weekly-updated
+        v5.4.619a; ships as NPCBots.patch + SQL. SAME CORE FAMILY as us.
+      * Psychostout/Mangos-Bots/.../playerbot = YOUR ike3/mangosbot playerbot on
+        Mangos/CMaNGOS; v3 active; Cata-Patch in progress. Real immersive bots.
+  - DIFFICULTY RANKING to port -> Psycho_Core 8.3.7 (easiest first):
+      1) Trinity-Bots NPCBots ~7.5/10 (TC family + creature-based; avoids the
+         socketless-Player problem) -- LEAST BAD.
+      2) mod-playerbots (AC)  ~9.0/10  3) your Mangos-Bots playerbot ~9.5/10
+      4) mangosbot/cmangosbot ~9.5/10  5) ike3 (MaNGOS) ~9.5/10.
+  - RECOMMENDATION: for bots on 8.3 SOON -> start with NPCBots (Trinity-Bots),
+    same core family, avoids worst blocker, live 3.3.5 TC reference to diff.
+    For true ike3 immersive bots -> multi-month engine project (PhaseA bot-
+    session support in our core, PhaseB rewrite AI+rotations+talents for 8.3);
+    consider doing it on a closer core (your Cata) first.
+  - LICENSE note: all are GPL-2.0; any port stays GPL, NOT LICENSE.MYCODE.
+  - Wrote Dev/Research_Bot_Options_Compared.txt. Awaiting Step 12.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 11.3
+--------------------------------------------------------------------------------
+USER: Expansion they were made for isn't a worry; writing new content is fine.
+      Verify if any mod-playerbots code is "close"/reusable, OR if we should
+      document it extensively and rewrite for my core. Wants to study EVERY file.
+
+AGENT (code review only, nothing built):
+  - Reviewed mod-playerbots source via GitHub API (787*, pure C++, ~34MB).
+  - DECISIVE FINDING: ServerFacade (the supposed abstraction) is TINY (~2.4KB
+    .cpp, ~5 helper methods). It does NOT abstract the core API -> AzerothCore/
+    WotLK calls are INLINED across hundreds of files. No seam to swap.
+    => Code is NOT mechanically portable. DOCUMENT + REWRITE is correct.
+  - Mapped architecture: Bot/PlayerbotAI.cpp=218KB(!), RandomPlayerbotMgr=106KB,
+    PlayerbotMgr=65KB, PlayerbotAIConfig=57KB. Ai/Base = the engine:
+    ~282 Actions, ~167 Values, ~91 Strategies, ~37 Triggers + Context registries.
+    Ai/Class = 10 classes (WotLK rotations). Mgr/{Talent,Move,Item,Travel,...},
+    Db repositories, Script loader/secure-login. ~600-900 files, ~200-300k LOC.
+  - Classified every area: reuse the Strategy/Action/Value/Trigger ARCHITECTURE
+    as a blueprint; REWRITE all files for 8.3; CORE edits (socketless bot
+    sessions, tick-drive, ObjectAccessor, login) = Phase A "fork" work in OUR src.
+  - LICENSE: their code is AGPLv3 (stickier than our GPLv2). Recommend CLEAN-ROOM
+    (document behaviour/structure -> write fresh 8.3 source), not copy-paste.
+  - Proposed doc-then-rewrite plan (Dev/playerbots_docs/: ARCHITECTURE, FILE_MAP,
+    API_MAP, CORE_EDITS, DB_SCHEMA) + vertical-slice-first build order.
+  - Wrote Dev/Research_modplayerbots_CodeReview.txt. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 11.4
+--------------------------------------------------------------------------------
+USER: Wouldn't ike3 be better to study and rewrite, as it's not so scattered?
+
+AGENT (research only, nothing built):
+  - Compared celguar/mangosbot-bots (ike3, CMaNGOS) vs mod-playerbots (AC).
+  - VERDICT: User is RIGHT - study/rewrite from ike3/mangosbot, NOT mod-playerbots.
+    BUT the real reason isn't folder layout (mangosbot is actually a big FLAT
+    folder; mod-playerbots is sorted into Bot/Ai/Mgr/Db). The real reason:
+      * mangosbot ServerFacade = ~11KB / ~32 wrapped methods (IsAlive, IsInFront,
+        GetDistance, IsSpellReady, IsHostileTo, IsInCombat, GetChaseTarget...)
+        -> a REAL abstraction seam = a ready-made "core API contract" to
+        reimplement for 8.3.
+      * mod-playerbots ServerFacade = ~5.7KB / ~9 methods (abstraction STRIPPED
+        when AC-locked -> core calls inlined everywhere = the "scatter").
+      * mangosbot built for 3 expansions (conf .in/.tbc/.wotlk) -> multi-
+        expansion discipline = template for adding 8.3.
+  - Same AI engine in both (Action/Trigger/Value/Strategy/Engine/Context;
+    mangosbot ~269 actions / ~183 values) -> no architectural loss studying ike3.
+  - COUNTERWEIGHT (honest): mangosbot is CMaNGOS family; AC reads a bit closer to
+    TrinityCore on API NAMES. But we're doing a CLEAN-ROOM REWRITE, so name
+    proximity barely matters; the clean contract matters more.
+  - BONUS: you already run/know mangosbot (your Mangos-Bots embeds it); GPL-2.0
+    aligns with our base (mod-playerbots is AGPLv3).
+  - Revised plan: doc-then-rewrite STANDS, but PRIMARY source = mangosbot,
+    mod-playerbots = SECONDARY reference (modern fixes + AC->TC name hints).
+    Top-value doc = SERVERFACADE_CONTRACT.md (mangosbot's ~32 methods -> 8.3 API).
+  - Wrote Dev/Research_ike3_vs_modplayerbots.txt. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP (post-11.4): REVIEW Psychostout/Mangos-Bots playerbot
+--------------------------------------------------------------------------------
+USER: We should use THIS - study and recreate. I've done a lot incl. DK files:
+      github.com/Psychostout/Mangos-Bots/.../playerbot. Go check it out.
+
+AGENT (review only, nothing built):
+  - Confirmed it's the canonical ike3/mangos playerbot, pushed today.
+  - YOUR base = MaNGOS Three CATACLYSM 4.3.4 ("Latest_Mangos-Bots-dkfixed")
+    -> already one expansion closer to BfA than the WotLK sources. GPL-2.0.
+  - Engine is LEAN: PlayerbotAI.cpp 55KB (vs mod-playerbots 218KB). Same ike3
+    architecture (Engine/Strategy/Action/Value/Trigger/Context). strategy/ has
+    ~174 actions, ~113 values, ~16 triggers, all 10 classes.
+  - NO ServerFacade in this branch (earlier/leaner lineage; core APIs called
+    directly via playerbot.h). -> For our 8.3 recreate we'll ADD a facade seam.
+  - YOUR DK WORK is REAL + complete-looking: Blood/Frost/Unholy strategies,
+    DKActions/DKTriggers/DKMultipliers/DKReactionStrategy, 18KB DK context.
+    UnholyDKStrategy uses correct ike3 NamedObjectFactory + NextAction P/A/C
+    pattern with proper (Cata-era) Unholy rotation. Solid per-class template.
+  - YOUR Cata-Patch-V1 (Dev_referance/Cata-Patch-1) adds production-grade
+    features: BotActiveAlone, SmartScale (load-based reduction),
+    DisabledWithoutRealPlayer, AltBot auto-login, gear quality/ilvl caps,
+    EquipmentPersistence, MaintenanceStrategy, WaitForAttackStrategy, lvl 85.
+    Largely expansion-agnostic logic -> high reuse value as DESIGN.
+  - VERDICT: best source to recreate from (lean, known, extended by you, GPL-2.0,
+    already Cata). Plan: DOCUMENT (capture your DK + Cata-Patch as templates) ->
+    ADD 8.3 ServerFacade -> Phase A core edits -> vertical slice = Death Knight
+    first -> scale out.
+  - Wrote Dev/Research_PsychostoutMangosBots_Review.txt. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP: newest/most feature-packed bot source
+--------------------------------------------------------------------------------
+USER: What's the absolute newest ike3/mangosbot/cmangosbot? most feature-packed?
+      best starting point? Have a look and report.
+
+AGENT (research only, nothing built):
+  - Compared celguar/mangosbot-bots, cmangos/playerbots, ike3/mangosbot-bots,
+    conan513/mangosbot-bots.
+  - WINNER: cmangos/playerbots (official CMaNGOS module, forked FROM celguar).
+      * NEWEST: real code commits 2026-06-04 (DK quest tests, wotlk movement-loop
+        fix, bot enchant DB tables) vs celguar's code freeze ~Jan 2026 (recent =
+        CI YAML only). ike3 stale 2024, conan513 dead 2023.
+      * MOST FEATURE-PACKED: 301 actions / 197 values (most of family), generic
+        strategy 113 files, ServerFacade (6.5KB seam), TravelMgr, ahbot (AH bot),
+        open-world + BG/Arena population, alt-as-bot, DungeonFinder, very detailed
+        config. 114*, 227MB. GPL-2.0. Multi-expansion conf+SQL (vanilla/tbc/wotlk).
+      * LIMITATION: tops out at WotLK 3.3.5 (not Cata).
+  - RELATION TO YOUR REPO: cmangos/playerbots = newest ENGINE + most features
+    (WotLK); YOUR Mangos-Bots = CATA 4.3.4 (closer to BfA) + your DK + Cata-Patch
+    scaling. They're COMPLEMENTARY.
+  - RECOMMENDATION: PRIMARY engine blueprint = cmangos/playerbots (+ its
+    ServerFacade contract); EXPANSION/FEATURE blueprint = your Mangos-Bots (Cata
+    content, DK, SmartScale/BotActiveAlone); mod-playerbots = secondary AC->TC
+    naming reference only (AGPLv3, don't copy).
+  - Wrote Dev/Research_Newest_BotSource.txt. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12: clone + deep-dive cmangos/playerbots
+--------------------------------------------------------------------------------
+USER: Clone cmangos/playerbots. Review/research/study/verify everything; deep
+      dive APIs/spells/spell-ranks/talents/pathing; learn its AI + code style;
+      "change it for me but so we get the same result". Report; wait for next.
+
+AGENT (study only - source cloned OUTSIDE our repo, nothing built into core):
+  - Cloned to /home/user/playerbots (172MB, 1028 files, HEAD e869279 Jun-2026).
+    Verified intact; our Psycho_Core repo NOT polluted.
+  - ~238k LOC. Engine = ike3 Strategy/Action/Value/Trigger + AiObjectContext
+    registries. Biggest: PlayerbotAI.cpp 8661, PlayerbotFactory 5707,
+    RandomPlayerbotMgr 4685, MovementActions 4459, Travel* ~6.6k.
+  - KEY INSIGHT (the porting seam): ServerFacade.h already SWITCHES CORES via
+    #ifdef MANGOS / #ifdef CMANGOS / MANGOSBOT_ZERO|ONE|TWO (=Classic|TBC|WotLK,
+    set by CMAKE_PROJECT_NAME). To get the SAME RESULT on our core we ADD a
+    #ifdef TRINITY (BfA 8.3) branch to ServerFacade + every #ifdef site. Most
+    behaviour code calls sServerFacade.* and stays unchanged.
+  - DEEP-DIVE on the 4 hard subsystems:
+     * SPELLS/RANKS: ChatHelper maps names->ids from SpellStore; CastSpell picks
+       highest known RANK via spell-chain APIs. BfA 8.3 REMOVED spell ranks
+       (one spell per ability) + uses SpellInfo via sSpellMgr->GetSpellInfo(id,
+       DIFFICULTY) on DB2/hotfix (not DBC). -> drop rank logic, rebuild name map
+       on DB2, re-author class spell lists (your DK = template).
+     * TALENTS: Talentspec = WotLK point/tab trees (TalentEntry/TalentTabEntry,
+       GetTalentPoints). BfA = specialization + 7-row/3-choice grid + PvP talents
+       (our SpecializationInfo/LearnTalent). -> full rewrite of Talentspec +
+       Factory::InitTalents; spec-keyed strategy selection (Blood/Frost/Unholy
+       maps cleanly to specs).
+     * PATHING: MovementActions uses CMaNGOS MotionMaster (MovePoint/MovePath +
+       FORCED_MOVEMENT_* flags) + TravelMgr/TravelNode nav graph + mmaps. ->
+       rewrite on TC MotionMaster/PathGenerator, map movement flags, rebuild
+       Travel nodes for 8.3 maps (start minimal).
+     * CORE HOOKS (Phase A in OUR src): bot WorldSession w/o socket, tick-drive
+       UpdateSessions, ObjectAccessor/Map register, PlayerbotLoginMgr login,
+       playerbots DB, command registration.
+  - DB: sql/ split characters/world/other + per-expansion (classic/tbc/wotlk).
+  - Code style: namespace ai; tiny name-registered Action/Value/Trigger classes;
+    #ifdef core seams; sPlayerbotAIConfig; Perf/MemoryMonitor for scaling.
+  - "SAME RESULT" PLAN (7 stages): document -> ServerFacade TRINITY branch ->
+    Phase A core edits -> engine up (follow/move/basic combat) -> spell layer
+    (DB2, no ranks) -> talents (BfA spec) -> VERTICAL SLICE Death Knight ->
+    scale (classes, RandomPlayerbotMgr, travel, BG/dungeon, ahbot, your
+    Cata-Patch features). ~80-90% of AI logic ports with light edits; heavy
+    work = facade + Phase A + spells/talents/pathing + re-authoring class content.
+  - Wrote Dev/playerbots_docs/00_MASTER_STUDY.txt. Awaiting next step.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12.1: deeper study + cross-ref + 4-stage plan
+--------------------------------------------------------------------------------
+USER: Deeper research/study; cross-reference with my core; steal ideas from my
+      Mangos-Bots; plan into 4 stages (main AI, classes, then the rest);
+      anything else we need; verify the plan; report - I'll say go or not.
+
+AGENT (research/plan only - NOTHING built into core):
+  - DEEPER STUDY: PlayerbotAI::CastSpell builds Spell+prepare(SpellCastTargets);
+    UpdateAI -> UpdateAIReaction -> UpdateAIInternal drives engines per BotState
+    (combat/non-combat). PlayerbotMgr::UpdateSessions ticks per-bot WorldSessions
+    via QueuePacket; OnPlayerLogin attaches master mgr; bots are real Players on
+    a bot WorldSession (no client socket).
+  - CROSS-REF vs OUR core (verified):
+     * Spell::prepare(SpellCastTargets const*) EXISTS; prefer bot->CastSpell;
+       GetSpellInfo needs Difficulty arg (DIFFICULTY_NONE).
+     * Rank APIs (SpellChainNode/GetRank/GetFirstRankSpell) STILL present -> rank
+       code won't break (mostly no-op on BfA). Not a hard blocker.
+     * Talents = BfA spec model (SpecializationInfo/LearnTalent) -> full rewrite.
+     * WorldSession ctor needs shared_ptr<WorldSocket> -> bot = dummy/null socket
+       + guard sends; tick via World::Update m_sessions loop.
+  - STOLE FROM YOUR WORK: your DK uses identical NamedObjectContext<Strategy>
+    pattern -> drops into cmangos engine; your Cata-Patch scaling features
+    (BotActiveAlone/SmartScale/etc) = expansion-agnostic, fold into Stage 3;
+    your Cata CharacterHandler.cpp = login-integration reference for Phase A.
+    (Your repo has no ServerFacade -> take cmangos' facade as the seam, your
+    content+features+know-how.)
+  - 4-STAGE PLAN written:
+     S1 Foundation + Main AI (Phase A core edits: socketless bot session +
+        UpdateSessions tick + login + DB; ServerFacade TRINITY branch; engine
+        bring-up; min spell+movement; generic strategies). EXIT: bot logs in,
+        follows, basic combat.
+     S2 Classes (talent rewrite to BfA spec; DK vertical slice first using YOUR
+        DK; roll out the rest; note Monk+DH are extra 8.3 classes).
+     S3 World behaviour (RandomPlayerbotMgr population, Factory gear/DB2, quest/
+        RPG, travel min->expand, loot; + YOUR Cata-Patch scaling features).
+     S4 Group content + extras (grouping, dungeons/DF, BG/Arena tactics, ahbot,
+        i18n/LLM, hardening/tests).
+  - ALSO-NEED list (Q5): packaging decision, client data (mmaps/vmaps/DB2),
+    DB2/hotfix data, 8.3 opcodes, threading/perf, GPL-2.0 licensing of bot tree,
+    -DPSYCHO_BFA build define, nav-data strategy, smoke tests.
+  - VERIFIED plan (Q6): 8 sanity checks all OK. Open Qs for user: Q1 packaging,
+    Q2 add Monk/DH?, Q3 v1 scope (alts vs world pop), Q4 client data available?
+  - Wrote Dev/playerbots_docs/01_PORT_PLAN_4STAGE.txt. Awaiting GO/NO-GO.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12.3: refine plan as mod-psychobot + Monk/DH research
+--------------------------------------------------------------------------------
+USER: Build it as a MODULE "mod-psychobot" (reuse skeleton). For Monk+DH, copy a
+      class & rename like I did DK-from-warrior; research them (wowhead/github) +
+      check our core for spells/talents. V1 scope = your call. Anything else?
+      Verify the plan. Report - I say go or not.
+
+AGENT (research/plan only - NOTHING built):
+  - PACKAGING: mod-psychobot = MODULE (rename our skeleton) for the AI + minimal
+    Phase A core edits (bot session/login/tick can't be pure drop-in). Add a
+    -DPSYCHOBOT branch alongside cmangos' #ifdef MANGOS/CMANGOS/MANGOSBOT_*.
+  - MONK/DH RESEARCH (wowpedia/dexerto/reddit) + VERIFIED IN OUR CORE:
+     * CLASS_MONK=10, CLASS_DEMON_HUNTER=12 EXIST (SharedDefines).
+     * POWER_CHI=12, POWER_FURY=17, POWER_PAIN=18, POWER_ENERGY=3 exist.
+     * sChrSpecializationStore + GetChrSpecializationByIndex/Default = spec assign.
+     * cmangos has NO monk/DH (WotLK 10 only) -> NET-NEW via copy-rename.
+     * AiFactory::createAiObjectContext switch = where we add CLASS_MONK/DH.
+     * warrior folder (Actions+3 strategies+Context) = clean copy-base.
+     * Monk = 3 specs: Brewmaster(tank,Chi/Stagger), Mistweaver(heal,Mana/Chi),
+       Windwalker(dps,Energy/Chi). Spells: Tiger Palm, Blackout Kick, Rising Sun
+       Kick, Fists of Fury, Spinning Crane Kick, Keg Smash, Renewing Mist...
+     * DH = 2 specs: Havoc(dps,Fury), Vengeance(tank,Fury+Soul Frags). Spells:
+       Chaos Strike, Demon's Bite, Eye Beam, Blade Dance, Fel Rush, Metamorphosis,
+       Fracture, Soul Cleave, Sigil of Flame...
+     * COPY-BASE: DH from warrior (fury->havoc, prot->vengeance); Monk from
+       warrior(tank/dps) + a healer class for Mistweaver.
+  - V1 SCOPE DECIDED = "alts as bots" (player summons own alts; login/follow/
+    fight + DK). World random-bot population + your Cata-Patch scaling = V2.
+  - ALSO-NEED: CLIENT DATA (mmaps/vmaps/DB2 from 8.3.7 client) = the one open
+    BLOCKER for movement + spell-name testing; mixed-license tree (ported=GPL-2.0,
+    original=MyCode, marked per-file); -DPSYCHOBOT define; playerbots DB; commands
+    via CommandScript/RBAC; prefer direct API over fake packets.
+  - 4 STAGES re-affirmed: S1 foundation+main AI (Phase A + facade + engine +
+    min spell/move + generic) EXIT bot follows+fights; S2 classes+talents (DK
+    vertical slice, then 10 classes, then ADD Monk+DH); S3 world behaviour (V2);
+    S4 group content+extras.
+  - VERIFIED: 10 checks OK. Only open item = 8.3.7 client data confirmation.
+  - Wrote Dev/playerbots_docs/02_PLAN_REFINED_mod-psychobot.txt. Awaiting GO/NO-GO.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP 12.4: BUILD STAGE 1 (Foundation + Main AI)
+--------------------------------------------------------------------------------
+USER: Build Stage 1 (Foundation + Main AI). Verify complete + coded correctly.
+      Report; wait. (Client data is on desktop, available later.)
+
+AGENT: Built modules/mod-psychobot (renamed from skeleton), 13 files ~1066 LOC,
+  all original/clean-room (MyCode header). Components: ike3-style engine
+  (Engine/Action/Trigger/Strategy), PsychobotAI per-bot brain with a TC-8.3
+  ServerFacade seam (cast/target/move), follow+basic-combat strategies,
+  PsychobotMgr singleton ticked from WorldScript::OnUpdate, .psychobot add/remove/
+  list command, PlayerScript logout cleanup, loader, conf, cmake, README.
+  VERIFICATION: cross-checked every core API vs headers (all present); fixed 3
+  include gaps + LocalizedString access + IsMoving precedence; brace/paren OK;
+  confirmed the tick path World::Update->OnWorldUpdate->WorldScript::OnUpdate->
+  our mgr (NO core edits needed for Stage 1 - socketless login deferred).
+  CAVEAT: not compile-tested (no toolchain in sandbox); needs real build + 8.3.7
+  client data (mmaps/vmaps/DB2) to fully test movement/spell-name resolution.
+  Updated Dev docs. Awaiting next step.

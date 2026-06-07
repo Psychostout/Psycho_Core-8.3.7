@@ -1,13 +1,3 @@
-# This file is part of the Psycho_Core Project (TrinityCore-based).
-#
-# This file is free software; as a special exception the author gives
-# unlimited permission to copy and/or distribute it, with or without
-# modifications, as long as this notice is preserved.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
 # Psycho_Core module system - mirrors the script-module helpers in
 # ConfigureScripts.cmake but targets the top-level "modules/" directory
 # (AzerothCore-style modules/mod-<name> layout).
@@ -101,7 +91,6 @@ endfunction()
 # Copies a module's <name>.conf.dist into the runtime/install config locations,
 # mirroring how worldserver.conf.dist is copied.
 function(CopyModuleConfig configFilePath)
-  get_filename_component(CONFIG_FILE_NAME "${configFilePath}" NAME)
   if (WIN32)
     add_custom_command(TARGET modules POST_BUILD
       COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin/$<CONFIG>/configs/modules

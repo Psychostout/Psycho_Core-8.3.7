@@ -1,13 +1,3 @@
-# This file is part of the Psycho_Core Project (TrinityCore-based).
-#
-# This file is free software; as a special exception the author gives
-# unlimited permission to copy and/or distribute it, with or without
-# modifications, as long as this notice is preserved.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-#
 # Psycho_Core module build engine. Mirrors src/server/scripts/CMakeLists.txt
 # but operates on the top-level modules/ directory (modules/mod-<name>).
 

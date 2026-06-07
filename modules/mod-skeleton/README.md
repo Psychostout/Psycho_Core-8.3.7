@@ -1,3 +1,12 @@
+<!--
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+-->
+
 # mod-skeleton
 
 A minimal, working **example module** for the Psycho_Core 8.3.7 module system.

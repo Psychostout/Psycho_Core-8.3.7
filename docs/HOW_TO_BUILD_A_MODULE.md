@@ -1,3 +1,12 @@
+<!--
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+-->
+
 # How to build a module (Psycho_Core 8.3.7)
 
 This guide shows how to create, build, and run a module from scratch. The fastest

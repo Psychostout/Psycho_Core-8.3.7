@@ -1,3 +1,12 @@
+<!--
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+-->
+
 # How to install modules (Psycho_Core 8.3.7)
 
 Installing a third-party (or your own) module is a **clone + rebuild** — no core
