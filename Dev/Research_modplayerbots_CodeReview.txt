@@ -1,0 +1,196 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ PSYCHO_CORE 8.3.7 - mod-playerbots CODE REVIEW & PORT STRATEGY (Step 11.3)
+================================================================================
+ Status : RESEARCH / CODE REVIEW ONLY. Nothing built.
+ Date   : 2026-06-07
+ Source reviewed: github.com/mod-playerbots/mod-playerbots (active fork,
+                  787 stars / 439 forks, pure C++, ~34 MB repo).
+ User decisions for this step:
+   - Expansion target is NOT a concern; writing NEW (8.3) content is acceptable.
+   - Verify whether existing code is "close" enough to reuse, OR whether we
+     should DOCUMENT mod-playerbots extensively and REWRITE for our core.
+   - Intent: study EVERY file in mod-playerbots.
+================================================================================
+
+
+0. THE DECISIVE ANSWER
+--------------------------------------------------------------------------------
+ The CODE is NOT "close" enough to mechanically port/reuse. The right move is:
+   -> DOCUMENT mod-playerbots EXTENSIVELY (architecture + every subsystem +
+      file-by-file map of what each does and which core APIs it touches), then
+      REWRITE the engine cleanly against Psycho_Core 8.3 APIs.
+ Reuse what is portable as IDEAS/ARCHITECTURE (the Strategy/Action/Value design),
+ NOT as copy-paste source.
+
+ WHY (the single most important finding):
+   ServerFacade (the supposed "abstraction layer") is TINY (~2.4KB .cpp / 3.3KB
+   .h, ~5 helper methods: distance/facing/chase-target/packet send). It does NOT
+   abstract the core API. Therefore AzerothCore/WotLK calls (bot->CastSpell,
+   GetGroup, talent/spec APIs, opcodes, etc.) are INLINED DIRECTLY across the
+   ENTIRE codebase (hundreds of files). There is no seam to swap. A "port" =
+   editing essentially every file -> at that point a clean rewrite is better.
+
+
+1. ARCHITECTURE MAP (src/ layout, verified via GitHub API)
+--------------------------------------------------------------------------------
+ src/
+   PlayerbotAIConfig.cpp/.h ...... 57 KB - all config keys + load logic.
+   Bot/
+     PlayerbotAI.cpp/.h .......... 218 KB / 21 KB - THE bot brain (per-bot
+                                   update loop, packet handling, spell/aura mgmt,
+                                   command dispatch). Single biggest file (~5k+ LOC).
+     PlayerbotMgr.cpp/.h ......... 65 KB - per-master bot management (add/remove,
+                                   login of player-owned alts as bots).
+     RandomPlayerbotMgr.cpp/.h ... 106 KB - the random-bot population system
+                                   (spawns/levels/gears/distributes 100s-1000s
+                                   of world bots). Second biggest.
+     Cmd/ Debug/ Engine/ Factory/  command parsing, debug, the AI Engine driver,
+                                   and the bot character Factory (create/gear/
+                                   talent a bot from scratch).
+   Ai/
+     Base/                         THE AI FRAMEWORK (the reusable IDEA):
+       Actions/   ~282 files       every concrete bot action (cast X, move, loot,
+                                   accept quest, use item, follow, flee, ...).
+       Value/     ~167 files       cached "facts" the AI reads (nearest enemy,
+                                   health %, has aura, group tank, ...).
+       Strategy/  ~91 files        bundles of triggers->actions (combat, non-
+                                   combat, dps, heal, tank, pull, etc.).
+       Trigger/   ~37 files        conditions that fire actions (low health,
+                                   enemy in range, out of mana, ...).
+       Util/  + *Context.h         action/value/trigger registries (Context
+                                   pattern), packet action/trigger contexts.
+     Class/    Dk Druid Hunter Mage Paladin Priest Rogue Shaman Warlock Warrior
+                                   per-class rotations/talents (THE expansion-
+                                   specific part - all WotLK spells today).
+     Dungeon/  ~22   Raid/ ~21     scripted instance/raid AI (boss-specific).
+     World/                        world/zone behaviours.
+   Mgr/  Guild/ Item/ Move/ Security/ Talent/ Text/ Travel/
+                                   subsystem managers: guild tasks, item/equip
+                                   evaluation, movement/formation, secure login,
+                                   talent/spec building, bot text/i18n, travel
+                                   (navigation between zones/quest hubs).
+   Db/   PlayerbotRepository, PlayerbotDungeonRepository, PlayerbotSpellRepository
+                                   bot DB access (playerbots database).
+   Script/  Playerbots.cpp (19 KB) + loader + secure login + WorldThr/
+                                   AzerothCore ScriptMgr hookup + the core-edit
+                                   touchpoints; playerbots_loader.cpp.
+   Util/  ServerFacade(+/-), Helpers, BroadcastHelper, PlaceholderHelper,
+          LazyCalculatedValue.h    small utilities (ServerFacade is NOT a real
+                                   core-abstraction; see section 0).
+
+ SCALE: easily 600-900 source files; on the order of ~200-300k LOC. The
+ Strategy/Action/Value/Trigger "Context" engine is the crown jewel design.
+
+
+2. CLASSIFY EVERY AREA: REUSE AS IDEA vs REWRITE FOR 8.3
+--------------------------------------------------------------------------------
+ Legend: ARCH = copy the design/idea; REWRITE = author fresh for 8.3 TC; CORE =
+ must become engine edits in OUR src/ (the "fork" work).
+
+  Ai/Base (Strategy/Action/Value/Trigger/Context) ... ARCH (reuse the PATTERN).
+      The architecture is excellent and core-agnostic IN CONCEPT, but each of
+      the ~570 files inlines core calls -> rewrite the files, keep the design.
+  Ai/Class/* (per-class rotations/talents) .......... REWRITE (8.3 spells/specs;
+      user already accepts writing new content here).
+  Ai/Dungeon, Ai/Raid, Ai/World ..................... REWRITE (8.3 encounters).
+  Bot/PlayerbotAI ................................... REWRITE around our APIs;
+      keep the update-loop + dispatch design.
+  Bot/PlayerbotMgr, RandomPlayerbotMgr .............. REWRITE for our DB + world.
+  Bot/Factory ....................................... REWRITE (8.3 gear/talent DB2).
+  Mgr/Talent ........................................ REWRITE (BfA specialization
+      model, not talent points).
+  Mgr/Move, Travel .................................. REWRITE on our MotionMaster/
+      PathGenerator (mmaps) + map IDs.
+  Mgr/Item .......................................... REWRITE (DB2/hotfix items).
+  Mgr/Guild, Text, Security ......................... ARCH+REWRITE (light).
+  Db/* (repositories) ............................... REWRITE for our DB schema.
+  Script/* (loader, ScriptMgr hookup, secure login) . CORE + our module system.
+  Util/ServerFacade ................................. REWRITE - and make it a
+      REAL, FAT abstraction this time (see section 4).
+
+
+3. THE CORE-ENGINE EDITS WE WILL NEED (Phase A "fork" work, in OUR src/)
+--------------------------------------------------------------------------------
+ (Confirmed needed from Step 11 + this review.)
+  - Socketless/bot WorldSession: our WorldSession ctor requires a WorldSocket;
+    must allow a bot session with no real socket and guard all socket sends.
+  - Drive bot AI each world/map tick (Player has PlayerAI but isn't bot-driven).
+  - Register bots in ObjectAccessor/Map so they're found like real players.
+  - Bot login path (secure login equivalent) without a real client.
+  - playerbots database + config plumbing.
+ These are the highest-risk, most version-specific pieces and are exactly what
+ mod-playerbots ships in its AzerothCore FORK (not in the module).
+
+
+4. RECOMMENDED PORT STRATEGY (document-then-rewrite)
+--------------------------------------------------------------------------------
+ STEP 1 - DOCUMENT EVERYTHING (this is what "study every file" produces):
+   Build a Dev/playerbots_docs/ knowledge base:
+     a) ARCHITECTURE.md   - the Strategy/Action/Value/Trigger/Context engine,
+        how PlayerbotAI ticks, how a master controls bots, random-bot lifecycle.
+     b) FILE_MAP.md       - every file: path, purpose, key classes/functions,
+        and (critical) which CORE APIs it calls -> our 8.3 equivalent.
+     c) API_MAP.md        - a table: AzerothCore/WotLK API used -> Psycho_Core
+        8.3 API. This becomes the rewrite cheat-sheet.
+     d) CORE_EDITS.md     - the exact Phase-A engine changes (section 3) with
+        where they go in our src/.
+     e) DB_SCHEMA.md      - the playerbots DB tables -> our schema.
+
+ STEP 2 - DESIGN OUR OWN ENGINE (clean-room from the docs, our APIs):
+   Recreate the Strategy/Action/Value/Trigger/Context framework in a NEW module
+   (modules/mod-playerbots-psycho or in-core), written against 8.3.
+
+ STEP 3 - PHASE A core edits (bot sessions + tick drive + accessor + login).
+
+ STEP 4 - VERTICAL SLICE FIRST: one class (e.g. Warrior), basic combat +
+   follow + a couple of triggers/actions, a handful of bots. Prove the loop end
+   to end before scaling.
+
+ STEP 5 - SCALE OUT: more actions/values/strategies, more classes, random-bot
+   manager, travel/quest, dungeon/raid AI, gear/talent factory.
+
+ WHY clean-room-from-docs (not copy-paste):
+   - No usable abstraction seam (section 0) -> copy-paste = edit every file anyway.
+   - 8.3 APIs/spells/talents differ everywhere -> most lines change regardless.
+   - A rewrite lets us match OUR module system + coding patterns + ServerFacade.
+   - It also clarifies licensing (see section 5).
+
+
+5. LICENSING (important)
+--------------------------------------------------------------------------------
+ mod-playerbots / ServerFacade headers: "Copyright (C) 2016+ AzerothCore,
+ released under GNU AGPL v3". NOTE: that is AGPL v3, which is STRONGER/STICKIER
+ than GPLv2 (our TrinityCore base is GPLv2).
+   - COPYING their source (or close derivatives) pulls AGPLv3 obligations in.
+   - A clean-room REWRITE that reimplements the *ideas/architecture* (which are
+     not themselves copyrightable) in our own code avoids copying their
+     expression. Document from behavior/structure; write fresh source.
+   - Either way the bot code is NOT yours under LICENSE.MYCODE if it derives
+     from their expression. A genuine clean-room rewrite you author can be
+     LICENSE.MYCODE for the parts you write from scratch (with care re: AGPL).
+   - RECOMMENDATION: treat this as clean-room (docs -> fresh code), and get
+     comfortable that the safest legal stance is your own implementation, not a
+     line-by-line translation. (Not legal advice.)
+
+
+6. BOTTOM LINE
+--------------------------------------------------------------------------------
+ - Is the code "close"/reusable as-is? NO. No abstraction seam; AGPLv3; WotLK
+   APIs inlined everywhere.
+ - Best path = your instinct: DOCUMENT mod-playerbots EXHAUSTIVELY, then REWRITE
+   the engine for Psycho_Core 8.3 (clean-room), reusing the ARCHITECTURE (the
+   Strategy/Action/Value/Trigger/Context pattern) as the blueprint.
+ - Next step proposal: stand up Dev/playerbots_docs/ and begin the file-by-file
+   study (ARCHITECTURE + FILE_MAP + API_MAP), starting with the Bot/ and
+   Ai/Base/ cores, since everything else hangs off those.
+
+================================================================================
+ END - code review only. No port/rewrite started. Awaiting next step decision.
+================================================================================

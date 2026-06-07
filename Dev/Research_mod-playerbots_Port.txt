@@ -1,0 +1,163 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ PSYCHO_CORE 8.3.7 - RESEARCH: PORTING mod-playerbots
+================================================================================
+ Status : RESEARCH / FEASIBILITY ONLY (Step 11). Nothing built.
+ Date   : 2026-06-07
+ Question: "The module system is close to AzerothCore's - how hard would it be
+           to port mod-playerbots?"
+================================================================================
+
+
+0. BLUNT ANSWER
+--------------------------------------------------------------------------------
+ VERY HARD. This is a large, multi-month engineering project, NOT a drop-in.
+ Honest difficulty: ~9.5/10. It is the single hardest module in the WoW-emu
+ ecosystem to port, and our target (BfA 8.3) is the worst-case expansion gap.
+
+ The thing that's "close to AzerothCore" is our BUILD/MODULE SYSTEM (the cmake
+ plumbing). mod-playerbots does NOT actually depend on that being similar - it
+ depends on hundreds of GAME-ENGINE APIs that are completely different between
+ AzerothCore (WotLK 3.3.5) and this core (TrinityCore BfA 8.3).
+
+
+1. THE CORE MISCONCEPTION TO CLEAR UP
+--------------------------------------------------------------------------------
+ "Module system is close to AC" = TRUE, but it's the easy 1%.
+ - Our modules/ folder, loader generation, static/dynamic linkage, conf/sql
+   handling all mirror AC. So mod-playerbots would *slot into* modules/ fine.
+ - BUT mod-playerbots is NOT a normal module. Every authoritative source says:
+     "requires a custom FORK of AzerothCore ... cannot be implemented as a
+      standard drop-in module ... requires modifications to the base code."
+   (mod-playerbots wiki, deepwiki, ZhengPeiRu21 + liyunfan1223 READMEs.)
+ - It ships WITH its own AzerothCore fork (mod-playerbots/azerothcore-wotlk,
+   branch "Playerbot") that contains the required CORE engine edits.
+ So even on AzerothCore it's not drop-in; on a different core/expansion the core
+ edits + the entire module must be re-done against different APIs.
+
+
+2. WHAT mod-playerbots ACTUALLY IS (scale)
+--------------------------------------------------------------------------------
+ - Lineage: ike3 playerbots -> mangosbot (celguar) -> ZhengPeiRu21 (AC port)
+   -> liyunfan1223 (current maintained AC fork).
+ - Size: HUNDREDS of .cpp/.h files; on the order of ~200-300k lines of code.
+   Subsystems (per deepwiki TOC): PlayerbotAI core, bot management, bot factory,
+   character init, talent/progression, Strategy/Action/Value AI framework,
+   RPG+navigation, combat, quest mgmt, movement/formations, LFG/queue,
+   battlegrounds, raid/dungeon AI, equipment eval, pet mgmt, chat/commands.
+ - It builds a full behaviour-tree AI that DRIVES REAL Player objects (uses
+   actual character data), per class/spec, for every WoW activity.
+
+
+3. WHY OUR EXPANSION MAKES IT WORSE (WotLK 3.3.5 -> BfA 8.3)
+--------------------------------------------------------------------------------
+ mod-playerbots is written for WotLK 3.3.5 game logic. This core is BfA 8.3.
+ The deltas that break essentially all of it:
+
+ a) SPELL / ROTATION DATA: Every class rotation, spell ID, and combat strategy
+    is hardcoded for 3.3.5 spells. BfA spells/IDs/mechanics are different ->
+    100% of the per-class combat/strategy code must be rewritten for 8.3.
+
+ b) TALENT MODEL (confirmed in our headers):
+      - 3.3.5: talent trees + talent points (61-point trees).
+      - 8.3 (this core): specialization-based; we have SpecializationInfo,
+        GetActiveTalentGroup(), PvpTalents, LearnTalent(talentId,...). NO point
+        economy. The bot's entire talent/spec build logic must be rewritten.
+
+ c) API SIGNATURES: 3.3.5 vs 8.3 differ across ScriptMgr hooks, Player/Unit,
+    movement, items (DBC vs DB2/hotfix), opcodes (465 Handle* in our
+    WorldSession, a totally different protocol than 3.3.5).
+
+ d) BOT SESSION CREATION (confirmed): our WorldSession ctor REQUIRES a
+    shared_ptr<WorldSocket>. Playerbots create "sessionless" players (a fake/
+    bot session with no real socket). Making that work needs CORE edits to
+    WorldSession + the world update loop + packet routing so a socketless bot
+    Player is created, updated each tick, and never crashes on a null socket.
+    This is exactly the kind of "base code modification" the AC fork provides -
+    and we'd have to author the BfA-8.3 equivalent ourselves.
+
+ e) AI DRIVE HOOK: bots need their AI ticked every world update. Our Player has
+    PlayerAI (basic) but is not wired to run a bot brain each tick - that's
+    another core-edit the AC fork adds.
+
+
+4. WHAT A PORT WOULD ACTUALLY REQUIRE (high level)
+--------------------------------------------------------------------------------
+ PHASE A - Core engine edits (the "fork" part), in OUR src/ (not the module):
+   - WorldSession: allow bot/socketless sessions; guard all socket sends.
+   - World update loop: create/update/remove bot players each tick.
+   - Player: attach + drive a bot AI; expose needed internals.
+   - ObjectAccessor/Map: register bots so they're found like real players.
+   - DB: bot character storage (playerbots DB), random-bot pool.
+   (This alone is substantial and touches sensitive, crash-prone core paths.)
+
+ PHASE B - The module itself, rewritten for 8.3:
+   - Port the Strategy/Action/Value framework to compile against our APIs.
+   - REWRITE every class/spec combat rotation + talent build for BfA spells.
+   - Re-map all movement/pathing/LFG/BG/quest calls to 8.3 signatures.
+   - Re-do item/equipment evaluation for DB2/hotfix item data.
+   - Build the playerbots SQL for our schema.
+
+ Realistic effort: a skilled TC/BfA engine dev = MONTHS of full-time work, with
+ ongoing maintenance. For "a noob with an internet connection" it is, candidly,
+ not a feasible solo port in any reasonable timeframe.
+
+
+5. IS THERE AN EASIER PATH? (options ranked)
+--------------------------------------------------------------------------------
+ O1. DON'T port mod-playerbots. Instead, look for a bot project already written
+     for a BfA/TrinityCore-modern tree (the only sane shortcut). As of research,
+     mature playerbots exist for 3.3.5 (AC) and MaNGOS; BfA-grade playerbots are
+     rare/experimental. -> Verify what exists for 8.x before any port attempt.
+
+ O2. NPCBots-style instead of Playerbots. NPCBots add AI *creatures* that fight
+     for you (henchmen), which DON'T need socketless real-Player sessions, so
+     they are far less invasive. Still WotLK-targeted, but conceptually a
+     smaller surface. -> Easier than playerbots, still a real port.
+
+ O3. Minimal "companion AI" of our own (scoped feature) using our existing
+     PlayerAI/CreatureAI + the module system. We could build a SMALL custom
+     follower/bot from scratch (it'd be yours under LICENSE.MYCODE) - nothing
+     like full playerbots, but achievable incrementally.
+
+ O4. Full mod-playerbots port (Phases A+B above). Highest payoff, highest cost,
+     realistically a long project.
+
+
+6. RECOMMENDATION
+--------------------------------------------------------------------------------
+ - Set expectations: mod-playerbots is NOT portable as a drop-in here, and a
+   true 8.3 port is a major, multi-month engine project (not a weekend task).
+ - Before committing, do O1: confirm whether ANY playerbot/NPCbot project
+   already targets a BfA/modern-TC core - porting from a closer base is 10x
+   easier than from 3.3.5.
+ - If the user wants bots SOON, O3 (a small from-scratch companion module) is
+   the only realistic near-term win and fits our new module system perfectly.
+ - If the user wants the real thing, plan O4 as a long roadmap: do PHASE A
+   (core bot-session support) first as its own milestone, then the module.
+
+
+7. SOURCES
+--------------------------------------------------------------------------------
+ - mod-playerbots Installation Guide (wiki): "requires modifications to the
+   AzerothCore base code that cannot be implemented as a standard drop-in
+   module." Needs the Playerbot fork.
+ - deepwiki liyunfan1223/mod-playerbots: "requires a custom fork ... cannot be
+   built against the standard AzerothCore repository due to required core
+   modifications." Lists the full subsystem TOC (scale).
+ - ZhengPeiRu21/mod-playerbots README: "requires some custom changes to
+   AzerothCore ... compile with a custom branch"; ported from mangosbot.
+ - Reddit/forum field reports: works only on the forked AC, can crash, needs
+   auto-restarter; users hit "5-6 little problems" even on the supported fork.
+ - Our headers: WorldSession ctor needs WorldSocket; SpecializationInfo/
+   GetActiveTalentGroup (BfA talents); CURRENT_EXPANSION = BATTLE_FOR_AZEROTH.
+
+================================================================================
+ END - feasibility only. No port attempted. Awaiting user decision (Step 12).
+================================================================================

@@ -1,0 +1,134 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ STUDY-FROM SOURCE: ike3/mangosbot  vs  mod-playerbots  (Step 11.4)
+================================================================================
+ Status : RESEARCH ONLY. Nothing built.
+ Date   : 2026-06-07
+ User question: "Wouldn't ike3 be better to study and rewrite, as it's not so
+                scattered?"
+================================================================================
+
+
+0. SHORT ANSWER
+--------------------------------------------------------------------------------
+ You're RIGHT on the key point: the ike3/mangosbot line is the BETTER SOURCE TO
+ STUDY AND REWRITE FROM - not because of folder layout, but because it has a
+ REAL abstraction seam (a fat ServerFacade) and was deliberately built to span
+ MULTIPLE expansions. That is exactly what makes a clean rewrite easier.
+
+ One nuance: "less scattered" by FOLDERS is actually the opposite (mangosbot is
+ a big FLAT folder; mod-playerbots is sorted into Bot/Ai/Mgr/Db/...). What you're
+ sensing as "scatter" is really mod-playerbots having had its abstraction
+ STRIPPED OUT (AC-locked), so core calls are inlined everywhere. mangosbot kept
+ the abstraction. So: study mangosbot. Verdict stands.
+
+
+1. THE EVIDENCE (measured this step)
+--------------------------------------------------------------------------------
+ ABSTRACTION SEAM (the thing that matters most for a rewrite):
+   - mangosbot  ServerFacade: ~11 KB, ~32 wrapped methods
+       (IsAlive, IsInFront, GetDistance2d, IsSpellReady, IsHostileTo,
+        IsFriendlyTo, IsInCombat, GetChaseTarget, IsDistanceLessThan, isMoving...)
+   - mod-playerbots ServerFacade: ~5.7 KB, ~9 methods (mostly distance/packet).
+   => mangosbot centralises the common core calls; mod-playerbots inlines them.
+   => mangosbot's facade is a ready-made checklist of "core APIs the bot needs"
+      -> our ServerFacade for 8.3 maps almost 1:1 to those ~32 methods.
+
+ WHY mangosbot has the seam: it targets cmangos/mangos classic/TBC/WotLK (3
+ expansions) and ships THREE conf templates (aiplayerbot.conf.dist.in +
+ .tbc + .wotlk). Cross-expansion support FORCED them to keep an abstraction
+ layer. mod-playerbots only ever needed AzerothCore WotLK, so it hard-coded.
+
+ SAME AI ENGINE (so we lose nothing studying mangosbot):
+   - mangosbot strategy/: Action/Trigger/Value/Strategy/Engine/AiObjectContext/
+     Multiplier/Queue/ReactionEngine + per-class dirs + strategy/actions (~269)
+     + strategy/values (~183).
+   - mod-playerbots Ai/Base/: Actions(~282)/Value(~167)/Strategy(~91)/Trigger(~37)
+     + *Context.h.
+   => IDENTICAL architecture (mod-playerbots IS a reorg of this engine). Studying
+      ike3/mangosbot teaches the exact same Strategy/Action/Value/Trigger design.
+
+ LINEAGE confirmed: celguar/mangosbot-bots description = "Bot AI Core from ike3
+ for cmangos/mangos classic/tbc/wotlk". ike3/mangosbot-bots = "Bot AI Core (part
+ of MangosBot project)". This IS ike3, maintained.
+
+
+2. THE COUNTERWEIGHT (be honest about it)
+--------------------------------------------------------------------------------
+ mangosbot is MaNGOS/CMaNGOS core family. mod-playerbots is AzerothCore family.
+ Our target is TrinityCore (BfA 8.3).
+   - CMaNGOS vs TrinityCore: API names differ MORE than AC vs TC (AzerothCore is
+     a TrinityCore-3.3.5 descendant, so AC code reads closer to TC than CMaNGOS).
+   - SO: for raw API NAMES, mod-playerbots/AC is a touch closer to TC.
+   - BUT we already decided this is a CLEAN-ROOM REWRITE, not copy-paste. In a
+     rewrite, API-name proximity barely matters (we re-map every call anyway via
+     our own ServerFacade). What matters is having a CLEAN MODEL of "what the bot
+     needs from the core" - and mangosbot's fat ServerFacade gives us that model
+     better than AC's stripped one.
+
+ NET: For STUDY + CLEAN REWRITE, mangosbot wins (clearer contract, multi-
+ expansion discipline, it's the canonical ike3). For COPY-PASTE porting (which
+ we are NOT doing), AC would be marginally closer on names. Since we're
+ rewriting, study mangosbot.
+
+
+3. EXTRA REASONS mangosbot is the right study source FOR YOU
+--------------------------------------------------------------------------------
+ - IT'S WHAT YOU ALREADY RUN: your Psychostout/Mangos-Bots embeds
+   celguar/mangosbot-bots. You already know this codebase. Familiarity = faster
+   documentation + rewrite, fewer surprises.
+ - Multi-expansion conf/templates show how they parameterised per-expansion
+   behaviour - a built-in guide for how to slot 8.3 in as "another expansion".
+ - Your Cata-Patch work is in the same family -> shared learnings.
+
+ LICENSE NOTE: mangosbot/ike3 are GPL-2.0 (same family as our TrinityCore base),
+ whereas mod-playerbots/AC is AGPL-v3 (stickier). For a clean-room rewrite this
+ is moot for copying, but GPL-2.0 alignment with our base is slightly cleaner to
+ reason about than pulling AGPL into the picture. (Not legal advice.)
+
+
+4. REVISED RECOMMENDATION
+--------------------------------------------------------------------------------
+ STUDY + DOCUMENT the ike3/mangosbot source (celguar/mangosbot-bots) as the
+ PRIMARY blueprint, for these reasons:
+   (1) Real ServerFacade -> a clean "core API contract" to reimplement for 8.3.
+   (2) Identical Strategy/Action/Value/Trigger engine (canonical ike3).
+   (3) Multi-expansion design = a template for adding 8.3.
+   (4) You already run/know it.
+   (5) GPL-2.0 aligns with our base.
+ Keep mod-playerbots as a SECONDARY reference for:
+   - the most modern/maintained behaviours, bugfixes, performance patterns;
+   - AC->TC API name hints (AC reads closer to TrinityCore than CMaNGOS).
+
+ So: the doc-then-rewrite plan from Step 11.3 STANDS, but the primary source to
+ mine becomes mangosbot, with mod-playerbots cross-referenced.
+
+ PROPOSED doc set (Dev/playerbots_docs/), now mangosbot-primary:
+   ARCHITECTURE.md - the engine (Engine/AiObjectContext/Strategy/Action/Value/
+                     Trigger/Multiplier/Queue/ReactionEngine).
+   SERVERFACADE_CONTRACT.md - mangosbot's ~32 facade methods -> our 8.3 API
+                     (this is the porting cheat-sheet; the highest-value doc).
+   FILE_MAP.md     - every mangosbot file: purpose + core APIs used.
+   CORE_EDITS.md   - bot-session/tick-drive/accessor/login edits for OUR src.
+   DB_SCHEMA.md    - bot DB tables -> our schema.
+
+
+5. BOTTOM LINE
+--------------------------------------------------------------------------------
+ - Your instinct is correct: study/rewrite from ike3/mangosbot, NOT mod-playerbots.
+ - The real reason isn't folder tidiness - it's that mangosbot kept a genuine
+   abstraction layer (~32-method ServerFacade) and multi-expansion discipline,
+   which is the ideal blueprint for a clean 8.3 rewrite. mod-playerbots stripped
+   that out.
+ - Same AI engine in both, so no architectural loss. Keep mod-playerbots as a
+   secondary reference (modern fixes + AC-closer-to-TC naming).
+
+================================================================================
+ END - comparison only. No port/rewrite started. Awaiting next step.
+================================================================================

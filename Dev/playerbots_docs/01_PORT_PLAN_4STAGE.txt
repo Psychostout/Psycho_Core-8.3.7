@@ -1,0 +1,215 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ PLAYERBOTS -> PSYCHO_CORE 8.3.7  : 4-STAGE PORT PLAN  (Step 12.1)
+================================================================================
+ Status : PLAN / RESEARCH ONLY. Nothing built. User approval required to start.
+ Date   : 2026-06-07
+ Engine base : cmangos/playerbots (cloned /home/user/playerbots) - has the
+               ServerFacade #ifdef core-switch seam + most features.
+ Your content: Psychostout/Mangos-Bots (DK + Cata-Patch + CharacterHandler work).
+ Target      : Psycho_Core (TrinityCore BfA 8.3.0 / 34769), C++14.
+================================================================================
+
+
+A. CROSS-REFERENCE FINDINGS (cmangos engine  vs  OUR core) - verified this step
+--------------------------------------------------------------------------------
+ 1) SPELL CASTING
+    cmangos: builds `Spell* spell = new Spell(...)`; `spell->prepare(&targets)`
+             with CMaNGOS SpellCastTargets; LookupSpellInfo via SpellEntry/DBC.
+    OUR core (verified): Spell::prepare(SpellCastTargets const*, ...) EXISTS and
+             takes the same shape; BUT preferred path is bot->CastSpell(target,
+             spellId, args). SpellInfo via sSpellMgr->GetSpellInfo(id, Difficulty)
+             - NOTE the extra Difficulty arg (use DIFFICULTY_NONE by default).
+    => GOOD NEWS: closer than feared. Map LookupSpellInfo -> GetSpellInfo(id,
+       DIFFICULTY_NONE); prefer bot->CastSpell over hand-building Spell objects.
+
+ 2) SPELL RANKS
+    cmangos: relies on rank chains (highest known rank of a named spell).
+    OUR core (verified): STILL has SpellChainNode / GetRank() / GetFirstRankSpell
+             / GetNextRankSpell - so rank code won't BREAK, it just mostly no-ops
+             on BfA (one spell per ability). => We can keep the rank plumbing as a
+             thin pass-through and simplify later; not a hard blocker.
+
+ 3) TALENTS
+    cmangos: TalentEntry/TalentTabEntry, points, tabs (WotLK).
+    OUR core: SpecializationInfo + GetActiveTalentGroup + LearnTalent(talentId)
+             + PvpTalents (BfA spec grid). => FULL REWRITE of Talentspec +
+             Factory::InitTalents (the biggest single rewrite).
+
+ 4) MOVEMENT
+    cmangos: MotionMaster MovePoint/MovePath + FORCED_MOVEMENT_* flags + Travel
+             graph + mmaps.
+    OUR core: MotionMaster MovePoint(id,x,y,z,generatePath)/MovePath/MoveSplineInit
+             + PathGenerator + mmaps_generator. => Rewrite the move calls; map
+             movement flags; Travel nodes rebuilt for 8.3 (start minimal).
+
+ 5) CORE HOOKS / BOT SESSION (the hard Phase-A piece)
+    cmangos: one WorldSession per bot, driven by QueuePacket; PlayerbotMgr::
+             UpdateSessions ticks them; OnPlayerLogin attaches master mgr.
+    OUR core (verified): WorldSession ctor = (id, name, battlenetAccountId,
+             shared_ptr<WorldSocket> sock, sec, expansion, ...). A bot session =
+             pass a DUMMY/NULL socket + guard every socket send. Tick by hooking
+             our World::Update (m_sessions loop) to also update bot sessions.
+
+ 6) YOUR WORK TO REUSE (high value)
+    - Your DK (Blood/Frost/Unholy + DKActions/Triggers/Multipliers/Context) uses
+      the SAME NamedObjectContext<Strategy> pattern as cmangos -> drops into the
+      cmangos engine structure with minimal glue. = our class-content TEMPLATE.
+    - Your Cata-Patch scaling features (BotActiveAlone, SmartScale,
+      DisabledWithoutRealPlayer, AltBot auto-login, gear caps,
+      EquipmentPersistence, MaintenanceStrategy, WaitForAttackStrategy) = mostly
+      expansion-agnostic LOGIC -> fold into Stage 4.
+    - Your Cata WorldHandlers/CharacterHandler.cpp = a worked example of the
+      login/character core-integration edits -> reference for Phase A.
+    NOTE: your repo has NO ServerFacade -> we take cmangos' facade as the seam,
+      not yours; we take your CONTENT + features + integration know-how.
+
+
+B. WHAT ELSE WE NEED (things to do beyond the obvious) - answering Q5
+--------------------------------------------------------------------------------
+ [ ] DECIDE PACKAGING: in-core (src/server/game/playerbot like cmangos) vs our
+     modules/ system. cmangos lives in-core; bot-session edits are core anyway.
+     RECOMMEND: a hybrid - the unavoidable core edits in src/, the bot AI as a
+     first-class subdir compiled into the server (not a hot-reload module; bots
+     are too coupled to core for dynamic loading).
+ [ ] CLIENT DATA: bots need maps + mmaps + vmaps + DB2 extracted from an 8.3.7
+     client (our src/tools). Pathing/LOS won't work without mmaps/vmaps.
+ [ ] DB2/HOTFIX: spell/item/talent data comes from DB2 + hotfix DB on 8.3 (not
+     DBC). ChatHelper spell-name map + RandomItemMgr must read DB2 stores.
+ [ ] PROTOCOL: 8.3 opcodes differ; bots that QueuePacket fake client packets -
+     prefer driving bots via direct API calls where possible, packets only where
+     necessary (and re-mapped to 8.3 opcodes).
+ [ ] THREADING/PERF: keep PerformanceMonitor/MemoryMonitor + your SmartScale/
+     BotActiveAlone so 8.3 (heavier than WotLK) can handle many bots.
+ [ ] LICENSE: cmangos = GPL-2.0 (aligns w/ our base). Bot code stays GPL-2.0
+     (NOT LICENSE.MYCODE) where derived; only brand-new-from-scratch glue is
+     yours. Keep the bot tree clearly GPL-2.0.
+ [ ] BUILD IDENTITY: add a -DPSYCHO_BFA / -DTRINITY define (mirroring
+     MANGOSBOT_TWO) so every #ifdef site gets an 8.3 branch.
+ [ ] NAVIGATION DATA: TravelMgr node DB is huge + WotLK; start with local nav +
+     follow-master, defer the full travel graph.
+ [ ] TESTS: cmangos has BotTests; keep a minimal smoke test per stage.
+
+
+C. THE 4 STAGES (as requested: main AI, classes, then the rest)
+--------------------------------------------------------------------------------
+
+ ===== STAGE 1 - FOUNDATION + MAIN AI =====
+ Goal: a single bot logs in on Psycho_Core, is driven each tick, follows the
+ master, and executes the AI engine with basic generic combat/movement.
+ Work:
+   1.1 Build identity + skeleton: add bot tree to src/ (or modules), add
+       -DPSYCHO_BFA define + #ifdef seam plan.
+   1.2 PHASE A core edits (in OUR src):
+        - Bot WorldSession w/o real socket (+ guard socket sends).
+        - PlayerbotMgr/Holder + UpdateSessions hooked into World::Update.
+        - PlayerbotLoginMgr equivalent (login a Player as a bot, no client).
+        - ObjectAccessor/Map registration; OnPlayerLogin attach.
+        - playerbots DB + sPlayerbotAIConfig conf plumbing.
+        - chat command registration (.bot ...).
+   1.3 ServerFacade: add the TRINITY/BfA branch for EVERY method -> our 8.3 API
+       (this is the porting cheat-sheet; do it method-by-method).
+   1.4 Engine bring-up: Engine/Action/Value/Trigger/AiObjectContext/Strategy
+       compiling against our core via the facade.
+   1.5 Spell layer (minimum): bot->CastSpell path; LookupSpellInfo ->
+       sSpellMgr->GetSpellInfo(id, DIFFICULTY_NONE); ChatHelper name->id on DB2;
+       keep rank calls as pass-through.
+   1.6 Movement (minimum): MovementActions on TC MotionMaster/PathGenerator;
+       "follow master", move-to, basic positioning.
+   1.7 Generic strategies: follow, stay, basic melee/ranged combat, flee.
+ EXIT TEST: ".bot add <alt>" -> bot logs in, follows you, attacks a target with
+   a generic action. No class rotation yet. End-to-end loop proven.
+
+ ===== STAGE 2 - CLASSES (spec rotations + talents) =====
+ Goal: real per-class/spec combat for all 10 classes, BfA-correct.
+ Work:
+   2.1 Talents: rewrite Talentspec + Factory::InitTalents to BfA spec grid
+       (specialization + per-row LearnTalent + PvP talents).
+   2.2 VERTICAL SLICE FIRST = DEATH KNIGHT (reuse YOUR DK design): port your
+       Blood/Frost/Unholy strategies + DKActions/Triggers to the cmangos engine
+       on our core; re-map spell names to 8.3 DK abilities. Prove a full rotation.
+   2.3 Roll out remaining classes one at a time using the DK as the template:
+       Warrior, Paladin, Hunter, Rogue, Priest, Shaman, Mage, Warlock, Druid
+       (+ Monk/DH? -> 8.3 has Monk & Demon Hunter; NEW classes to ADD beyond the
+        WotLK 10 - flag as extra work).
+   2.4 Per-class: AiObjectContext registration, spec strategies, action/trigger
+       lists, multipliers, reaction (interrupts/dispels), pet classes
+       (hunter/warlock/DK ghoul).
+ EXIT TEST: each class bot uses a believable 8.3 rotation in combat + talents set.
+
+ ===== STAGE 3 - WORLD BEHAVIOUR (the "rest" of solo/again) =====
+ Goal: bots act like players in the open world.
+ Work:
+   3.1 RandomPlayerbotMgr: spawn/level/gear/distribute a population of world bots.
+   3.2 PlayerbotFactory: gear (DB2 items), enchants, consumables, bags - 8.3 data.
+   3.3 Questing + RPG: accept/turn-in, quest objectives, vendors, trainers, rest.
+   3.4 Movement at scale: Travel nodes (start minimal -> expand), grinding,
+       gathering, corpse run/rez.
+   3.5 Loot/inventory (LootObjectStack, RandomItemMgr) on 8.3 item data.
+   3.6 Fold in YOUR Cata-Patch scaling features (BotActiveAlone, SmartScale,
+       DisabledWithoutRealPlayer, AltBot auto-login, EquipmentPersistence,
+       MaintenanceStrategy, WaitForAttackStrategy).
+ EXIT TEST: a populated, leveling, questing, self-gearing bot world.
+
+ ===== STAGE 4 - GROUP CONTENT + EXTRAS (polish/scale) =====
+ Goal: grouped PvE/PvP + the nice-to-haves.
+ Work:
+   4.1 Grouping, party roles, ready/invite/accept, follow formations.
+   4.2 Dungeons (DungeonFinder) + dungeon/raid tactics (boss mechanics) for 8.3.
+   4.3 Battlegrounds/Arena tactics (BattleGroundTactics) for 8.3 BGs.
+   4.4 ahbot (auction house bot) on our DB.
+   4.5 Chat/commands depth, PlayerbotTextMgr i18n, optional LLM chat interface.
+   4.6 Hardening: crash-proofing socketless sends, perf tuning, BotTests.
+ EXIT TEST: bots run dungeons/BGs in a group and the system is stable at scale.
+
+
+D. EFFORT / RISK (honest)
+--------------------------------------------------------------------------------
+ - Stage 1 is the make-or-break (Phase A core edits + facade + engine bring-up).
+   Highest risk: socketless bot sessions + ticking them without crashes.
+ - Stage 2 talent rewrite (WotLK points -> BfA spec) is the biggest single
+   subsystem rewrite; class content is large but templated (your DK leads).
+ - Stage 3-4 are large but mostly incremental once 1-2 work.
+ - Reuse estimate: engine + generic + non-core leaf logic ~80-90% portable with
+   light edits via the facade; the 4 cross-ref subsystems (A.1-A.5) + talents +
+   class content are the real authoring work.
+ - This is a long, multi-milestone project. Recommend strict vertical slices and
+   a working bot at the end of Stage 1 before going wide.
+
+
+E. PLAN VERIFICATION (Q6) - sanity checks done
+--------------------------------------------------------------------------------
+ [x] Spell cast path exists on our core (Spell::prepare + bot->CastSpell). OK.
+ [x] GetSpellInfo needs Difficulty arg - captured. OK.
+ [x] Rank APIs still present on our core (won't break). OK.
+ [x] Talents confirmed BfA spec model on our core (SpecializationInfo). OK.
+ [x] WorldSession ctor needs a socket -> dummy-socket plan. OK.
+ [x] World::Update m_sessions loop = the tick hook. OK.
+ [x] Your DK uses same NamedObjectContext pattern -> reusable. OK.
+ [x] cmangos GPL-2.0 aligns with our base; licensing noted. OK.
+ [x] Client data (mmaps/vmaps/DB2) dependency captured. OK.
+ OPEN QUESTIONS for the user (decide before Stage 1):
+   Q1 Packaging: in-core subdir vs modules/ (recommend hybrid/in-core).
+   Q2 Add Monk + Demon Hunter (8.3 classes) now or after the WotLK 10?
+   Q3 Scope of v1: solo "alts as bots" first, or random-bot world population too?
+   Q4 Do you have 8.3.7 client data (maps/mmaps/vmaps/DB2) available for testing?
+
+
+F. BOTTOM LINE
+--------------------------------------------------------------------------------
+ Plan is sound and cross-referenced against the real core. Use cmangos/playerbots
+ as the ENGINE (facade seam), your Mangos-Bots as CONTENT + features + integration
+ know-how. Build in 4 stages: (1) foundation + main AI w/ a following+fighting
+ bot, (2) classes incl. talents (DK vertical slice first), (3) world behaviour +
+ your scaling features, (4) group content + extras. Stage 1 proves the hardest
+ risk before going wide.
+
+================================================================================
+ END - plan only. No code. Awaiting GO / NO-GO + answers to Q1-Q4.
+================================================================================

@@ -1,0 +1,127 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ NEWEST / MOST FEATURE-PACKED ike3 / mangosbot / cmangosbot SOURCE
+================================================================================
+ Status : RESEARCH ONLY. Nothing built.
+ Date   : 2026-06-07
+ Question: What's the absolute newest + most feature-packed ike3/mangosbot/
+           cmangosbot, and the best starting point to study/recreate from?
+================================================================================
+
+
+0. WINNER
+--------------------------------------------------------------------------------
+ >>> cmangos/playerbots  (github.com/cmangos/playerbots) <<<
+ The OFFICIAL CMaNGOS playerbots module - forked FROM celguar/mangosbot-bots and
+ now the most actively developed, most feature-packed, and best-structured ike3
+ descendant. Best starting point to study & recreate from for Psycho_Core 8.3.
+
+
+1. CANDIDATES COMPARED (measured this step)
+--------------------------------------------------------------------------------
+ Repo                       Last REAL code commit   Stars  Size    actions/values  ServerFacade
+ ------------------------   ---------------------   -----  ------  --------------  ------------
+ cmangos/playerbots         2026-06-04 (ACTIVE)     114    227MB   301 / 197       YES (6.5KB)
+ celguar/mangosbot-bots     2026-01 (code froze*)    97    154MB   269 / 183       YES (~11KB)
+ ike3/mangosbot-bots        2024-01 (stale)          63    139MB   ~older          (older)
+ conan513/mangosbot-bots    2023-06 (dead, TBC)       6    130MB   -               -
+
+ * celguar shows "pushed today" but recent commits are only CI/workflow YAML
+   edits; actual bot code stopped ~Jan 2026. cmangos/playerbots has genuine
+   June-2026 code work (DK quest tests, wotlk movement loop fix, bot enchant
+   DB tables) -> it is the live continuation.
+
+
+2. WHY cmangos/playerbots IS THE BEST STARTING POINT
+--------------------------------------------------------------------------------
+ a) NEWEST / actively maintained: real fixes & tests in June 2026 vs celguar's
+    Jan-2026 code freeze. Bugfixes and behaviours we'd otherwise re-discover are
+    already done.
+ b) MOST FEATURE-PACKED (engine breadth):
+      - 301 actions / 197 values (vs celguar 269/183) - the largest action/value
+        set of the family.
+      - generic strategy folder: 113 files (shared PvE/PvP/combat behaviours).
+      - ahbot/ included (Auction House Bot integration).
+      - TravelMgr (zone/quest-hub navigation), RandomPlayerbotMgr (open-world
+        population), BG/Arena population, alt-as-bot, DungeonFinder support.
+      - README feature list: populate open world + BGs/Arenas, alts as bots,
+        full PvE, very detailed config, command set.
+ c) HAS A REAL ServerFacade (the abstraction seam we want as our porting cheat-
+    sheet). celguar also has one (slightly larger), but cmangos is current.
+ d) CLEANEST PROVENANCE: it's the upstream "official" CMaNGOS module (forked from
+    celguar). Diffing it vs your repo shows exactly what newer features exist.
+ e) GPL-2.0 (MaNGOS family) - aligns with our TrinityCore GPL-2.0 base.
+ f) Multi-expansion by design: vanilla / tbc / wotlk conf + per-expansion SQL
+    folders -> a built-in template for "add another expansion" (= our 8.3).
+
+ LIMITATION (be honest): like all of them it tops out at WotLK (3.3.5). It is
+ NOT Cataclysm. Your own Mangos-Bots is already CATA 4.3.4 - one expansion
+ closer to BfA - and has YOUR DK + Cata-Patch features.
+
+
+3. HOW THIS RELATES TO YOUR Psychostout/Mangos-Bots
+--------------------------------------------------------------------------------
+ - Your repo = an EARLIER mangos lineage (no ServerFacade in your playerbot dir;
+   ~174 actions / ~113 values) BUT advanced to CATACLYSM 4.3.4, with YOUR custom
+   Death Knight and the Cata-Patch-V1 scaling/lifecycle features.
+ - cmangos/playerbots = NEWER ENGINE + MORE FEATURES, but only WotLK.
+ So they're complementary:
+     cmangos/playerbots -> newest ENGINE + most ACTIONS/VALUES + ServerFacade +
+                           ahbot/travel + active bugfixes.
+     your Mangos-Bots   -> CATA content (closer to BfA), your DK template, your
+                           production scaling features (SmartScale/BotActiveAlone).
+
+
+4. RECOMMENDED STARTING POINT (for the 8.3 recreate)
+--------------------------------------------------------------------------------
+ PRIMARY ENGINE BLUEPRINT  : cmangos/playerbots (newest, most complete engine +
+                             ServerFacade contract + 301/197 actions/values +
+                             ahbot/travel). Document THIS as the canonical engine.
+ EXPANSION/FEATURE BLUEPRINT: your Psychostout/Mangos-Bots (Cata content nearer
+                             to BfA, your DK, your Cata-Patch scaling features).
+ SECONDARY REFERENCE        : mod-playerbots (AGPLv3) only for AC->TC API-name
+                             hints + modern perf patterns (don't copy: AGPL).
+
+ NET: recreate our 8.3 engine using cmangos/playerbots' architecture +
+ ServerFacade surface as the model, port behaviours forward, and fold in YOUR
+ Cata content (DK first) and YOUR scaling features. Best of both.
+
+
+5. CONCRETE NEXT-STEP PROPOSAL (doc phase, unchanged plan, refined sources)
+--------------------------------------------------------------------------------
+ Dev/playerbots_docs/:
+   ARCHITECTURE.md          - engine from cmangos/playerbots (Engine/Strategy/
+                              Action/Value/Trigger/Context).
+   SERVERFACADE_CONTRACT.md - cmangos/playerbots ServerFacade methods -> our 8.3
+                              API (the top-value porting cheat-sheet).
+   FEATURE_INVENTORY.md     - the full cmangos feature set (ahbot, travel, BG,
+                              random pop, DF) + YOUR Cata-Patch features.
+   DK_REFERENCE.md          - YOUR Death Knight as the per-class template.
+   CORE_EDITS.md            - Phase A engine edits in our src (bot sessions etc).
+   DB_SCHEMA.md             - playerbots DB -> our schema.
+ Then: build our 8.3 ServerFacade + engine skeleton -> Phase A -> vertical slice
+ (Death Knight) -> scale.
+
+
+6. SOURCES
+--------------------------------------------------------------------------------
+ - github.com/cmangos/playerbots (README + API): "forked from celguar/mangosbot-
+   bots"; 114*, pushed 2026-06-04; commits incl. "Test: Added various DK quest
+   tests", "Movement: Fixed bots moving around in loops in wotlk", "Db: Added
+   missing bot enchants tables"; 301 actions / 197 values; ServerFacade,
+   TravelMgr, ahbot, multi-expansion conf + SQL (vanilla/tbc/wotlk).
+ - github.com/celguar/mangosbot-bots: 97*, code froze ~Jan 2026 (recent =
+   CI YAML only); 269/183; ServerFacade ~11KB.
+ - github.com/ike3/mangosbot-bots: original, stale (2024-01).
+ - github.com/Psychostout/Mangos-Bots: your fork, CATA 4.3.4, your DK +
+   Cata-Patch (see Research_PsychostoutMangosBots_Review.txt).
+
+================================================================================
+ END - research only. No code. Awaiting next step.
+================================================================================

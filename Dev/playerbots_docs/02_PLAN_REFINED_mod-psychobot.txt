@@ -1,0 +1,185 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ mod-psychobot - REFINED PLAN  (Step 12.3)
+================================================================================
+ Status : PLAN / RESEARCH ONLY. Nothing built. Awaiting GO/NO-GO.
+ Date   : 2026-06-07
+ Decisions locked by user:
+   - Build as a MODULE named "mod-psychobot" (reuse our skeleton module).
+   - Monk + Demon Hunter: copy an existing class folder + rename/edit (the way
+     you did DK from warrior). Research done (below). Verify against our core.
+   - V1 scope: agent's choice (decided below).
+================================================================================
+
+
+1. PACKAGING DECISION: mod-psychobot (module) + minimal core edits
+--------------------------------------------------------------------------------
+ - The AI lives in modules/mod-psychobot/ (rename our modules/mod-skeleton).
+ - BUT the unavoidable bot-session/login/tick edits CANNOT be a pure drop-in
+   module (same reason mod-playerbots needs a core fork). So mod-psychobot =
+   MODULE for the AI + a SMALL set of core edits in our src/ (Phase A).
+   This is the honest, correct shape (module-first, core-edits-where-required).
+ - cmangos engine uses #ifdef MANGOS/CMANGOS/MANGOSBOT_*; we add a -DPSYCHOBOT
+   (TrinityCore BfA 8.3) branch and put the AI under the module.
+ - Module name/paths:
+     modules/mod-psychobot/
+       src/                (the ported ike3 engine + classes, namespace ai)
+       conf/mod_psychobot.conf.dist   (= ported aiplayerbot.conf keys)
+       sql/                (playerbots DB: characters/world)
+       mod-psychobot.cmake (extra includes/deps if needed)
+       README.md
+ - Loader: AddmodpsychobotScripts() (our module loader pattern) registers the
+   CommandScript (.psychobot ...) + WorldScript that ticks the bot mgr.
+
+
+2. MONK + DEMON HUNTER - RESEARCH (verified vs OUR core)
+--------------------------------------------------------------------------------
+ CORE SUPPORT CONFIRMED in SharedDefines.h:
+   CLASS_MONK = 10 ; CLASS_DEMON_HUNTER = 12 (both in CLASSMASK_ALL_PLAYABLE).
+   Powers: POWER_ENERGY=3, POWER_CHI=12, POWER_FURY=17, POWER_PAIN=18 - all present.
+   Specs via DB2: sChrSpecializationStore + GetChrSpecializationByIndex /
+   GetDefaultChrSpecializationForClass (how we assign bot specs).
+ cmangos/playerbots has NO monk/demonhunter (WotLK = 10 classes) -> these are
+ NET-NEW, authored by COPYING an existing class folder + rename/edit (your DK
+ method). AiFactory::createAiObjectContext is the switch where we add
+ case CLASS_MONK / case CLASS_DEMON_HUNTER.
+
+ MONK (introduced MoP; class id 10) - 3 specs:
+   - Brewmaster  = TANK    (Energy + Chi; Stagger/Shuffle/Purifying Brew).
+   - Mistweaver  = HEALER  (Mana + Chi; Renewing Mist, Vivify, Enveloping Mist).
+   - Windwalker  = MELEE DPS (Energy + Chi; combo builder/spender).
+   Core/signature spells (8.3-era): Tiger Palm (Chi gen), Blackout Kick,
+   Rising Sun Kick, Fists of Fury, Spinning Crane Kick (AoE), Touch of Death,
+   Expel Harm, Roll/Chi Torpedo (mobility), Leg Sweep/Paralysis (CC),
+   Keg Smash/Breath of Fire/Purifying Brew/Celestial Brew (Brewmaster),
+   Renewing Mist/Vivify/Enveloping Mist/Essence Font/Revival (Mistweaver).
+   COPY-BASE recommendation: copy ROGUE or WINDWALKER-likeness for WW melee
+   combo feel; but simplest is copy WARRIOR (melee, 3 specs incl. a tank) and
+   reshape -> Brewmaster(tank)/Windwalker(dps); Mistweaver(heal) model from a
+   healer class (PRIEST/paladin holy) for the heal strategy.
+
+ DEMON HUNTER (introduced Legion; class id 12) - 2 specs ONLY:
+   - Havoc      = MELEE DPS (Fury; Chaos Strike, Demon's Bite, Eye Beam,
+                  Blade Dance, Fel Rush, Immolation Aura, Metamorphosis).
+   - Vengeance  = TANK     (Fury + Soul Fragments; Fracture, Soul Cleave,
+                  Demon Spikes, Fiery Brand, Spirit Bomb, Sigil of Flame,
+                  Immolation Aura, Metamorphosis(tank), Infernal Strike mobility).
+   COPY-BASE recommendation: copy WARRIOR (Fury warrior = rage builder/spender
+   melee ~ Havoc fury feel; Protection = tank ~ Vengeance) then rename to
+   havoc/vengeance and swap to DH spells. Only 2 specs (less than the usual 3).
+
+ VERIFY-IN-CORE TASK (Stage 2 when we add them):
+   [ ] Confirm each named ability resolves to a real spellId in our DB2
+       SpellName store for 8.3 (extract from 8.3.7 client DB2). Re-author spell
+       name lists if any differ; do NOT hardcode WotLK IDs.
+   [ ] Confirm spec ids via sChrSpecializationStore for class 10 & 12.
+   [ ] Confirm power handling (Chi/Fury/Pain) works on a created bot.
+
+
+3. V1 SCOPE - DECIDED (agent's call, per user)
+--------------------------------------------------------------------------------
+ V1 = "ALTS AS BOTS" (player-summoned), NOT world random-bot population.
+ Rationale:
+   - Smallest path to a WORKING, testable bot (one master adds their own alts).
+   - Avoids the huge RandomPlayerbotMgr population + gear/level/distribute system
+     until the core foundation is proven (that's V2).
+   - Matches the vertical-slice philosophy: prove login+tick+follow+combat+one
+     class rotation before scaling to thousands of world bots.
+ V1 deliverable: .psychobot add <alt> -> your alt logs in as a bot, follows you,
+   fights with a real 8.3 rotation; works for >=1 class (DK first).
+ V2 (later): RandomPlayerbotMgr open-world population + your Cata-Patch scaling
+   features (SmartScale/BotActiveAlone/etc) + travel/quest at scale.
+
+
+4. ANYTHING ELSE WE NEED (Q4) - additions to the checklist
+--------------------------------------------------------------------------------
+ [ ] CLIENT DATA: bots need mmaps/vmaps/maps/DB2 extracted from an 8.3.7 client
+     (our src/tools). Without mmaps, pathing/LOS fail. CONFIRM you have/can make
+     these (blocking for movement testing). DB2 needed for spell-name resolution.
+ [ ] LICENSE: cmangos = GPL-2.0; the ported bot engine STAYS GPL-2.0 (NOT
+     LICENSE.MYCODE) because it's derived. Only brand-new-from-scratch code you
+     author (e.g. truly original Monk/DH content you write, or new glue) can be
+     MyCode. -> mod-psychobot will be a MIXED tree: mark ported files GPL-2.0;
+     only original files get the MyCode header. (We'll be careful per file.)
+ [ ] BUILD: add -DPSYCHOBOT define; ensure modules/mod-psychobot compiles into
+     worldserver (it's tightly coupled - static link, not hot-reload).
+ [ ] DB: create a playerbots database (or reuse characters) + apply ported SQL.
+ [ ] PERF: keep PerformanceMonitor/MemoryMonitor; defer SmartScale to V2.
+ [ ] SAVED STATE: bot character data lives in our characters DB (alts already
+     exist there) - V1 is simpler since alts are real existing characters.
+ [ ] COMMANDS: register .psychobot via our CommandScript/RBAC.
+ [ ] OPCODES: prefer driving bots by direct API; only fake packets where needed,
+     re-mapped to 8.3 opcodes.
+
+
+5. THE 4 STAGES (re-affirmed, tuned for mod-psychobot + V1=alts)
+--------------------------------------------------------------------------------
+ STAGE 1 - FOUNDATION + MAIN AI  (the make-or-break)
+   - Rename modules/mod-skeleton -> modules/mod-psychobot; module loader wires
+     a WorldScript (tick) + CommandScript (.psychobot).
+   - Phase A core edits (src/): bot WorldSession w/ dummy socket + guarded sends;
+     PlayerbotMgr/Holder + UpdateSessions hooked into World::Update; bot login
+     of an existing alt (no client); ObjectAccessor/Map register; conf plumbing.
+   - Port the ike3 engine (Engine/Action/Value/Trigger/AiObjectContext/Strategy)
+     into the module; add ServerFacade with -DPSYCHOBOT branch -> our 8.3 API.
+   - Min spell layer (bot->CastSpell; GetSpellInfo(id,DIFFICULTY_NONE); ChatHelper
+     name->id on DB2; rank calls pass-through).
+   - Min movement (TC MotionMaster/PathGenerator; follow master, move-to).
+   - Generic strategies: follow/stay/basic combat/flee.
+   EXIT: .psychobot add <alt> -> bot logs in, follows, basic combat. END-TO-END.
+
+ STAGE 2 - CLASSES (rotations + talents)
+   - Talents: rewrite Talentspec + Factory::InitTalents to BfA spec model
+     (sChrSpecializationStore + LearnTalent + PvP talents).
+   - VERTICAL SLICE = DEATH KNIGHT (your design ported) - full 8.3 rotation.
+   - Roll out WotLK-10 classes (warrior, paladin, hunter, rogue, priest, shaman,
+     mage, warlock, druid) from cmangos, re-mapped to 8.3 spells.
+   - ADD NET-NEW CLASSES: MONK (copy warrior+heal-class) & DEMON HUNTER (copy
+     warrior) per section 2; verify spells/specs in core DB2.
+   EXIT: every class bot uses a believable 8.3 rotation; talents set per spec.
+
+ STAGE 3 - WORLD BEHAVIOUR  (V2 territory)
+   - RandomPlayerbotMgr population; PlayerbotFactory gear (DB2)/enchants/bags;
+     quest/RPG; travel (min->expand); loot; + YOUR Cata-Patch scaling features.
+
+ STAGE 4 - GROUP CONTENT + EXTRAS
+   - Grouping/roles; dungeons/DungeonFinder; BG/Arena tactics; ahbot; i18n/LLM;
+     hardening + BotTests.
+
+
+6. PLAN VERIFICATION (Q5) - checks done this step
+--------------------------------------------------------------------------------
+ [x] CLASS_MONK=10 / CLASS_DEMON_HUNTER=12 exist in our core. OK.
+ [x] POWER_CHI/FURY/PAIN/ENERGY exist in our core. OK.
+ [x] sChrSpecializationStore exists for assigning specs. OK.
+ [x] cmangos has NO monk/DH -> net-new via copy-rename (your DK method). OK.
+ [x] AiFactory::createAiObjectContext switch = the add-a-class hook. OK.
+ [x] warrior folder = clean 3-spec copy-base (Actions + 3 strategies + Context). OK.
+ [x] our skeleton module exists and is rename-ready -> mod-psychobot. OK.
+ [x] Monk=3 specs (incl. heal), DH=2 specs (Legion) - researched. OK.
+ [x] Phase A (socketless session + World::Update tick) confirmed prior step. OK.
+ [x] Licensing mixed-tree plan (GPL-2.0 ported, MyCode original). OK.
+ REMAINING BLOCKER TO CONFIRM WITH USER:
+   - CLIENT DATA (mmaps/vmaps/DB2 for 8.3.7): required for movement + spell-name
+     resolution testing. Do you have it / can you extract it?
+
+
+7. BOTTOM LINE
+--------------------------------------------------------------------------------
+ - Build = mod-psychobot module (from our skeleton) + minimal Phase A core edits.
+ - Monk + DH are fully supported by our core (classes/powers/specs); cmangos
+   lacks them so we author them by copying warrior (DH: havoc/vengeance) and
+   warrior+healer (Monk: brewmaster/windwalker/mistweaver), re-mapped to 8.3
+   spells verified in DB2 - exactly your proven DK-from-warrior method.
+ - V1 = alts-as-bots (login/follow/fight + DK), V2 = world population + scaling.
+ - Plan verified against the real core; only open blocker is 8.3.7 client data.
+
+================================================================================
+ END - plan only. No code. Awaiting GO/NO-GO (+ client-data confirmation).
+================================================================================

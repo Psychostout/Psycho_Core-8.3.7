@@ -1,0 +1,263 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ cmangos/playerbots - MASTER STUDY  (Step 12)
+================================================================================
+ Status : STUDY / RESEARCH ONLY. Source cloned to /home/user/playerbots (NOT in
+          our repo). Nothing built into Psycho_Core yet.
+ Date   : 2026-06-07
+ Source : github.com/cmangos/playerbots (cloned --depth 1, 172MB, 1028 files).
+ Scope  : review/verify everything; deep-dive APIs, spells/ranks, talents,
+          pathing; learn the AI + code style; map HOW to change it so our 8.3
+          core gets the SAME result.
+================================================================================
+
+
+1. WHAT IT IS / SCALE (verified by clone)
+--------------------------------------------------------------------------------
+ - ~238,000 LOC of C++ in playerbot/. Pure ike3 PlayerbotAI lineage.
+ - Top-level: playerbot/ (engine), ahbot/ (auction-house bot), sql/ (DB),
+   CMakeLists.txt, botpch.h (PCH), README.
+ - Biggest brains (LOC):
+     PlayerbotAI.cpp 8661  | PlayerbotFactory.cpp 5707 | RandomPlayerbotMgr 4685
+     BattleGroundTactics 4931 | MovementActions 4459 | RandomItemMgr 4029
+     TravelNode 3803 | TravelMgr 2844 | PlayerbotMgr 2830
+ - strategy/ engine: actions 301 files/61.7k LOC, values 197/21.3k,
+     triggers 48/7.8k, generic 113/7.8k, + 10 class folders (deathknight 20).
+ - Notable extras: PlayerbotLLMInterface (optional LLM-driven bot chat),
+     PlayerbotLoginMgr, BotTests, MemoryMonitor, PerformanceMonitor.
+
+
+2. THE AI ENGINE (ike3 Strategy/Action/Value/Trigger) - LEARN THIS
+--------------------------------------------------------------------------------
+ Core types (playerbot/strategy/):
+   - Engine        : per-bot brain. Holds active Strategies, runs a tick:
+                     evaluate Triggers -> queue Actions (ActionBasket/Queue) ->
+                     execute by relevance, with Multipliers + ExecutionListeners.
+   - Strategy      : a named bundle that wires Triggers->Actions (e.g. "dps",
+                     "tank", "heal", "nc"(non-combat), "follow master").
+   - Action        : a unit of behaviour. Key virtuals:
+                       Execute(Event&), isPossible(), isUseful(),
+                       getPrerequisites()/getAlternatives()/getContinuers()
+                       (the P/A/C action-node chains), getRelevance(),
+                       getThreatType(), Reset().
+   - Value<T>      : cached "fact" the AI reads (nearest enemy, health %, has
+                     aura, current target, etc.). Lazy + cached per tick.
+   - Trigger       : a condition; when true it pushes its action(s) into the
+                     queue with a relevance.
+   - AiObjectContext: the REGISTRY. NamedObjectContext<Action/Value/Trigger/
+                     Strategy> maps string names -> factory creators. This is how
+                     "cast fireball" / "low health" / "enemy target" resolve.
+   - Multiplier / PassiveMultiplier: scale action relevance (e.g. CC, LOS).
+   - ActionNode + NextAction::array(P, A, C): each spec strategy defines an
+     ActionNodeFactory mapping action name -> ActionNode with:
+        P = Prerequisites (do first), A = Alternatives (if this fails),
+        C = Continuers (do after). (See any class strategy, e.g. DK.)
+ Per-class content lives in strategy/<class>/: a <Class>AiObjectContext that
+ registers that class's actions/triggers/strategies, plus spec strategies
+ (e.g. BloodDK/FrostDK/UnholyDK), <Class>Actions, <Class>Triggers, Multipliers.
+
+ => TO RECREATE: keep this ENGINE design verbatim (it's clean & core-agnostic in
+    concept). Only the LEAF actions/values/triggers touch the core API.
+
+
+3. THE CORE-API SEAM: ServerFacade  (THE key to "same result on our core")
+--------------------------------------------------------------------------------
+ playerbot/ServerFacade.h is the abstraction over the server. It is FULL OF
+ PREPROCESSOR CORE SWITCHES already:
+     #ifdef MANGOS ... #endif      #ifdef CMANGOS ... #endif
+     #ifndef MANGOSBOT_TWO / ZERO  (expansion variants)
+ Example:
+     DeathState GetDeathState(Unit* u){ #ifdef MANGOS u->GetDeathState();
+         #else (TWO) u->getDeathState(); #endif  #ifdef CMANGOS u->GetDeathState(); }
+ It wraps: IsAlive/IsDead/DeathState, IsInCombat/IsFrozen/IsInRoots/IsCharmed/
+   IsFeared, IsInFront, distance helpers, SendPacket/SendMessageToSet,
+   LookupSpellInfo/LookupSpellRangeEntry/GetSpellInfoRows, LOS, IsFriendly/
+   IsHostile, IsSpellReady, faction, chase target/angle/offset, BG template/
+   arena type, GetAreaId, SetFacingTo.
+
+ *** THIS IS OUR PORT STRATEGY ***
+ The codebase is DESIGNED to add a new core via #ifdef. To get the SAME RESULT
+ on Psycho_Core we ADD a `#ifdef TRINITY` (BfA 8.3) branch to ServerFacade and
+ every other #ifdef MANGOS/CMANGOS site. ServerFacade is the FIRST and most
+ important file to port - it is the contract of "what the bot needs from the
+ core". Most behaviour code calls sServerFacade.* and stays UNCHANGED.
+
+ CAVEAT: ServerFacade does NOT cover everything; many files still call core APIs
+ directly (bot->CastSpell, GetMotionMaster, sSpellMgr, talent stores). Those are
+ the additional port sites (sections 5-8).
+
+
+4. HOW THE CORE IS SELECTED AT BUILD (CMakeLists.txt)
+--------------------------------------------------------------------------------
+ add_definitions chosen by ${CMAKE_PROJECT_NAME}:
+   -DCMANGOS / -DMANGOS         (core family)
+   -DMANGOSBOT_ZERO  (Classic) / -DMANGOSBOT_ONE (TBC) / -DMANGOSBOT_TWO (WotLK)
+   -DENABLE_PLAYERBOTS, -DENABLE_MODULES, -DBUILD_AHBOT
+ => For us we introduce a new identity (e.g. -DTRINITY + -DPSYCHO_BFA / a new
+    MANGOSBOT_* equivalent for 8.3) and branch on it everywhere the code does.
+
+
+5. SPELLS + SPELL RANKS  (BIGGEST EXPANSION DIFFERENCE)
+--------------------------------------------------------------------------------
+ HOW IT WORKS NOW (WotLK-era):
+   - ChatHelper builds spellIds: map<lowerName, vector<spellId>> by scanning the
+     whole SpellStore (SpellEntry.SpellName[0]). parseSpell(name) -> ids.
+   - PlayerbotAI::CastSpell(name,...) resolves a name to the spell the bot KNOWS,
+     picking the appropriate RANK (the bot learns ranked spells; the AI asks for
+     "fireball" and the core/known-spell logic uses the highest known rank).
+   - Spell ranks exist: GetFirstSpellInChain/GetPrevSpellInChain chain logic +
+     sSpellMgr rank handling underpin "cast the best rank I know".
+   - Class strategies reference spells BY NAME ("fireball","frostbolt",...), so
+     the leaf actions are name-driven (good - names are stable-ish), but the
+     RANK + KNOWN-SPELL plumbing is WotLK.
+
+ ON BfA 8.3 (Psycho_Core) - WHAT CHANGES:
+   - SPELL RANKS WERE REMOVED (since Cata/MoP). There is ONE spell per ability;
+     no rank chains. -> All "highest known rank" logic must be SIMPLIFIED to a
+     direct known-spell check. GetFirstSpellInChain/rank APIs differ or are gone.
+   - SpellEntry/sSpellStore (DBC) -> TrinityCore uses SpellInfo via
+     sSpellMgr->GetSpellInfo(id, Difficulty) (DB2/hotfix). 8.3 spells are keyed
+     by (id, DIFFICULTY). The ChatHelper name->id scan must use our DB2 stores.
+   - Many WotLK spell IDs differ on 8.3; class rotations reference different
+     spells. (User: writing new content is fine -> we re-author class rotations.)
+   - SpellName is localized differently in DB2.
+   PORT TASKS:
+     [ ] Rebuild ChatHelper spell-name map on our DB2 SpellName store.
+     [ ] Replace rank-chain/highest-rank logic with single-spell known checks.
+     [ ] Route LookupSpellInfo -> sSpellMgr->GetSpellInfo(id, DIFFICULTY_NONE).
+     [ ] Re-author per-class spell name lists for 8.3 (your DK = template).
+
+
+6. TALENT SYSTEM  (SECOND BIGGEST DIFFERENCE)
+--------------------------------------------------------------------------------
+ HOW IT WORKS NOW (point-based trees):
+   - Talentspec.h: TalentEntry + TalentTabEntry, talent TABS/pages, talent
+     POINTS (GetTalentPoints, LeveltoPoints, PointstoLevel), talent links.
+   - PlayerbotFactory::InitTalents(specNo) loops sTalentStore, picks talents in
+     the chosen tab, spends points; "auto talents" action applies a build.
+   - Whole model = WotLK 61-point 3-tree-per-class.
+
+ ON BfA 8.3 - WHAT CHANGES (this is a REWRITE, not a tweak):
+   - No talent points / tabs. BfA = SPECIALIZATION + a 7-row x 3-choice talent
+     grid + PvP talents. Our core exposes SpecializationInfo, GetActiveTalentGroup,
+     LearnTalent(talentId,...), PvpTalents (see Player.h).
+   - "Spec a bot" becomes: choose a specialization, then select a talent per row.
+   PORT TASKS:
+     [ ] Replace Talentspec (tabs/points) with a BfA spec+row/choice model.
+     [ ] PlayerbotFactory::InitTalents -> set specialization + per-row LearnTalent.
+     [ ] Class strategy selection keys off SPEC (Blood/Frost/Unholy already maps
+         cleanly to specs - good).
+
+
+7. PATHING / MOVEMENT
+--------------------------------------------------------------------------------
+ HOW IT WORKS NOW:
+   - MovementActions.cpp uses bot->GetMotionMaster():
+       mm.MovePoint(mapId, Position(x,y,z,0), FORCED_MOVEMENT_RUN/FLIGHT, speed, fly)
+       mm.MovePath(pointPath, FORCED_MOVEMENT_RUN, ...)
+       mm.Clear(); top()/empty() inspection.
+   - CMaNGOS MotionMaster API (MovePoint signature w/ ForcedMovement flag +
+     speed + fly bool) differs from TrinityCore's.
+   - TravelMgr/TravelNode (3.8k+2.8k LOC): a NAVIGATION GRAPH of travel nodes
+     across the world (quest hubs, flight, transports) so bots path long distance.
+   - Uses mmaps (navmesh) under the hood via the core's PathFinder.
+
+ ON BfA 8.3 (TrinityCore) - WHAT CHANGES:
+   - TrinityCore MotionMaster signatures differ:
+       MovePoint(id, x,y,z, generatePath), MovePath(...), MoveSplineInit,
+       MoveCharge/MoveJump etc. (see our Dev/ModuleAPI_Reference.txt section 6).
+   - FORCED_MOVEMENT_* flags are a CMaNGOS concept -> map to TC equivalents.
+   - PathGenerator (TC) replaces CMaNGOS PathFinder. mmaps must be extracted for
+     8.3 maps (our tools: mmaps_generator).
+   - TravelMgr node DB + map IDs are WotLK; many maps/coords differ on 8.3.
+   PORT TASKS:
+     [ ] Rewrite MovementActions move calls on TC MotionMaster/PathGenerator.
+     [ ] Map FORCED_MOVEMENT_* -> TC movement flags/speeds.
+     [ ] Rebuild/curate TravelMgr nodes for 8.3 maps (big data task; can start
+         minimal: follow-master + local nav, expand later).
+
+
+8. CORE INTEGRATION (Phase A "fork" edits in OUR src) - how it hooks the server
+--------------------------------------------------------------------------------
+ HOW IT WORKS NOW:
+   - PlayerbotMgr (per-master) + PlayerbotHolder + RandomPlayerbotMgr (global).
+   - UpdateSessions(elapsed) ticks bot sessions each world update.
+   - OnPlayerLogin(player) attaches a master's PlayerbotMgr.
+   - HandlePlayerbotCommand / PlayerbotMgrCommand = the chat commands.
+   - Bots are REAL Players logged in via a special path (PlayerbotLoginMgr) with
+     a bot WorldSession (no real client socket).
+ ON OUR CORE - WHAT WE MUST ADD (the engine edits, not the module):
+   [ ] Bot WorldSession with no real WorldSocket (+ guard all socket sends) -
+       our WorldSession ctor requires a socket today.
+   [ ] Drive bot AI each world/map tick (hook PlayerbotMgr::UpdateSessions into
+       World::Update or map update).
+   [ ] Register bots in ObjectAccessor/Map so they're found like players.
+   [ ] Bot login path (PlayerbotLoginMgr equivalent) w/o a client.
+   [ ] playerbots DB + config plumbing; chat-command registration (our ScriptMgr/
+       CommandScript or RBAC).
+ These are the highest-risk, most TC-8.3-specific pieces.
+
+
+9. DATABASE
+--------------------------------------------------------------------------------
+ sql/ split by area + expansion:
+   characters/: ai_playerbot_ahbot, _cache, _custom_strategy, _db_store, _names,
+                _random_bots  (bot persistence, names, strategies, AH bot).
+   world/:      indexes, rpg_races, texts + classic/ tbc/ wotlk/ (per-expansion
+                world data, e.g. vendor/quest/rpg tables).
+   other/:      database_merge_<exp>.sql, delete/reset randombots.
+ PORT: create a playerbots DB for our schema; the characters-side tables port
+ fairly directly; the world-side per-expansion data must be redone for 8.3.
+
+
+10. CODE STYLE (so a rewrite matches "same result")
+--------------------------------------------------------------------------------
+ - C++ in `namespace ai`. Classes per file, <Name>.cpp/.h pairs.
+ - Heavy use of NamedObjectFactory<T> + Context registries (string-keyed).
+ - Actions/Values/Triggers are tiny single-purpose classes registered by name.
+ - Core differences isolated by #ifdef MANGOS/CMANGOS/MANGOSBOT_* (we add TRINITY).
+ - sServerFacade.* for wrapped calls; direct core calls elsewhere.
+ - Config via sPlayerbotAIConfig (its own conf file, many keys).
+ - Logging via core log macros; PerformanceMonitor/MemoryMonitor for scaling.
+
+
+11. "CHANGE IT SO WE GET THE SAME RESULT" - THE PLAN
+--------------------------------------------------------------------------------
+ Same result = bots that populate the world, group, quest, fight per class/spec,
+ do dungeons/BGs - but running on Psycho_Core (TrinityCore BfA 8.3).
+ STRATEGY: keep the ENGINE + architecture identical; re-target the LEAF/seam code.
+   STAGE 0  Document (this folder).
+   STAGE 1  ServerFacade: add TRINITY/BfA branch -> our 8.3 API for every method.
+   STAGE 2  Phase A core edits (section 8) in OUR src.
+   STAGE 3  Bring up the engine (Engine/Action/Value/Trigger/Context) compiling
+            against our core via the facade; minimal generic strategies (follow,
+            move, basic combat).
+   STAGE 4  Spell layer: ChatHelper name->id on our DB2; drop rank logic;
+            LookupSpellInfo via sSpellMgr.
+   STAGE 5  Talents: BfA spec+row model in Factory.
+   STAGE 6  VERTICAL SLICE: Death Knight (your design) - login a bot, follow,
+            cast a real 8.3 DK rotation, end-to-end.
+   STAGE 7  Scale: classes, RandomPlayerbotMgr population, movement/Travel,
+            dungeon/BG tactics, ahbot, your Cata-Patch scaling features.
+ Net: ~80-90% of the AI logic (engine + non-core leaf logic) ports with light
+ edits; the heavy lifting is ServerFacade + Phase A + spells/talents/pathing
+ (the 4 expansion/core-specific subsystems above) + re-authoring class content.
+
+
+12. FILES TO READ NEXT (for the file-by-file FILE_MAP doc)
+--------------------------------------------------------------------------------
+ Priority order: ServerFacade.* -> PlayerbotAI.* -> strategy/Engine,Action,Value,
+ Trigger,AiObjectContext -> MovementActions -> GenericSpellActions/CastSpellAction
+ -> PlayerbotFactory (talents/gear) -> RandomPlayerbotMgr -> PlayerbotMgr/Holder/
+ LoginMgr (core hooks) -> TravelMgr/TravelNode -> ChatHelper -> Talentspec.
+
+================================================================================
+ END - study only. Source at /home/user/playerbots (not committed to our repo).
+ No Psycho_Core code changed. Awaiting next step.
+================================================================================

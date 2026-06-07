@@ -1,0 +1,155 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ REVIEW: Psychostout/Mangos-Bots playerbot (chosen study/recreate source)
+================================================================================
+ Status : RESEARCH / REVIEW ONLY. Nothing built.
+ Date   : 2026-06-07
+ Decision: Use THIS repo as the primary source to study & recreate for 8.3.
+ Path reviewed: src/modules/Bots/playerbot  (+ Dev_referance/Cata-Patch-1)
+ Repo: github.com/Psychostout/Mangos-Bots (pure C++, pushed 2026-06-07).
+================================================================================
+
+
+0. HEADLINE
+--------------------------------------------------------------------------------
+ Good choice. This is the canonical ike3/mangos playerbot, and crucially YOUR
+ fork is already on CATACLYSM 4.3.4 (MaNGOS Three) with real custom work -
+ including a full Death Knight implementation and a substantial "Cata-Patch-V1"
+ of performance/lifecycle features. That makes it BOTH the cleanest engine to
+ recreate AND one expansion closer to BfA than the WotLK sources.
+
+
+1. WHAT'S IN THE playerbot DIR (verified)
+--------------------------------------------------------------------------------
+ Engine (root, classic ike3): AiFactory, ChatFilter, ChatHelper, FleeManager,
+   GuildTaskMgr, Helpers, LootObjectStack, PlayerbotAI(.cpp 55KB),
+   PlayerbotAIBase, PlayerbotAIConfig, PlayerbotCommandServer, PlayerbotDbStore,
+   PlayerbotFactory, PlayerbotMgr, PlayerbotSecurity, RandomItemMgr,
+   RandomPlayerbotFactory, RandomPlayerbotMgr, aiplayerbot.conf.dist.in,
+   playerbot.h, playerbotDefs.h.
+ strategy/ (the AI framework - same ike3 design we documented):
+   Action, ActionBasket, AiObject, AiObjectContext, CustomStrategy, Engine,
+   Event, Multiplier, PassiveMultiplier, Queue, Strategy, Trigger, Value,
+   NamedObjectContext, StrategyContext + subdirs:
+     actions (~174), values (~113), triggers (~16), generic,
+     and ALL 10 classes: deathknight, druid, hunter, mage, paladin, priest,
+     rogue, shaman, warlock, warrior.
+ NOTE: NO ServerFacade in this branch (this is an earlier/leaner mangos lineage
+   than celguar's; core APIs are called directly via playerbot.h includes:
+   MotionMaster.h, SpellMgr.h, SpellAuras.h, Unit.h, Player.h, etc.).
+   => For OUR rewrite we should ADD a ServerFacade-style seam (8.3) ourselves;
+      it makes the 8.3 mapping far cleaner. (See Step 11.4 contract doc plan.)
+
+
+2. YOUR DEATH KNIGHT WORK (the part you flagged) - it's REAL and complete-looking
+--------------------------------------------------------------------------------
+ strategy/deathknight/ files + sizes:
+   DeathKnightAiObjectContext.cpp (18KB) - registers all DK strategies/actions.
+   GenericDKStrategy.cpp (7.1KB), GenericDKNonCombatStrategy.cpp
+   BloodDKStrategy.cpp (5.6KB), FrostDKStrategy.cpp (5.0KB),
+   UnholyDKStrategy.cpp (6.5KB)            <- all 3 specs implemented
+   DKActions.h (8.6KB)/.cpp, DKTriggers.h (3.8KB)/.cpp,
+   DKMultipliers.h/.cpp, DKReactionStrategy.h/.cpp
+ Quality check (UnholyDKStrategy.cpp): uses the canonical ike3 pattern correctly
+   - NamedObjectFactory<ActionNode>, NextAction::array(P/A/C) chains (Prereq/
+     Alternative/Continue), proper Unholy rotation (scourge strike, festering
+     strike, outbreak, necrotic strike, dark transformation, summon gargoyle,
+     unholy frenzy, unholy blight, death and decay, corpse explosion).
+   - Includes Cata-era DK abilities (outbreak, necrotic strike, dark
+     transformation) -> consistent with a Cata 4.3.4 target. Clean, idiomatic.
+ VERDICT: your DK is a solid, real reference implementation - exactly the kind
+   of per-class content we'll re-author for 8.3. We keep your DK design and
+   re-map spells to BfA.
+
+
+3. CATA-PATCH-V1 (Dev_referance/Cata-Patch-1) - your modernization work
+--------------------------------------------------------------------------------
+ Base: "MaNGOS Three Cataclysm 4.3.4", from "Latest_Mangos-Bots-dkfixed".
+ Adds (per INSTALL.txt): BotActiveAlone (only tick bots near players -> big CPU
+   save), SmartScale (auto-reduce active bots under load), DisabledWithoutReal
+   Player, AltBot auto-login, PreferClassArmorType, gear quality + item-level
+   caps, EquipmentPersistence (stop re-rolling gear at max level),
+   MaintenanceStrategy (drop obsolete quests), WaitForAttackStrategy (DPS wait
+   for tank threat), Cata config (maps, max level 85).
+ Touches: PlayerbotAIConfig, PlayerbotFactory, RandomPlayerbotMgr, AiFactory,
+   StrategyContext + new MaintenanceStrategy/WaitForAttackStrategy (auto-GLOB'd).
+ SIGNIFICANCE: these are production-grade scaling/lifecycle features. They are
+   exactly the hard, valuable bits people want and are largely EXPANSION-
+   AGNOSTIC LOGIC -> high reuse value as DESIGN for our 8.3 engine.
+
+
+4. WHY THIS IS THE RIGHT SOURCE (vs mod-playerbots)
+--------------------------------------------------------------------------------
+ - Leaner engine: PlayerbotAI.cpp 55KB here vs 218KB in mod-playerbots ->
+   easier to read, document, and recreate.
+ - Same ike3 architecture (Engine/Strategy/Action/Value/Trigger/Context) we
+   already mapped -> no learning loss.
+ - YOU KNOW IT and have already extended it (DK + Cata-Patch) -> fastest path,
+   and the custom logic is yours.
+ - Already CATACLYSM (4.3.4): one expansion closer to BfA 8.3 than WotLK sources
+   (talents trending toward modern spec trees; map/level work already done).
+ - GPL-2.0 (MaNGOS) aligns with our TrinityCore GPL-2.0 base (vs AGPLv3 for
+   mod-playerbots).
+
+
+5. THE TWO GAPS (unchanged, but smaller now)
+--------------------------------------------------------------------------------
+ GAP 1 - CORE FAMILY: MaNGOS Three (Cata) -> TrinityCore (BfA). Different class
+   names/ScriptMgr/DB/build. This is why we RECREATE (clean-room) rather than
+   copy: every core call (CastSpell, GetGroup, talents, opcodes) gets re-mapped
+   to TrinityCore 8.3 - ideally through a new ServerFacade we add.
+ GAP 2 - EXPANSION: Cata 4.3.4 -> BfA 8.3. Smaller than WotLK->BfA. Talents:
+   Cata already moved toward fewer trees; BfA is spec-based (our SpecializationInfo).
+   Spells/rotations re-authored per class (your DK is the template).
+ PHASE A core edits still required in OUR src (bot-session w/o socket, tick-
+   drive bot AI, ObjectAccessor/Map register, bot login, playerbots DB).
+
+
+6. PROPOSED PLAN (recreate, using YOUR repo as blueprint)
+--------------------------------------------------------------------------------
+ D-DOCS (Dev/playerbots_docs/, mangos-bots-primary):
+   ARCHITECTURE.md          - the ike3 engine as it exists in your repo.
+   SERVERFACADE_CONTRACT.md - the core-API surface the bot needs -> our 8.3 API
+                              (we ADD the facade; your repo lacks one).
+   FILE_MAP.md              - every file in your playerbot/ : purpose + core APIs.
+   DK_REFERENCE.md          - your DK design captured as the per-class template.
+   CATA_PATCH_FEATURES.md   - your scaling/lifecycle features -> 8.3 design.
+   CORE_EDITS.md            - Phase A engine edits for our src.
+   DB_SCHEMA.md             - bot DB tables -> our schema.
+ BUILD ORDER (recreate):
+   1) Our ServerFacade (8.3) + engine skeleton (Engine/Strategy/Action/Value/
+      Trigger/Context) as a module (modules/) - clean-room from docs.
+   2) Phase A core edits (bot sessions + tick drive + accessor + login).
+   3) Vertical slice: Death Knight (reuse YOUR DK design) + basic combat/follow,
+      a handful of bots, end-to-end.
+   4) Scale: more classes, actions/values, RandomPlayerbotMgr, your Cata-Patch
+      features (SmartScale/BotActiveAlone/etc.), travel/quest, dungeon/raid.
+
+
+7. LICENSE
+--------------------------------------------------------------------------------
+ mangos/ike3 lineage = GPL-2.0. A clean-room recreate that you author can carry
+ LICENSE.MYCODE for the new-from-scratch parts; anything copied/closely derived
+ from the GPL source stays GPL-2.0. Your DK files + Cata-Patch are your authored
+ work but built on GPL framework patterns - treat new 8.3 code as the MyCode part.
+ (Not legal advice.)
+
+
+8. BOTTOM LINE
+--------------------------------------------------------------------------------
+ Confirmed: Psychostout/Mangos-Bots is the BEST source to study & recreate from.
+ It's the lean canonical ike3 engine, you already know/extended it (real DK +
+ Cata-Patch), it's GPL-2.0, and it's already Cataclysm (closer to BfA). We will
+ DOCUMENT it (your DK + Cata-Patch captured as templates), ADD a ServerFacade
+ seam for 8.3, do the Phase A core edits, then recreate class-by-class starting
+ with your Death Knight.
+
+================================================================================
+ END - review only. No port/recreate started. Awaiting next step.
+================================================================================

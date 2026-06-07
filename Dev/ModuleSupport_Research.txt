@@ -1,0 +1,177 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ PSYCHO_CORE 8.3.7 - MODULE SUPPORT: RESEARCH & INTEGRATION PLAN
+================================================================================
+ Status : RESEARCH ONLY (Step 6) - nothing implemented yet, awaiting go-ahead.
+ Date   : 2026-06-07
+================================================================================
+
+
+0. TL;DR
+--------------------------------------------------------------------------------
+ This core (TrinityCore BfA) ALREADY HAS a powerful extension mechanism:
+   - A script-module system (src/server/scripts/<Module>/) with per-module
+     CMake collection, static OR dynamic linkage, and HOT-RELOAD support
+     (ScriptReloadMgr + dynamic ScriptLoader).
+   - An empty "Custom" module ready for user scripts (custom_script_loader.cpp).
+ So "module support" does NOT need a from-scratch plugin engine. The cleanest,
+ lowest-risk path is an AzerothCore-style top-level `modules/` folder that plugs
+ into the EXISTING script system. Three options below, recommended = Option B.
+
+
+1. WHAT THE CORE ALREADY PROVIDES (verified in this repo)
+--------------------------------------------------------------------------------
+ a) Script modules
+    - Each subdir of src/server/scripts/ (Argus, Commands, Custom, World, ...)
+      is auto-discovered by cmake/macros/ConfigureScripts.cmake via
+      GetScriptModuleList() (file(GLOB) of directories).
+    - Each module gets a generated project "scripts_<module>" and an
+      Add<Module>Scripts() entry point.
+    - The "Custom" module already exists with a stub:
+        src/server/scripts/Custom/custom_script_loader.cpp
+          -> void AddCustomScripts() { }   (empty - ready to fill)
+
+ b) Linkage modes (build option SCRIPTS=...):
+    - dynamic  -> each module -> its own shared library (.so/.dll)
+    - static   -> compiled into worldserver
+    - minimal/none/disabled
+    - SCRIPTS_DEFAULT_LINKAGE + per-module SCRIPTS_<MODULE> variable.
+
+ c) Dynamic script loader + HOT RELOAD (already in core!):
+    - src/server/scripts/ScriptLoader.cpp.in.cmake generates, per module:
+        AddScripts(), GetScriptModule(), GetScriptModuleRevisionHash(),
+        GetBuildDirective()  (exported with TC_SCRIPT_API when dynamic).
+    - src/server/game/Scripting/ScriptReloadMgr.cpp loads those shared libs at
+      runtime and calls (*module)->AddScripts(); supports reloading.
+    => Hot-reloadable C++ modules are ALREADY possible when built with
+       SCRIPTS=dynamic. This is the headline feature people want from "modules".
+
+ d) Script registration pattern (how a module hooks the game):
+    - C++: class MyScript : public PlayerScript/CreatureScript/WorldScript ...
+      then a void AddSC_myscript() { new MyScript(); }
+    - The module's Add<Module>Scripts() calls each AddSC_*().
+
+
+2. HOW OTHER CORES DO "MODULES" (for comparison)
+--------------------------------------------------------------------------------
+ AzerothCore (the de-facto standard for WoW-emu modules):
+   - Top-level `modules/` dir. Each module = a git repo named `mod-<name>`.
+   - modules/CMakeLists.txt GLOBs subdirs, collects sources into one `modules`
+     target, and `include()`s an optional per-module `<mod>.cmake` for extra
+     libs/includes (see StackOverflow ref in chatlog).
+   - Macros: AC_ADD_SCRIPT(<cpp>) and AC_ADD_SCRIPT_LOADER(<name>,<header>)
+     register a module's scripts; a generated loader calls them all.
+   - Build flag: -DMODULES=static (or dynamic).
+   - SQL: module ships data/sql/*; copied to data/sql/custom/... and applied.
+   - Conf: module ships conf/<mod>.conf.dist -> etc/modules/.
+   - Install a module = `git clone ... modules/mod-x` then rebuild. No core edits.
+
+ Third-party "TrinityCore-modular-system" (RageGate, ref in chatlog):
+   - Adds a full runtime PluginManager (IPlugin, OnPlayerLogin hooks, module.json
+     metadata, BUILD_MODULES cmake flag, create_module scripts).
+   - More powerful but MUCH more invasive (edits WorldSession, ChatHandler,
+     Main.cpp, etc.) and is written for 3.3.5 -> would need heavy porting to BfA.
+
+
+3. THREE INTEGRATION OPTIONS FOR PSYCHO_CORE
+--------------------------------------------------------------------------------
+ OPTION A - "Just use Custom/" (zero new infrastructure)
+   - Drop module .cpp/.h into src/server/scripts/Custom/, register in
+     AddCustomScripts(). Rebuild.
+   + Simplest, works today, nothing to build.
+   - No isolation: all customs share one folder; no per-module conf/sql/git;
+     hard to drop-in/remove third-party modules. Not "real" module support.
+
+ OPTION B - **RECOMMENDED**: AzerothCore-style top-level `modules/` that feeds
+            the EXISTING script system.
+   - Add a top-level `modules/` directory + `modules/CMakeLists.txt`.
+   - For each `modules/mod-<name>/`:
+       * src/*.cpp,*.h        (the C++ scripts)
+       * <mod>.cmake          (OPTIONAL - extra include/link, run inline)
+       * conf/<mod>.conf.dist (OPTIONAL - copied to configs)
+       * sql/...              (OPTIONAL - world/characters/auth custom SQL)
+   - Wire-up approach (minimally invasive):
+       1. Treat `modules/mod-*` as additional SCRIPT modules by either:
+          (a) GLOBbing them into the Custom module's sources, OR
+          (b) extending GetScriptModuleList()/ConfigureScripts.cmake to also
+              scan ${CMAKE_SOURCE_DIR}/modules.
+       2. Auto-generate the AddSC_* invocations into AddCustomScripts() (or a
+          dedicated AddModulesScripts()) so no manual loader editing is needed.
+       3. include() each mod-*/<mod>.cmake OPTIONAL for extra deps.
+       4. Copy conf/*.conf.dist to the install etc/ (or etc/modules/).
+       5. Document SQL: place under sql/custom/ so the DB updater applies it
+          (this core already has sql/custom/{auth,characters,hotfixes,world}).
+   - Build flag: reuse existing SCRIPTS=dynamic/static (modules inherit it),
+     optionally add -DMODULES=ON to toggle scanning the modules/ folder.
+   + Familiar to the whole AC/TC community; drop-in `git clone` modules;
+     per-module conf/sql/git; uses the core's existing static/dynamic + hot
+     reload; minimal core edits (mostly CMake, not C++).
+   - Need to write the modules/CMakeLists.txt glue + small ConfigureScripts edit.
+   ! Note: most existing `mod-*` repos are AzerothCore (WotLK 3.3.5) and will
+     NOT compile as-is on BfA 8.3 (different APIs). The FRAMEWORK ports cleanly;
+     individual modules will need BfA-compatible source.
+
+ OPTION C - Full runtime PluginManager (port RageGate-style system)
+   - Add src/server/game/Plugins/ (IPlugin, PluginManager, hooks), module.json,
+     BUILD_MODULES flag, create_module scripts; insert hook calls across the
+     game (login/logout/chat/update).
+   + Most flexible: load/unload at runtime, JSON metadata, dependency mgmt.
+   - Most invasive + highest maintenance; duplicates much of what ScriptMgr +
+     ScriptReloadMgr already do; large port effort from 3.3.5 to BfA.
+   => Overkill given the core already has dynamic + hot-reload scripts.
+
+
+4. RECOMMENDATION
+--------------------------------------------------------------------------------
+ Go with OPTION B. It gives a real, community-standard `modules/` workflow while
+ leaning on infrastructure the core ALREADY has (auto-discovery, static/dynamic
+ linkage, hot reload). Smallest blast radius: changes are mostly in CMake
+ (ConfigureScripts.cmake + a new modules/CMakeLists.txt + a generated loader),
+ with little-to-no edits to live game C++.
+
+ Suggested layout to create (WHEN approved):
+   modules/
+     CMakeLists.txt            # scans mod-*, feeds script system, includes .cmake
+     README.md                 # how to add/build modules
+     mod-example/
+       CMakeLists.txt (or just rely on parent GLOB)
+       mod-example.cmake       # optional extra deps
+       conf/mod-example.conf.dist
+       sql/world/...           # optional
+       src/
+         mod_example.cpp       # PlayerScript etc + AddSC_mod_example()
+         mod_example_loader    # AddmodexampleScripts() -> calls AddSC_*
+
+ Build:  cmake ... -DSCRIPTS=dynamic -DMODULES=ON   (or static)
+ Add a module: git clone <repo> modules/mod-foo ; reconfigure ; rebuild.
+
+
+5. RISKS / THINGS TO DECIDE BEFORE IMPLEMENTING
+--------------------------------------------------------------------------------
+ - static vs dynamic default for modules (dynamic = hot reload, more .so files;
+   static = single binary, simpler deploy).
+ - Where module SQL is auto-applied (sql/custom/* is the natural fit here).
+ - Whether to also expose lifecycle "hooks" beyond the existing *Script base
+   classes (only needed if we want Option C-style events; not required for B).
+ - BfA API compatibility: any imported AC module must be ported (3.3.5 -> 8.3).
+ - Keep the `Custom/` folder working unchanged (back-compat).
+
+
+6. SOURCES
+--------------------------------------------------------------------------------
+ - AzerothCore install-with-docker / modules workflow (git clone into modules/).
+ - AzerothCore module CMake (modname.cmake included inline) - StackOverflow.
+ - "Writing Modules for AzerothCore" - AC_ADD_SCRIPT / AC_ADD_SCRIPT_LOADER.
+ - RageGate/TrinityCore-modular-system INTEGRATION_GUIDE.md (Option C reference).
+ - This repo's own: ConfigureScripts.cmake, ScriptLoader.cpp.in.cmake,
+   ScriptReloadMgr.cpp, scripts/Custom/custom_script_loader.cpp.
+
+================================================================================
+ END - awaiting decision (which Option + the open questions in section 5).
+================================================================================

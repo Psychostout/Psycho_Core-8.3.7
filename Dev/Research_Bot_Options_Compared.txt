@@ -1,0 +1,177 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ PSYCHO_CORE 8.3.7 - BOT OPTIONS COMPARED (Step 11.2)
+================================================================================
+ Status : RESEARCH ONLY. Nothing built.
+ Date   : 2026-06-07
+ Target core: TrinityCore-based, Battle for Azeroth 8.3.0 (build 34769), C++14.
+ Question: ike3? mangosbot? cmangosbot? Psychostout/Trinity-Bots?
+           Psychostout/Mangos-Bots playerbot? - review ALL options.
+================================================================================
+
+
+0. THE ONE FACT THAT DECIDES EVERYTHING
+--------------------------------------------------------------------------------
+ There are TWO independent gaps for ANY bot project -> our core:
+   GAP 1 (CORE FAMILY): MaNGOS/CMaNGOS/AzerothCore  vs  TrinityCore.
+       Different class names, ScriptMgr, DB schema, build system.
+   GAP 2 (EXPANSION):   Vanilla / TBC / WotLK / Cata  vs  BfA 8.3.
+       Different spells, talents (trees+points vs specializations),
+       opcodes, DBC vs DB2/hotfix, items, maps.
+ EVERY existing bot project is on the WRONG side of BOTH gaps (or at least the
+ expansion gap). None target BfA 8.3 TrinityCore. So every option below is a
+ PORT/REWRITE, not an install. The only question is which is least painful.
+
+
+1. THE BOT FAMILY TREE (so we know what's a copy of what)
+--------------------------------------------------------------------------------
+   Blueboy (orig MaNGOS playerbot)
+        |
+   ike3 (rewrote it as the Strategy/Action/Value AI engine)   <-- the ancestor
+        |---------------------------|------------------------|
+   mangosbot (celguar, CMaNGOS:     cmangosbot (CMaNGOS       AzerothCore port
+   vanilla/TBC/WotLK)               flavours)                 (ZhengPeiRu21 ->
+        |                                                      liyunfan1223)
+   YOUR Mangos-Bots/.../playerbot (ike3/mangosbot lineage)    = mod-playerbots
+                                                                (WotLK 3.3.5)
+
+   SEPARATE LINE (not ike3 at all):
+   trickerer NPCBots  ->  YOUR Trinity-Bots fork   = NPCBOTS (different concept)
+
+ KEY: ike3 / mangosbot / cmangosbot / mod-playerbots are ALL THE SAME CODEBASE
+ lineage (PlayerbotAI driving real Players). NPCBots is a DIFFERENT thing.
+
+
+2. OPTION-BY-OPTION REVIEW
+--------------------------------------------------------------------------------
+
+ [A] ike3 playerbots (original, MaNGOS)
+     - What: the original PlayerbotAI engine (Strategy/Action/Value, triggers).
+     - Core: MaNGOS (Vanilla/TBC/WotLK era).
+     - To us: BOTH gaps. Oldest, least maintained variant. Worst starting point
+       except as a historical reference. Difficulty ~9.5/10.
+
+ [B] mangosbot (celguar / CMaNGOS)
+     - What: the actively-maintained CMaNGOS continuation of ike3. Supports
+       vanilla/TBC/WotLK on CMaNGOS. THIS is what your Mangos-Bots embeds.
+     - Core: CMaNGOS (MaNGOS family). Expansion: up to WotLK (+ community Cata
+       efforts).
+     - To us: BOTH gaps (CMaNGOS->TC, WotLK->BfA). Difficulty ~9.5/10.
+
+ [C] cmangosbot
+     - Same as [B] essentially (mangosbot ON cmangos). No separate advantage
+       for us; same two gaps.
+
+ [D] mod-playerbots (AzerothCore - liyunfan1223; covered in Step 11 report)
+     - What: the ike3 engine ported to AzerothCore, actively maintained, needs
+       an AC FORK with core edits. The most modern/maintained of the family.
+     - Core: AzerothCore (a MaNGOS-derived but DISTINCT core). Expansion: WotLK.
+     - To us: smaller CORE-family gap than CMaNGOS (AC shares more TC-ish
+       patterns than CMaNGOS does) but STILL not TrinityCore, and STILL WotLK.
+     - Best-maintained source to port FROM, but still ~9-9.5/10.
+
+ [E] Psychostout/Trinity-Bots  (YOUR fork of trickerer/Trinity-Bots) = NPCBOTS
+     - What: NPCBots - hireable PET-LIKE NPC minions (NOT real-Player bots).
+       Different concept: no socketless Player sessions; bots are creatures.
+     - Core: explicitly "TrinityCore 3.3.5 / AzerothCore wotlk mod". Ships as
+       NPCBots.patch + SQL. Actively maintained (v5.4.619a, weekly updates).
+     - To us: SAME CORE FAMILY (TrinityCore!) -> GAP 1 is MUCH smaller. But
+       still WotLK 3.3.5 -> BfA 8.3 = GAP 2 (the patch touches many core files
+       that differ on 8.3; spells/talents/vehicle/zone code differ).
+     - SIGNIFICANT ADVANTAGE: because it's TrinityCore-based and creature-based,
+       it sidesteps the hardest playerbot problem (socketless Player sessions).
+       Difficulty to port to 8.3 ~7.5/10 - the LEAST-bad "real bots" option.
+
+ [F] Psychostout/Mangos-Bots/.../playerbot  (YOUR own work)
+     - What: ike3/mangosbot playerbot embedded in a Mangos/CMaNGOS server; you
+       have a Cata-Patch in progress (Dev_referance/Cata-Patch-1). v3, active.
+     - Core: MaNGOS/CMaNGOS family. Expansion: WotLK (you're pushing to Cata).
+     - To us: BOTH gaps (CMaNGOS->TC, WotLK/Cata->BfA). BUT huge intangible
+       advantage: IT'S YOURS - you know the code, and it's the real PlayerbotAI
+       (full immersive bots, not pets).
+     - Difficulty to land on BfA-8.3 TrinityCore: ~9.5/10 (same as porting
+       mangosbot in general), because the core-family + expansion gaps remain
+       regardless of authorship. Authorship helps maintenance, not the gap.
+
+
+3. DIFFICULTY RANKING (port -> Psycho_Core 8.3.7), easiest first
+--------------------------------------------------------------------------------
+   1. [E] Trinity-Bots (NPCBots)      ~7.5/10  TC family + creature-based.
+   2. [D] mod-playerbots (AC)         ~9.0/10  closest playerbot, but AC+WotLK.
+   3. [F] your Mangos-Bots playerbot  ~9.5/10  yours, but CMaNGOS+WotLK/Cata.
+   4. [B/C] mangosbot/cmangosbot      ~9.5/10  CMaNGOS+WotLK.
+   5. [A] ike3 (MaNGOS)               ~9.5/10  oldest, least maintained.
+
+ Reality check: "real playerbots" (immersive bots that ARE Players) on BfA-8.3
+ TrinityCore do not exist publicly and would be a multi-month engine project
+ from ANY of these sources. NPCBots is the only path that's merely "hard"
+ rather than "huge".
+
+
+4. WHY NPCBots (E) IS GENUINELY DIFFERENT / EASIER
+--------------------------------------------------------------------------------
+ - It's already TrinityCore (our exact core family) -> class names, ScriptMgr,
+   Map/Unit APIs, build system all align far better than any MaNGOS source.
+ - Bots are AI CREATURES, not socketless Players -> avoids the single hardest
+   playerbot blocker (faking a WorldSession with no WorldSocket + driving a
+   Player each tick + null-socket crash-proofing).
+ - Ships as a core patch + SQL; trickerer maintains TC-3.3.5 weekly, so there's
+   a clean, current reference to diff against.
+ - STILL not trivial: the 3.3.5 patch edits files that are different on 8.3
+   (spell/aura, vehicle, totems, talents, zone scripts). Expect meaningful
+   conflict resolution + 8.3 API fixups, but on a core you already understand.
+
+
+5. RECOMMENDATIONS
+--------------------------------------------------------------------------------
+ If the goal is "bots on Psycho_Core 8.3.7, realistically":
+   -> START WITH [E] NPCBots (Trinity-Bots). It's the same core family, avoids
+      the worst playerbot problem, and is actively maintained for 3.3.5 TC so we
+      have a live reference. Port = resolve the 3.3.5->8.3 API/spell/talent diffs.
+      Best effort/reward ratio by far.
+
+ If the goal is specifically "immersive real-Player bots (the ike3 experience)":
+   -> Hardest path. Of the playerbot sources, [D] mod-playerbots is the best-
+      maintained to port from, but it's AC+WotLK. Your own [F] gives you author
+      familiarity but is CMaNGOS+WotLK/Cata. Either way it's a multi-month
+      engine project: PHASE A = build BfA-8.3 bot-session support in OUR core
+      (the "fork" work), PHASE B = rewrite the AI engine + every class rotation
+      and the talent/spec system for 8.3. Consider doing it on a CLOSER core
+      first (e.g. your Cata effort) before attempting 8.3.
+
+ Pragmatic middle path:
+   -> Use [E] NPCBots to get working bots on 8.3 soon, AND keep evolving your
+      [F] playerbot on its native (Mangos/Cata) core; only attempt the full
+      BfA playerbot port once 8.3 itself is stable and you have bot-session
+      support designed.
+
+ NOTE on licensing: ike3/mangosbot/AC-playerbots/NPCBots are GPL-2.0. Any port
+ is a derivative work and must remain GPL; it would NOT fall under LICENSE.MYCODE
+ (your license explicitly excludes underlying framework code). Only brand-new
+ glue/logic you author from scratch could be yours.
+
+
+6. SOURCES
+--------------------------------------------------------------------------------
+ - github.com/Psychostout/Trinity-Bots (fork of trickerer/Trinity-Bots) README:
+   "NPCBots is a TrinityCore 3.3.5 / AzerothCore wotlk mod"; pet-like minions;
+   v5.4.619a, weekly updates; ships NPCBots.patch + SQL.
+ - github.com/Psychostout/Mangos-Bots/.../playerbot: ike3/mangosbot layout
+   (AiFactory, ChatHelper, FleeManager, GuildTaskMgr, strategy/); your v3,
+   active; Dev_referance/Cata-Patch-1 (Cata WIP).
+ - r/wowservers 2025 core-vs-expansion summary: AzerothCore=3.3.5, CMaNGOS=
+   vanilla/TBC/WotLK, TrinityCore=WotLK + modern; bots concentrated on
+   vanilla->WotLK.
+ - getMaNGOS forum (ike3 history); CD2H gitForager ("Updated TrinityCore with
+   Playerbots by Ike3 ... based off original Playerbots for MaNGOS by Blueboy").
+ - Step 11 report (mod-playerbots requires AC fork / core edits).
+
+================================================================================
+ END - feasibility/comparison only. No port attempted. Awaiting Step 12.
+================================================================================
