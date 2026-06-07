@@ -1,94 +1,192 @@
-# ![logo](https://community.trinitycore.org/public/style_images/1_trinitycore.png) TrinityCore (master)
+# Psycho_Core 8.3.7 — Reforged + Modernized
 
-[![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/TrinityCore/TrinityCore.svg)](https://isitmaintained.com/project/TrinityCore/TrinityCore "Average time to resolve an issue") [![Percentage of issues still open](https://isitmaintained.com/badge/open/TrinityCore/TrinityCore.svg)](https://isitmaintained.com/project/TrinityCore/TrinityCore "Percentage of issues still open")
+> **IMPORTANT REMINDER: CURRENTLY UNDER DEVELOPMENT BY A COMPLETE NOOB WITH AN INTERNET CONNECTION!**
 
---------------
+![Status](https://img.shields.io/badge/status-in--development-yellow)
+![CMake](https://img.shields.io/badge/CMake-4.3.2-blue)
+![C++](https://img.shields.io/badge/C%2B%2B-14-blue)
+![Boost](https://img.shields.io/badge/Boost-1.83-orange)
+![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0%20LTS-orange)
+![MariaDB](https://img.shields.io/badge/MariaDB-10.6.3-orange)
+![Client](https://img.shields.io/badge/BfA-8.3.0%20%2834769%29-purple)
 
+A modernized TrinityCore-based emulator for **World of Warcraft: Battle for Azeroth**,
+descended from [TrinityCore](https://github.com/TrinityCore/TrinityCore), with a
+refreshed toolchain (CMake 4.3.2, Boost 1.83, OpenSSL 3.x) and MariaDB 10.6.3 as the
+sole recommended database.
 
-* [Build Status](#build-status)
-* [Introduction](#introduction)
-* [Requirements](#requirements)
-* [Install](#install)
-* [Reporting issues](#reporting-issues)
-* [Submitting fixes](#submitting-fixes)
-* [Copyright](#copyright)
-* [Authors &amp; Contributors](#authors--contributors)
-* [Links](#links)
+---
 
+## What this is
 
+A **World of Warcraft: Battle for Azeroth (build 34769)** private-server emulator,
+based on **TrinityCore**. In `src/server/game/Miscellaneous/SharedDefines.h` the
+default `CURRENT_EXPANSION` is **`EXPANSION_BATTLE_FOR_AZEROTH`** (value 7), and the
+DB2 data version targets patch **8.3.0 (client build 34769)**.
 
-## Build Status
+This is *not* a binary release — you compile it yourself from this repository
+against your own MariaDB and (eventually) feed it the data files (maps, vmaps,
+mmaps, DB2/DBC) extracted from a real BfA 8.3.x WoW client.
 
-master | 3.3.5
-:------------: | :------------:
-[![master Build Status](https://travis-ci.org/TrinityCore/TrinityCore.svg?branch=master)](https://travis-ci.org/TrinityCore/TrinityCore) | [![3.3.5 Build Status](https://travis-ci.org/TrinityCore/TrinityCore.svg?branch=3.3.5)](https://travis-ci.org/TrinityCore/TrinityCore)
-[![master Build status](https://ci.appveyor.com/api/projects/status/54d0u1fxe50ad80o/branch/master?svg=true)](https://ci.appveyor.com/project/DDuarte/trinitycore/branch/master) | [![Build status](https://ci.appveyor.com/api/projects/status/54d0u1fxe50ad80o/branch/3.3.5?svg=true)](https://ci.appveyor.com/project/DDuarte/trinitycore/branch/3.3.5)
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/435/badge.svg)](https://scan.coverity.com/projects/435) | [![Coverity Scan Build Status](https://scan.coverity.com/projects/4656/badge.svg)](https://scan.coverity.com/projects/4656)
+---
 
-## Introduction
+## Highlights of this branch
 
-TrinityCore is a *MMORPG* Framework based mostly in C++.
+| Area | Change |
+|---|---|
+| **CMake** | `cmake_minimum_required(VERSION 4.3.2)` — bumped from the original 3.8 to the current CMake 4.3 series. |
+| **Boost** | Target floor **1.83** on both Linux and Windows. The Asio layer (`src/common/Asio/*`) already guards `BOOST_VERSION >= 1.66 / 1.70`, so 1.83 works without code changes. (Avoid Boost ≥ 1.87 — it removes the `io_service` alias still referenced here.) |
+| **OpenSSL** | Target **3.0 LTS**. The crypto code is already mostly OpenSSL-1.1-API-aware (`EVP_MD_CTX_new`, opaque structs with version guards). A small set of patches is required before a 3.x build compiles — see **Build status → Known blockers**. |
+| **MariaDB** | **10.6.3 (LTS)** is the sole recommended database. `cmake/macros/FindMySQL.cmake` locates the connector via `mysql_config` / `libmysqlclient` + headers. |
 
-It is derived from *MaNGOS*, the *Massive Network Game Object Server*, and is
-based on the code of that project with extensive changes over time to optimize,
-improve and cleanup the codebase at the same time as improving the in-game
-mechanics and functionality.
-
-It is completely open source; community involvement is highly encouraged.
-
-If you wish to contribute ideas or code, please visit our site linked below or
-make pull requests to our [Github repository](https://github.com/TrinityCore/TrinityCore/pulls).
-
-For further information on the TrinityCore project, please visit our project
-website at [TrinityCore.org](https://www.trinitycore.org).
+---
 
 ## Requirements
 
+| Component | Minimum / Target | Notes |
+|---|---|---|
+| **CMake** | 4.3.2 | Bumped this branch (top-level + `contrib/protoc-bnet`). |
+| **C++ standard** | C++14 | Set via `CXX_STANDARD 14`. |
+| **GCC** (Linux) | 6.3.0 | Original floor; GCC 11+ recommended alongside OpenSSL 3 / Boost 1.83. |
+| **Clang** (Linux) | recent | Supported by the platform settings. |
+| **MSVC** (Windows) | 19.24 (VS 2019 16.4) | Original floor for this BfA base. |
+| **Boost** | 1.83 | Components: system, filesystem, thread, program_options, iostreams, regex. |
+| **OpenSSL** | 3.0 LTS (≥ 3.0.13) | Requires the patches in *Known blockers* below. |
+| **MariaDB** | 10.6.3 (LTS) | Sole recommended DB. (MySQL 8.0+ also linkable.) |
+| **zlib** | 1.2.11 (vendored) | Plus bzip2, readline (system on Linux). |
 
-Software requirements are available in the [wiki](https://www.trinitycore.info/display/tc/Requirements) for
-Windows, Linux and macOS.
+All other third-party libraries are vendored under `dep/` (fmt, jemalloc, protobuf,
+rapidjson, gSOAP, CascLib, recastnavigation, g3dlite, utf8cpp, SFMT, efsw, …).
 
+---
 
-## Install
+## Quick start
 
-Detailed installation guides are available in the [wiki](https://www.trinitycore.info/display/tc/Installation+Guide) for
-Windows, Linux and macOS.
+### Linux (Debian/Ubuntu/Fedora)
 
+```bash
+# 1. Clone
+git clone <your fork URL> Psycho_Core-8.3.7 && cd Psycho_Core-8.3.7
 
-## Reporting issues
+# 2. System prerequisites (Debian/Ubuntu example)
+sudo apt-get install -y build-essential cmake git \
+    libboost1.83-all-dev \
+    libssl-dev libmariadb-dev zlib1g-dev libbz2-dev libreadline-dev
 
-Issues can be reported via the [Github issue tracker](https://github.com/TrinityCore/TrinityCore/labels/Branch-master).
+# 3. Configure + build
+mkdir build && cd build
+cmake ../ -DCMAKE_INSTALL_PREFIX=$HOME/psycho-server -DTOOLS=1 -DWITH_WARNINGS=1
+make -j$(nproc)
+make install
+```
 
-Please take the time to review existing issues before submitting your own to
-prevent duplicates.
+### Windows (Visual Studio 2019/2022)
 
-In addition, thoroughly read through the [issue tracker guide](https://community.trinitycore.org/topic/37-the-trinitycore-issuetracker-and-you/) to ensure
-your report contains the required information. Incorrect or poorly formed
-reports are wasteful and are subject to deletion.
+1. Install Boost 1.83, OpenSSL 3.x, and MariaDB 10.6.3 (set `BOOST_ROOT`).
+2. Open the source folder in CMake, choose a Visual Studio generator, **Configure** + **Generate**.
+3. Open the generated solution and build `ALL_BUILD` in **Release**.
 
+After compiling, configure `worldserver.conf` / `bnetserver.conf`, import the SQL
+databases, extract client data with the tools in `src/tools/`, and start the servers.
 
-## Submitting fixes
+---
 
-C++ fixes are submitted as pull requests via Github. For more information on how to
-properly submit a pull request, read the [how-to: maintain a remote fork](https://community.trinitycore.org/topic/9002-howto-maintain-a-remote-fork-for-pull-requests-tortoisegit/).
-For SQL only fixes, open a ticket; if a bug report exists for the bug, post on an existing ticket.
+## Build status
 
+> ⚠️ **No full build has been verified yet in this development pass.** The toolchain
+> version bumps are in place, but the OpenSSL-3 code patches below must be applied
+> first before a clean configure/compile is expected.
 
-## Copyright
+### Known blockers (must be fixed before a CMake 4.3.2 + OpenSSL 3.x build)
 
-License: GPL 2.0
+| ID | File | Issue |
+|---|---|---|
+| **P-01** | `dep/cotire/CMake/cotire.cmake` | Declares `cmake_minimum_required(2.8.12)`. CMake 4.x rejects minimums < 3.5 → configure errors. |
+| **P-02** | `cmake/macros/FindOpenSSL.cmake` | Hard-caps `OPENSSL_MAX_VERSION "1.2"` → rejects OpenSSL 3.x. Cap must be raised and the floor set to 1.1.1. |
+| **P-03** | `src/common/Cryptography/OpenSSLCrypto.cpp` | Uses legacy threading callbacks (`CRYPTO_num_locks`, `CRYPTO_set_locking_callback`, `CRYPTO_THREADID_set_callback`) removed in OpenSSL 1.1+. Must be guarded as a no-op on 1.1+/3.x. |
+| **P-04** | `src/common/Cryptography/RSA.cpp` | Direct opaque-struct access (`_rsa->n`) is illegal under OpenSSL 1.1+/3.x. Must use `RSA_get0_key()`. |
 
-Read file [COPYING](COPYING).
+### What is expected to build (TrinityCore BfA targets)
 
+* `dep/*` vendored dependencies
+* `common`, `database`, `shared`
+* `proto` (including the BNet `Client/*` descriptors under `src/server/proto/`)
+* `bnetserver`
+* `worldserver` + scripts
+* `src/tools/` extractors (map, vmap, mmap)
 
-## Authors &amp; Contributors
+---
 
-Read file [AUTHORS](AUTHORS).
+## Repository layout
 
+```
+Psycho_Core-8.3.7/
+├── CMakeLists.txt              Top-level build (CMake 4.3.2)
+├── README.md                   This file
+├── cmake/                      Find* macros, compiler/platform settings
+├── dep/                        Vendored 3rd-party dependencies (CascLib, fmt, …)
+├── contrib/                    Helper tools (e.g. protoc-bnet)
+├── doc/                        Upstream documentation
+├── sql/                        Schema + update SQL files (auth/characters/world/hotfixes)
+├── src/
+│   ├── common/                 Logging, threading, crypto, utilities
+│   ├── server/
+│   │   ├── bnetserver/         Battle.net auth server
+│   │   ├── worldserver/        Game world server
+│   │   ├── database/           DB abstraction layer
+│   │   ├── proto/              protobuf message definitions (+ Client descriptors)
+│   │   ├── shared/             Shared between bnetserver / worldserver
+│   │   ├── game/               Game logic (entities, spells, AI, …)
+│   │   └── scripts/            Pluggable script modules (EasternKingdoms, Kalimdor,
+│   │                           Northrend, Outland, Pandaria, Spells, World, …)
+│   └── tools/                  Map/vmap/mmap extractors
+└── revision_data.h.in.cmake    Embeds git SHA into the binary
+```
 
-## Links
+---
 
-* [Website](https://www.trinitycore.org)
-* [Wiki](https://www.trinitycore.info)
-* [Forums](https://community.trinitycore.org)
-* [Discord](https://discord.trinitycore.org/)
+## Configuration
+
+Two config files:
+
+* **`worldserver.conf.dist`** — 4,191 lines, ~599 settings, covering game rules,
+  network, rates, and tuning. Copy to `worldserver.conf` and edit.
+* **`bnetserver.conf.dist`** — Battle.net auth server config (403 lines). Copy to
+  `bnetserver.conf` and edit.
+
+Key knobs you'll touch first:
+
+```ini
+# Database connection strings
+LoginDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;auth"
+CharacterDatabaseInfo = "127.0.0.1;3306;trinity;trinity;characters"
+HotfixDatabaseInfo    = "127.0.0.1;3306;trinity;trinity;hotfixes"
+WorldDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;world"
+
+# Where extracted client data lives
+DataDir = "."
+
+# Expansion (Battle for Azeroth = 7)
+Expansion = 7
+```
+
+---
+
+## Contributing
+
+Patches are welcome. Please:
+
+1. Open an issue first for non-trivial changes.
+2. Keep commits focused — one logical change per commit.
+3. Don't reformat unrelated code.
+4. If your change touches the build system, run a full configure end-to-end and report the result.
+5. Conform to the existing TrinityCore-style naming.
+
+The most useful contribution right now is applying the **P-01…P-04** blockers above
+and validating a full `worldserver` build.
+
+---
+
+## License
+
+GPL-2.0-or-later (inherited from TrinityCore — see [`COPYING`](COPYING)).

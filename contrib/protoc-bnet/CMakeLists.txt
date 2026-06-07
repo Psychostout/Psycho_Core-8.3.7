@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 4.3.2)
 project(protoc_bnet)
 
 set(CXX_EXTENSIONS OFF)
