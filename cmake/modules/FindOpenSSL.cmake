@@ -32,26 +32,21 @@ FIND_PATH(OPENSSL_INCLUDE_DIR openssl/ssl.h
 
 IF(WIN32 AND NOT CYGWIN)
   IF(MSVC)
+    if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "8")
+      set(_OPENSSL_MSVC_ARCH_SUFFIX "64")
+    else()
+      set(_OPENSSL_MSVC_ARCH_SUFFIX "32")
+    endif()
 
-    # --- OpenSSL 3.x library search paths ---
-    set(_OPENSSL_LIB_PATHS
-      ${OPENSSL_ROOT_DIR}/lib
-      ${OPENSSL_ROOT_DIR}/lib/VC
-      ${OPENSSL_ROOT_DIR}/lib/VC/x64
-      ${OPENSSL_ROOT_DIR}/lib/VC/x64/MD
-      ${OPENSSL_ROOT_DIR}/lib/VC/x64/MT
-    )
-
-    # SSL library
+    # --- OpenSSL 3.x / 1.1.x library names ---
     FIND_LIBRARY(OPENSSL_SSL_LIBRARY
-      NAMES libssl ssl libssl_static
-      PATHS ${_OPENSSL_LIB_PATHS}
+      NAMES ssl libssl
+      PATHS ${OPENSSL_ROOT_DIR}/lib
     )
 
-    # Crypto library
     FIND_LIBRARY(OPENSSL_CRYPTO_LIBRARY
-      NAMES libcrypto crypto libcrypto_static
-      PATHS ${_OPENSSL_LIB_PATHS}
+      NAMES crypto libcrypto
+      PATHS ${OPENSSL_ROOT_DIR}/lib
     )
 
     if(CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
@@ -67,7 +62,6 @@ IF(WIN32 AND NOT CYGWIN)
     endif()
 
     MARK_AS_ADVANCED(OPENSSL_SSL_LIBRARY OPENSSL_CRYPTO_LIBRARY)
-
   ENDIF()
 ELSE()
   FIND_LIBRARY(OPENSSL_SSL_LIBRARIES NAMES ssl)
