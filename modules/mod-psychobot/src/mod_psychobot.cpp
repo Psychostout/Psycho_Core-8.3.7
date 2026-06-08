@@ -20,6 +20,7 @@
 #include "PsychobotMgr.h"
 #include "PsychobotPopulationMgr.h"
 #include "PsychobotAhBot.h"
+#include "dungeon/PsychobotDungeonMgr.h"
 
 using namespace psychobot;
 
@@ -37,6 +38,8 @@ public:
         // Stage 3/4: (re)load population/scaling + ahbot config too.
         sPsychobotPopulation->LoadConfig();
         sPsychobotAhBot->LoadConfig();
+        // S25: seed the dungeon/raid encounter-script registry (idempotent).
+        psychobot::DungeonMgr::InitEncounters();
         TC_LOG_INFO("module.psychobot", "mod-psychobot config %s (Psychobot.Enable = %u, RandomBots = %u).",
             reload ? "reloaded" : "loaded", enabled ? 1 : 0,
             sPsychobotPopulation->Config().enable ? 1 : 0);
@@ -82,6 +85,12 @@ public:
             { "list",   rbac::RBAC_PERM_COMMAND_GPS, false, &HandleListCommand,   "" },
             { "spec",   rbac::RBAC_PERM_COMMAND_GPS, false, &HandleSpecCommand,   "" },
             { "group",  rbac::RBAC_PERM_COMMAND_GPS, false, &HandleGroupCommand,  "" },
+            { "follow", rbac::RBAC_PERM_COMMAND_GPS, false, &HandleFollowCommand,   "" },
+            { "stay",   rbac::RBAC_PERM_COMMAND_GPS, false, &HandleStayCommand,     "" },
+            { "attack", rbac::RBAC_PERM_COMMAND_GPS, false, &HandleAttackCommand,   "" },
+            { "cast",   rbac::RBAC_PERM_COMMAND_GPS, false, &HandleCastCommand,     "" },
+            { "strategy", rbac::RBAC_PERM_COMMAND_GPS, false, &HandleStrategyCommand, "" },
+            { "help",   rbac::RBAC_PERM_COMMAND_GPS, false, &HandleHelpCommand,     "" },
         };
         static std::vector<ChatCommand> commandTable =
         {
@@ -126,6 +135,55 @@ public:
         Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
         std::string name = args ? args : "";
         handler->SendSysMessage(sPsychobotMgr->GroupBot(master, name).c_str());
+        return true;
+    }
+
+    // --- S27 order/grammar commands ---------------------------------------
+    static bool HandleFollowCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* m = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        handler->SendSysMessage(sPsychobotMgr->OrderFollow(m).c_str());
+        return true;
+    }
+
+    static bool HandleStayCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* m = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        handler->SendSysMessage(sPsychobotMgr->OrderStay(m).c_str());
+        return true;
+    }
+
+    static bool HandleAttackCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* m = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        handler->SendSysMessage(sPsychobotMgr->OrderAttack(m).c_str());
+        return true;
+    }
+
+    static bool HandleCastCommand(ChatHandler* handler, char const* args)
+    {
+        Player* m = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        std::string spell = args ? args : "";
+        handler->SendSysMessage(sPsychobotMgr->OrderCast(m, spell).c_str());
+        return true;
+    }
+
+    static bool HandleStrategyCommand(ChatHandler* handler, char const* args)
+    {
+        Player* m = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
+        std::string a = args ? args : "";
+        handler->SendSysMessage(sPsychobotMgr->ToggleStrategy(m, a).c_str());
+        return true;
+    }
+
+    static bool HandleHelpCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        handler->SendSysMessage("Psychobot commands:");
+        handler->SendSysMessage("  .psychobot add|remove|list|group <name>   - manage bots");
+        handler->SendSysMessage("  .psychobot spec <name> <0-3>              - set a bot's spec");
+        handler->SendSysMessage("  .psychobot follow|stay|attack            - order all your bots");
+        handler->SendSysMessage("  .psychobot cast <spell name>             - all bots cast a spell");
+        handler->SendSysMessage("  .psychobot strategy <name>               - toggle a combat strategy");
         return true;
     }
 };

@@ -15,6 +15,9 @@
 #include "SpellInfo.h"
 #include "SpellHistory.h"
 #include "DBCEnums.h"
+#include "UnitDefines.h"   // ReactStates (REACT_AGGRESSIVE / REACT_DEFENSIVE)
+#include "SpellAuras.h"    // Aura / AuraApplication (S21 dispel)
+#include "SharedDefines.h" // DispelType, POWER_MANA
 
 namespace psychobot
 {
@@ -124,6 +127,108 @@ namespace psychobot
         {
             Unit* pet = GetPet(bot);
             return pet ? pet->GetHealthPct() : 0.0f;
+        }
+
+        // --- pet control ----------------------------------------------------
+        bool PetAttack(Player* bot, Unit* target)
+        {
+            if (!bot || !target)
+                return false;
+            Pet* pet = bot->GetPet();
+            if (!pet || !pet->IsAlive())
+                return false;
+            if (!pet->IsValidAttackTarget(target))
+                return false;
+
+            pet->SetReactState(REACT_AGGRESSIVE);
+            // Already on it? don't restart the swing.
+            if (pet->GetVictim() == target)
+                return true;
+            pet->AttackStop();
+            pet->Attack(target, /*meleeAttack*/ true);
+            return true;
+        }
+
+        bool PetFollow(Player* bot)
+        {
+            if (!bot)
+                return false;
+            Pet* pet = bot->GetPet();
+            if (!pet || !pet->IsAlive())
+                return false;
+            pet->SetReactState(REACT_DEFENSIVE);
+            pet->AttackStop();
+            return true;
+        }
+
+        bool PetAttackingTarget(Player* bot, Unit* target)
+        {
+            if (!bot || !target)
+                return false;
+            Pet* pet = bot->GetPet();
+            return pet && pet->IsAlive() && pet->GetVictim() == target;
+        }
+
+        bool PetSpellReady(Player* bot, uint32 spellId)
+        {
+            if (!bot || !spellId)
+                return false;
+            Pet* pet = bot->GetPet();
+            if (!pet || !pet->IsAlive())
+                return false;
+            SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
+            if (!info)
+                return false;
+            if (SpellHistory* h = pet->GetSpellHistory())
+                if (h->HasCooldown(info))
+                    return false;
+            return true;
+        }
+
+        bool PetCastSpell(Player* bot, uint32 spellId, Unit* target)
+        {
+            if (!bot || !spellId || !target)
+                return false;
+            Pet* pet = bot->GetPet();
+            if (!pet || !pet->IsAlive())
+                return false;
+            if (!PetSpellReady(bot, spellId))
+                return false;
+            pet->CastSpell(target, spellId, false);
+            return true;
+        }
+
+        // --- healing depth (S21) --------------------------------------------
+        bool HasDispellableAura(Unit* unit, uint32 dispelMask)
+        {
+            if (!unit || !dispelMask)
+                return false;
+
+            for (auto const& pair : unit->GetAppliedAuras())
+            {
+                AuraApplication const* app = pair.second;
+                if (!app || app->IsPositive())
+                    continue;   // only remove harmful auras
+                Aura const* aura = app->GetBase();
+                if (!aura)
+                    continue;
+                SpellInfo const* info = aura->GetSpellInfo();
+                if (!info)
+                    continue;
+                // info->Dispel is the DispelType; test it against the mask.
+                if (dispelMask & (1u << info->Dispel))
+                    return true;
+            }
+            return false;
+        }
+
+        float GetManaPct(Unit* unit)
+        {
+            if (!unit)
+                return 0.0f;
+            if (unit->GetPowerType() != POWER_MANA)
+                return 0.0f;
+            return unit->GetPowerPct(POWER_MANA);
         }
     }
 }

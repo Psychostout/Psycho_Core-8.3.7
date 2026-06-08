@@ -136,6 +136,29 @@ namespace psychobot
         return v && v->Get() != nullptr;
     }
 
+    bool PartyMemberNeedsDispelTrigger::IsActive()
+    {
+        AiObjectContext* ctx = Context();
+        if (!ctx)
+            return false;
+        Value<Unit*>* v = ctx->GetValue<Unit*>("party member to dispel");
+        return v && v->Get() != nullptr;
+    }
+
+    bool LowManaTrigger::IsActive()
+    {
+        // Mana is Powers index 0; "power::0" is the bot's mana percent.
+        AiObjectContext* ctx = Context();
+        if (!ctx)
+            return false;
+        Value<float>* m = ctx->GetValue<float>("power", "0");
+        // Only meaningful for mana users; non-mana classes read 0% and would
+        // always trip, so require a real mana bar via ServerFacade.
+        if (ServerFacade::GetManaPct(GetBot()) <= 0.0f)
+            return false;
+        return m && m->Get() < _pct;
+    }
+
     // ----------------------------------------------------------------------
     // Registration
     // ----------------------------------------------------------------------
@@ -162,6 +185,8 @@ namespace psychobot
                 _creators["spell ready"]         = [](PsychobotAI* ai) -> Trigger* { return new SpellReadyTrigger(ai); };
 
                 _creators["party member low health"] = [](PsychobotAI* ai) -> Trigger* { return new PartyMemberLowHealthTrigger(ai); };
+                _creators["party member needs dispel"] = [](PsychobotAI* ai) -> Trigger* { return new PartyMemberNeedsDispelTrigger(ai); };
+                _creators["low mana"] = [](PsychobotAI* ai) -> Trigger* { return new LowManaTrigger(ai, 25.0f); };
             }
         };
     }

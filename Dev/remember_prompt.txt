@@ -1,6 +1,6 @@
 ================================================================================
  REMEMBER PROMPT  -  Psycho_Core / mod-psychobot  (chat-loss recovery brief)
- Last updated: 2026-06-08  (after S14 Mage)
+ Last updated: 2026-06-08  (after S27 persistence+commands)
 ================================================================================
  PASTE THIS WHOLE FILE INTO A NEW CHAT IF THIS CONVERSATION IS LOST.
  It tells the agent exactly what we're building, the rules, where we are, the
@@ -103,8 +103,68 @@
          Arcane/Fire/Frost dps. Proc-driven (Clearcasting/Hot Streak/Brain Freeze/
          Fingers of Frost named auras); Arcane Charges = power::16.
 
- NEXT STEP: ===> S15  WARLOCK  (Affliction/Demonology/Destruction + pet/soul
-   shards/DoTs).  Then S16 Druid,
+   - S15 WARLOCK (classes/warlock/: WarlockTriggers, WarlockStrategies,
+         WarlockAiObjectContext)  Affliction/Demonology/Destruction. Soul Shards=
+         power::7; pet via ServerFacade seam.
+
+   - S16 DRUID (classes/druid/: DruidTriggers, DruidStrategies,
+         DruidAiObjectContext)  Balance/Feral/Guardian/Restoration (FOUR specs).
+         Form upkeep at rel 25 (Moonkin/Cat/Bear). Astral Power=power::8.
+
+   - S17 MONK (classes/monk/: MonkTriggers, MonkStrategies, MonkAiObjectContext)
+         NEW class, authored from research. Brewmaster/Mistweaver/Windwalker.
+         Chi=raw count (POWER_CHI=12), Energy=percent. All melee.
+
+   - S18 DEMON HUNTER (classes/demonhunter/: DemonHunterTriggers, ...Strategies,
+         ...AiObjectContext)  NEW class, 2 specs. Havoc (Fury=power::17),
+         Vengeance (Pain=power::18). >>> ALL 12 CLASSES DONE - PHASE C COMPLETE. <<<
+
+   - S19 PET SYSTEM (pets/PetActions, pets/PetStrategy + ServerFacade pet-control
+         seam) - keeps the pet on the bot's target; pet classes get the "pet"
+         strategy via AiFactory UsesPet(). Pet abilities = keystone "cast pet::".
+
+   - S20 GROUP/RAID coordination (PsychobotGroupMgr): assist target priority
+         (main-assist>main-tank>tank>leader), tank-bias heal target, MarkSkullTarget
+         (RTI 7), AnswerReadyCheck, GetFollowFormationAngle. Wired into PsychobotAI.
+
+   - S21 HEALING depth: ServerFacade HasDispellableAura/GetManaPct; GroupMgr
+         GetGroupDispelTarget; "party member to dispel" value + "party member
+         needs dispel"/"low mana" triggers + "cast dispel" action; cures wired to
+         all 5 healers (Cleanse/Purify/Cleanse Spirit/Nature's Cure/Detox).
+
+   - S22 NON-COMBAT WORLD: world/PsychobotWorldMgr (Rest=heal+mana refill,
+         Repair=DurabilityRepairAll) + actions "rest"/"repair" + RestStrategy
+         (every bot's non-combat engine runs follow+rest). Mount/vendor/loot/
+         quest/gather are documented WorldMgr hooks for the first on-server pass.
+
+   - S23 TRAVEL: travel/PsychobotTravelMgr (WorldPosition + TravelNode +
+         MoveTo[path/teleport] + FollowMasterTravel[cross-map+leash catch-up] +
+         AddNode/GetNode seed registry). FollowMaster routes through it. Full
+         node-graph nav across 8.3 maps is the documented later expansion.
+
+   - S24 PvP/BATTLEGROUNDS: pvp/PsychobotPvpMgr (BgFlavor classify,
+         InActiveBattleground, GetPvpTarget=nearest enemy player) wired into
+         GetCurrentTarget -> all 12 classes fight in BGs/arenas. Per-BG objective
+         tactics + OutdoorPvP = documented framework hooks.
+
+   - S25 DUNGEON/RAID: dungeon/PsychobotDungeonMgr (InDungeonOrRaid, FightingBoss,
+         BossCastingInterruptible, EncounterScript registry Register/Run/Init).
+         Run each combat tick in instances; boss interrupts via per-class "target
+         casting". Concrete per-encounter reactions = documented hooks.
+
+   - S26 AHBOT: PsychobotAhBot real seller logic (IsSellable/PriceItem/
+         BuildListings deterministic + Update/RunCycle). PostAuction = gated live
+         AddAuction hook (needs owner acct + item DB2). Conf keys added.
+
+   - S27 PERSISTENCE + COMMANDS: world/PsychobotDbStore (saved strategies, in-mem
+         + DB hooks); PsychobotAI command surface (Toggle/Order Attack/Stay/Follow/
+         Cast); PsychobotMgr grammar; .psychobot follow|stay|attack|cast|strategy|
+         help. LINK-parsing + cross-relog DB persist = documented hooks.
+
+ NEXT STEP: ===> S28 PHASE A CORE EDITS (socketless bot login) - the deferred
+   core-edit step; unlocks offline-alt login + open-world random-bot spawning
+   (RandomPlayerbotMgr top-up). CAUTION: this edits CORE files (not just the
+   module) - the riskiest step; plan carefully. Then S29 hardening + final audit.
    S17 Monk (NEW), S18 Demon Hunter (NEW) -> MILESTONE all 12 classes.
    Then S19 pets depth, S20 group/raid coord, S21 healing depth, S22 non-combat
    world, S23 travel, S24 PvP/BG, S25 dungeon/raid, S26 ahbot(14 files),
@@ -159,8 +219,8 @@
  exist for DK AND Mage). Only the bot's own class context is layered on.
 
  USEFUL core facts (verified): POWER_MANA=0, POWER_RAGE=1, POWER_ENERGY=3,
- POWER_RUNES=5, POWER_RUNIC_POWER=6, POWER_FOCUS=2, POWER_COMBO_POINTS=4, POWER_HOLY_POWER=9, POWER_MAELSTROM=11, POWER_INSANITY=13, POWER_ARCANE_CHARGES=16, POWER_CHI=12,
- POWER_FURY=17, POWER_PAIN=18 (SharedDefines.h). CLASS_WARRIOR=1, PALADIN=2,
+ POWER_RUNES=5, POWER_RUNIC_POWER=6, POWER_SOUL_SHARDS=7, POWER_FOCUS=2, POWER_COMBO_POINTS=4, POWER_HOLY_POWER=9, POWER_MAELSTROM=11, POWER_INSANITY=13, POWER_ARCANE_CHARGES=16, POWER_CHI=12,
+ POWER_FURY=17, POWER_PAIN=18, POWER_LUNAR_POWER=8, POWER_ARCANE_CHARGES=16 (SharedDefines.h). CLASS_WARRIOR=1, PALADIN=2,
  HUNTER=3, ROGUE=4, PRIEST=5, DEATH_KNIGHT=6, SHAMAN=7, MAGE=8, WARLOCK=9,
  MONK=10, DRUID=11, DEMON_HUNTER=12.
 
@@ -251,6 +311,6 @@
 9) ONE-LINE STATUS TO TELL THE USER ON RESUME
 --------------------------------------------------------------------------------
  "Engine + shared libs done (S1-S6); classes done: Death Knight (S7), Warrior
-  (S8), Paladin (S9), Hunter (S10), Rogue (S11), Priest (S12), Shaman (S13), Mage (S14). 169/985 reference files. Next up: S15 Warlock. No compile yet
+  (S8), Paladin (S9), Hunter (S10), Rogue (S11), Priest (S12), Shaman (S13), Mage (S14), Warlock (S15), Druid (S16), Monk (S17), Demon Hunter (S18), pet system (S19), group/raid coord (S20), healing depth (S21), non-combat world (S22), travel (S23), PvP/BG (S24), dungeon/raid (S25), ahbot (S26), persistence+commands (S27). 351/985 reference files. Next up: S28 Phase A socketless login (CORE EDITS). No compile yet
   (no toolchain/client data here) - all verification is static. Awaiting your GO."
 ================================================================================

@@ -124,6 +124,25 @@ namespace psychobot
         bool IsActive() override;
     };
 
+    // --- healing-depth triggers (S21) -------------------------------------
+    // A group member (or self) has a dispellable debuff -> cure it.
+    class PartyMemberNeedsDispelTrigger : public ContextTrigger
+    {
+    public:
+        PartyMemberNeedsDispelTrigger(PsychobotAI* ai) : ContextTrigger(ai, "party member needs dispel") { }
+        bool IsActive() override;
+    };
+
+    // The bot's mana is below `pct` -> conserve (use efficient heals only).
+    class LowManaTrigger : public ContextTrigger
+    {
+    public:
+        LowManaTrigger(PsychobotAI* ai, float pct) : ContextTrigger(ai, "low mana"), _pct(pct) { }
+        bool IsActive() override;
+    private:
+        float _pct;
+    };
+
     // Register all core triggers into the bot's base trigger context.
     void RegisterCoreTriggers(AiObjectContext* context);
 }

@@ -77,3 +77,8 @@ Psychobot.EquipmentPersistenceLevel = 0
 # until then. Interval is the posting cycle period in seconds.
 Psychobot.AhBot.Enable = 0
 Psychobot.AhBot.IntervalSeconds = 3600
+# S26: candidate selection + price model (used by BuildListings/PriceItem).
+Psychobot.AhBot.MaxListingsPerCycle = 20
+Psychobot.AhBot.MinItemLevel = 1
+Psychobot.AhBot.MaxQuality = 4
+Psychobot.AhBot.PriceMultiplier = 1.5

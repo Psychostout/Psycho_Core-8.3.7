@@ -1213,3 +1213,196 @@ AGENT: (verify S13 OK; all-class trigger check passes) Researched Mage on wowhea
   (CLASS_MAGE). VERIFIED: balanced (101 files); includes resolve; guards unique;
   bridge decl==def; all 8 classes' trigger refs resolve; Fire rotation traced.
   NOT compile-tested. Checklist 155 -> 169. Awaiting GO for S15 (Warlock).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S14, research S15, do S15 Warlock (Affliction/Demo/
+  Destruction + pet/soul shards/DoTs), verify S15, report, wait."
+AGENT: (verify S14 OK; all-class trigger check passes) Researched Warlock on
+  wowhead/maxroll. Built classes/warlock/. Affliction (Agony/Corruption DoTs +
+  Unstable Affliction + Darkglare + Drain Soul), Demonology (Demonbolt on Demonic
+  Core + Dreadstalkers + Hand of Gul'dan + Demonic Tyrant + Implosion), Destro
+  (Immolate + Conflagrate + Chaos Bolt + Infernal + Rain of Fire). Generic: Drain
+  Life/Unending Resolve/Fear + Summon Imp if no pet (reuses S10 pet seam). NC:
+  Summon Imp + Create Healthstone. Wired into AiFactory (CLASS_WARLOCK). VERIFIED:
+  balanced (107 files); includes resolve; guards unique; bridge decl==def; all 9
+  classes' trigger refs resolve; Affliction rotation traced. NOT compile-tested.
+  Checklist 169 -> 183. Awaiting GO for S16 (Druid - 4 specs).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S15, research S16, do S16 Druid (Balance/Feral dps,
+  Guardian tank, Resto heal - 4 specs + forms), verify S16, report, wait."
+AGENT: (verify S15 OK; all-class trigger check passes) Researched Druid on
+  wowhead/method/maxroll. Built classes/druid/ - the 4-spec class. Form upkeep at
+  rel 25 (Moonkin/Cat/Bear shift first). Balance (Moonfire/Sunfire/Wrath/Starsurge
+  /Starfall), Feral (Rake/Rip/Shred/Ferocious Bite@5CP/Tiger's Fury/Swipe),
+  Guardian (Mangle/Thrash/Ironfur/Frenzied Regen/Maul), Resto (Rejuv/Swiftmend/
+  Regrowth/Wild Growth). Generic: Barkskin. NC: Mark of the Wild. Wired into
+  AiFactory (CLASS_DRUID, 4-spec map). VERIFIED: balanced (113 files); includes
+  resolve; guards unique; bridge decl==def; all 10 classes' trigger refs resolve;
+  Feral rotation traced. NOT compile-tested. Checklist 183 -> 203. 10/12 classes
+  done. Awaiting GO for S17 (Monk - NEW, no cmangos ref).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S16, research S17, do S17 Monk (Brewmaster/Mistweaver/
+  Windwalker - Chi/Energy/Stagger), verify S17, report, wait."
+AGENT: (verify S16 OK; all-class trigger check passes) Researched Monk on wowhead/
+  community (NEW class - no cmangos ref). Built classes/monk/. Brewmaster (Keg
+  Smash/Blackout Strike/Tiger Palm + Ironskin/Purifying Brew + Shuffle + Breath of
+  Fire + SCK), Mistweaver (Renewing Mist/Vivify/Enveloping Mist/Essence Font +
+  Tiger Palm fistweave), Windwalker (Tiger Palm/Rising Sun Kick/Blackout Kick/
+  Fists of Fury/SCK). Generic: Expel Harm/Spear Hand Strike/Touch of Death. NC:
+  Legacy of the Emperor. Chi=raw count, Energy=percent. Wired into AiFactory
+  (CLASS_MONK). VERIFIED: balanced (119 files); includes resolve; guards unique;
+  bridge decl==def; all 11 classes' trigger refs resolve; WW rotation traced. NOT
+  compile-tested. Checklist 203 -> 223. 11/12 classes. Awaiting GO for S18 (Demon
+  Hunter - NEW, the final class -> all-12 milestone).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S17, research S18, do S18 Demon Hunter (Havoc dps/
+  Vengeance tank - Fury/Pain/soul fragments/Metamorphosis; 2 specs), verify S18,
+  report, wait."
+AGENT: (verify S17 OK; all-class trigger check passes) Researched DH on wowhead/
+  method (NEW class, no ref). Built classes/demonhunter/ - the FINAL class, 2
+  specs. Havoc (Demon's Bite->Chaos Strike + Eye Beam + Blade Dance + Meta),
+  Vengeance (Fracture->Soul Cleave + Spirit Bomb on fragments + Demon Spikes/
+  Fiery Brand mitigation + Sigil of Flame). Generic: Consume Magic/Fel Rush/
+  Immolation Aura. Fury=power::17, Pain=power::18. Wired into AiFactory
+  (CLASS_DEMON_HUNTER). VERIFIED: balanced (125 files); includes resolve; guards
+  unique; bridge decl==def; AiFactory has 12/12 class cases; all 12 classes'
+  trigger refs resolve; rotations traced. NOT compile-tested. Checklist 223->239.
+  >>> MILESTONE: ALL 12 CLASSES / 36 SPECS DONE. PHASE C COMPLETE. <<<
+  Awaiting GO for Phase D (S19 pet depth / S20 group-raid coord / ...).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "PHASE D. Verify S18, research S19, do S19 pet system depth
+  (hunter/warlock/DK ghoul/mage water elemental), verify S19, report, wait."
+AGENT: (verify S18 OK; 12/12 wired; all trigger refs resolve) S19 = pet SYSTEM.
+  Checked core pet APIs (Pet:Guardian:..:Unit; SetReactState/Attack/SpellHistory;
+  ReactStates/CommandStates enums). Added ServerFacade pet-control seam
+  (PetAttack/PetFollow/PetAttackingTarget/PetSpellReady/PetCastSpell) + bridge.
+  Built pets/PetActions ("pet attack"/"pet follow") + pets/PetStrategy ("pet
+  idle" -> "pet attack" @ACTION_HIGH). AiFactory UsesPet() gate registers the pet
+  system + adds "pet" strategy for Hunter BM/Surv, all Warlock, Unholy DK, Frost
+  Mage. Pet abilities reuse keystone "cast pet::<spell>". VERIFIED: balanced (129
+  files); guards unique; includes resolve (Pet.h core); bridge decl==def; all
+  trigger refs resolve; ghoul trace OK. NOT compile-tested. Checklist 239 -> 251.
+  Awaiting GO for S20 (group/raid coordination: RTI/main-assist/focus/formations).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S19, research S20, do S20 group/raid coordination
+  (RTI/main-assist/main-tank/focus/follow formations/ready checks; wire to
+  GroupMgr), verify S20, report, wait."
+AGENT: (verify S19 OK) Checked core Group API (SetTargetIcon RTI, MEMBER_FLAG_*,
+  StartReadyCheck/SetMemberReadyCheck). Extended PsychobotGroupMgr: assist target
+  now main-assist > main-tank > tank > leader; heal target biases main-tank; NEW
+  MarkSkullTarget (RTI 7), AnswerReadyCheck (auto-ready), GetFollowFormationAngle
+  (fan-out). Wired into PsychobotAI::UpdateAI (ready-check + skull-mark in combat)
+  and FollowMaster (formation angle). Documented: no public core getter for the
+  marked GUID, so assist-skull = assist the marker. VERIFIED: balanced (129
+  files); guards unique; bridge decl==def; all trigger refs resolve; core API
+  signatures cross-checked. NOT compile-tested. Checklist 251 -> 263. Awaiting GO
+  for S21 (healing depth: smart heal target / dispels / mana mgmt / emergency CDs).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S20, research S21, do S21 healing depth (smart heal
+  target / dispels-cures / mana mgmt / emergency CDs / tank priority), verify,
+  report, wait."
+AGENT: (verify S20 OK) Checked core dispel API (DispelType; GetAppliedAuras;
+  AuraApplication::GetBase/IsPositive; SpellInfo::Dispel). Added ServerFacade
+  HasDispellableAura + GetManaPct; GroupMgr::GetGroupDispelTarget; "party member
+  to dispel" value; "party member needs dispel" + "low mana" triggers; "cast
+  dispel" action. Wired cure to all 5 healers (Cleanse/Purify/Cleanse Spirit/
+  Nature's Cure/Detox @ACTION_DISPEL). Tank-priority heal bias already from S20.
+  VERIFIED: balanced (129 files); guards unique; bridge decl==def; all trigger
+  refs resolve; ACTION_DISPEL=50; SpellAuras.h core header. NOT compile-tested.
+  Checklist 263 -> 275. Awaiting GO for S22 (non-combat world: rest/eat/drink,
+  buffs upkeep, mount, vendor/repair/sell, loot, quest, gather).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S21, research S22, do S22 non-combat world (rest/eat/
+  drink, buffs, mount, vendor/repair/sell, loot, quest, gather), verify, report,
+  wait."
+AGENT: (verify S21 OK) Checked core APIs (SetFullHealth/SetPower/DurabilityRepair
+  All/Mount/loot/quest). Built world/PsychobotWorldMgr (Rest=heal+refill, Repair=
+  self DurabilityRepairAll, + framework hooks Mount/SellJunk/Loot/Quests/Gather)
+  + actions/WorldActions ("rest"/"repair") + RestStrategy. Wired into AiFactory:
+  every bot's non-combat engine now runs follow + rest (rest outranks follow when
+  hurt). Implemented the SAFE self-contained behaviours; vendor/loot/quest/gather
+  + mount-from-collection are documented hooks for the first on-server pass.
+  VERIFIED: balanced (133 files); guards unique; bridge decl==def; all refs
+  resolve; core API signatures cross-checked. NOT compile-tested. Checklist 275 ->
+  287. Awaiting GO for S23 (TravelMgr/TravelNode/WorldPosition - local nav +
+  follow, expand node graph later).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S22, research S23, do S23 travel (TravelMgr/TravelNode/
+  WorldPosition - minimal local nav + follow; expand node graph later), verify,
+  report, wait."
+AGENT: (verify S22 OK) Checked core travel APIs (TeleportTo/MovePoint/GetMapId/
+  GetDistance). Built travel/PsychobotTravelMgr: WorldPosition + TravelNode +
+  TravelMgr (GetPosition/DistanceTo/MoveTo[path or teleport]/FollowMasterTravel
+  [cross-map+leash teleport] + AddNode/GetNode seed registry). Wired FollowMaster
+  to call FollowMasterTravel first (fixes cross-map follow), then fall back to the
+  S20 formation MoveFollow. VERIFIED: balanced (135 files); guards unique; bridge
+  decl==def; all trigger refs resolve; core API sigs cross-checked. NOT compile-
+  tested. Checklist 287 -> 299. Awaiting GO for S24 (PvP/Battlegrounds:
+  BattleGroundTactics per BG + arena; OutdoorPvP).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S23, research S24, do S24 PvP/Battlegrounds
+  (BattleGroundTactics per BG + arena; OutdoorPvP), verify, report, wait."
+AGENT: (verify S23 OK) Checked core BG API (GetBattleground/GetStatus/
+  GetBattlegroundTypeId/InArena/SelectNearestPlayer; BattlegroundTypeId enum).
+  Built pvp/PsychobotPvpMgr: BgFlavor classification, InActiveBattleground,
+  GetPvpTarget (nearest enemy player) + per-BG objective framework hooks. Wired
+  GetPvpTarget into PsychobotAI::GetCurrentTarget when in an active BG -> all 12
+  classes fight in BGs/arenas via the existing current-target value (no per-class
+  edits). Objective play (flags/bases/boss) + OutdoorPvP are documented hooks.
+  VERIFIED: balanced (137 files); guards unique; bridge decl==def; core API sigs
+  + BG type ids cross-checked. NOT compile-tested. Checklist 299 -> 311. Awaiting
+  GO for S25 (Dungeon/Raid scripted strategies: boss-mechanic awareness framework
+  + a few key encounters).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S24, research S25, do S25 dungeon/raid scripted
+  strategies (boss-mechanic awareness framework + a few key encounters), verify,
+  report, wait."
+AGENT: (verify S24 OK) Checked core APIs (Map::IsDungeon/IsRaid; Creature::
+  IsDungeonBoss/isWorldBoss; Unit::GetCurrentSpell; SpellInfo::InterruptFlags).
+  Built dungeon/PsychobotDungeonMgr: InDungeonOrRaid, FightingBoss,
+  BossCastingInterruptible, + EncounterScript registry (Register/Run/Init).
+  Wired RunEncounterScript into UpdateAI (in-instance combat) + InitEncounters in
+  OnConfigLoad. Boss-cast interrupts already covered by per-class "target casting"
+  since the boss is the current target. Concrete per-encounter reactions are
+  documented EncounterScript hooks for on-server. VERIFIED: balanced (139 files);
+  guards unique; bridge decl==def; core API sigs + interrupt flag cross-checked.
+  NOT compile-tested. Checklist 311 -> 323. Awaiting GO for S26 (AhBot: ahbot/ 14
+  files - auction posting/buying for 8.3 item data).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S25, research S26, do S26 ahbot (ahbot/ 14 files):
+  auction posting/buying for 8.3 item data, verify, report, wait."
+AGENT: (verify S25 OK) Checked core AH API (AuctionPosting/AddAuction heavy +
+  needs Item*/owner acct -> not statically testable) and item-template store.
+  Deepened PsychobotAhBot to REAL seller logic: IsSellable (skip quest/key/
+  soulbound/trash), PriceItem (quality-aware markup over SellPrice), BuildListings
+  (deterministic store scan, throttled), Update/RunCycle. PostAuction = the one
+  live AddAuction step (gated hook; needs owner acct + item DB2). Added 4 conf
+  keys. VERIFIED: balanced (139 files); declared==defined; core APIs cross-checked
+  (sObjectMgr/GetItemTemplateStore/ItemTemplate getters/ITEM_CLASS_*/BIND_*). NOT
+  compile-tested. Checklist 323 -> 337. Awaiting GO for S27 (persistence +
+  commands: PlayerbotDbStore saved strategies, ChatFilter/ChatHelper grammar).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S26, research S27, do S27 persistence + commands
+  (PlayerbotDbStore saved strategies; ChatFilter/ChatHelper grammar follow/attack/
+  cast/links; help text), verify, report, wait."
+AGENT: (verify S26 OK) Built world/PsychobotDbStore (per-bot saved strategy set,
+  in-mem real + DB Save/Load hooks). Added PsychobotAI command surface (Toggle
+  CombatStrategy + OrderAttack/Stay/Follow/Cast + _staying flag suppressing
+  follow). Added PsychobotMgr grammar (apply to all owned bots) + .psychobot
+  follow/stay/attack/cast/strategy/help commands. Saved strategies re-applied on
+  spec rebuild. VERIFIED: balanced (141 files); guards unique; bridge decl==def;
+  declared==defined; const-correct. NOT compile-tested. LINK parsing + cross-relog
+  DB persist = documented hooks. Checklist 337 -> 351. Awaiting GO for S28 (PHASE
+  A core edits: socketless bot login - unlocks offline-alt + open-world spawning).

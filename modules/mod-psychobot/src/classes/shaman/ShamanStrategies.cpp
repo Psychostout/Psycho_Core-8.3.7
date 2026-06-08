@@ -141,6 +141,10 @@ namespace psychobot
         // Chain Heal for group damage (still keyed on a hurt member).
         triggers.push_back(new TriggerNode("party member low health",
             NextAction::Array(1, new NextAction("cast heal::Chain Heal", ACTION_MEDIUM_HEAL - 1), nullptr)));
+
+        // S21: cure a debuffed ally (Cleanse Spirit removes Curse + Magic).
+        triggers.push_back(new TriggerNode("party member needs dispel",
+            NextAction::Array(1, new NextAction("cast dispel::Cleanse Spirit", ACTION_DISPEL), nullptr)));
     }
 
     // ----------------------------------------------------------------------

@@ -23,6 +23,18 @@ namespace psychobot
     }
 
     // ----------------------------------------------------------------------
+    // RestStrategy (non-combat) - eat/drink + repair above plain follow.
+    // ----------------------------------------------------------------------
+    NextAction** RestStrategy::GetDefaultNonCombatActions()
+    {
+        // Rest (heal/refill) outranks follow when hurt; repair is cheap upkeep.
+        return NextAction::Array(2,
+            new NextAction("rest",   ACTION_NORMAL),
+            new NextAction("repair", ACTION_IDLE + 1),
+            nullptr);
+    }
+
+    // ----------------------------------------------------------------------
     // MeleeCombatStrategy (combat)
     // ----------------------------------------------------------------------
     NextAction** MeleeCombatStrategy::GetDefaultCombatActions()
@@ -86,6 +98,7 @@ namespace psychobot
             GenericStrategyContext() : NamedObjectContext<Strategy>(/*shared*/ false)
             {
                 _creators["follow"] = [](PsychobotAI* ai) -> Strategy* { return new FollowStrategy(ai); };
+                _creators["rest"]   = [](PsychobotAI* ai) -> Strategy* { return new RestStrategy(ai); };
                 _creators["melee"]  = [](PsychobotAI* ai) -> Strategy* { return new MeleeCombatStrategy(ai); };
                 _creators["ranged"] = [](PsychobotAI* ai) -> Strategy* { return new RangedCombatStrategy(ai); };
                 _creators["tank"]   = [](PsychobotAI* ai) -> Strategy* { return new TankCombatStrategy(ai); };

@@ -16,6 +16,7 @@
 #include "../triggers/CoreTriggers.h"
 #include "../actions/GenericSpellActions.h"
 #include "../actions/MovementActions.h"
+#include "../actions/WorldActions.h"
 #include "../strategies/GenericStrategies.h"
 #include "../classes/deathknight/DKAiObjectContext.h"
 #include "../classes/warrior/WarriorAiObjectContext.h"
@@ -25,6 +26,11 @@
 #include "../classes/priest/PriestAiObjectContext.h"
 #include "../classes/shaman/ShamanAiObjectContext.h"
 #include "../classes/mage/MageAiObjectContext.h"
+#include "../classes/warlock/WarlockAiObjectContext.h"
+#include "../classes/druid/DruidAiObjectContext.h"
+#include "../classes/monk/MonkAiObjectContext.h"
+#include "../classes/demonhunter/DemonHunterAiObjectContext.h"
+#include "../pets/PetStrategy.h"
 #include "../PsychobotAIFwd.h"
 #include "Player.h"
 #include "SharedDefines.h"   // CLASS_*
@@ -33,6 +39,21 @@ namespace psychobot
 {
     namespace AiFactory
     {
+        // Does this class+spec rely on a controllable pet (S19)?
+        //   Hunter BeastMastery(0) + Survival(2); all Warlock; DK Unholy(2);
+        //   Mage Frost(2). (Hunter Marksmanship can pet too but doesn't need it.)
+        static bool UsesPet(uint8 classId, uint8 specIndex)
+        {
+            switch (classId)
+            {
+                case CLASS_HUNTER:       return specIndex == 0 || specIndex == 2;
+                case CLASS_WARLOCK:      return true;
+                case CLASS_DEATH_KNIGHT: return specIndex == 2;   // Unholy ghoul
+                case CLASS_MAGE:         return specIndex == 2;   // Frost water elemental
+                default:                 return false;
+            }
+        }
+
         AiObjectContext* CreateContext(PsychobotAI* ai)
         {
             AiObjectContext* context = new AiObjectContext(ai);
@@ -42,6 +63,7 @@ namespace psychobot
             RegisterCoreTriggers(context);
             RegisterGenericSpellActions(context);
             RegisterMovementActions(context);
+            RegisterWorldActions(context);      // S22 rest/repair actions
             RegisterGenericStrategies(context);
 
             // Per-class contexts (S7+) layered on top of the base for this bot.
@@ -57,9 +79,17 @@ namespace psychobot
                 case CLASS_PRIEST:       Priest::RegisterContext(context);     break;
                 case CLASS_SHAMAN:       Shaman::RegisterContext(context);     break;
                 case CLASS_MAGE:         Mage::RegisterContext(context);       break;
-                // S15+ : other classes register their contexts here.
-                default: break;
+                case CLASS_WARLOCK:      Warlock::RegisterContext(context);    break;
+                case CLASS_DRUID:        Druid::RegisterContext(context);      break;
+                case CLASS_MONK:         Monk::RegisterContext(context);       break;
+                case CLASS_DEMON_HUNTER: DemonHunter::RegisterContext(context); break;
+                default: break;   // all 12 classes registered
             }
+
+            // S19: pet system (actions/trigger/strategy) for pet-using classes.
+            if (UsesPet(classId, SpecRoles::GetBotSpecIndex(bot)))
+                RegisterPetSystem(context);
+
             return context;
         }
 
@@ -69,6 +99,7 @@ namespace psychobot
                 return;
 
             engine->AddStrategy("follow");
+            engine->AddStrategy("rest");   // S22: eat/drink/repair out of combat
 
             // Class-specific non-combat upkeep.
             Player* bot = PsychobotAIBridge::GetBot(ai);
@@ -89,6 +120,14 @@ namespace psychobot
                 engine->AddStrategy("shaman nc");
             else if (classId == CLASS_MAGE)
                 engine->AddStrategy("mage nc");
+            else if (classId == CLASS_WARLOCK)
+                engine->AddStrategy("warlock nc");
+            else if (classId == CLASS_DRUID)
+                engine->AddStrategy("druid nc");
+            else if (classId == CLASS_MONK)
+                engine->AddStrategy("monk nc");
+            else if (classId == CLASS_DEMON_HUNTER)
+                engine->AddStrategy("demon hunter nc");
         }
 
         void InitCombatEngine(PsychobotAI* ai, Engine* engine)
@@ -100,6 +139,13 @@ namespace psychobot
             uint8 classId = bot ? bot->getClass() : 0;
             SpecRole role = SpecRoles::GetBotRole(bot);
             uint8 specIndex = SpecRoles::GetBotSpecIndex(bot);
+
+            // S19: pet coordination layered on top of the spec rotation for pet
+            // classes. AddStrategy is a no-op if "pet" wasn't registered, so this
+            // is safe for non-pet classes. (Added before the early-returning
+            // class branches below so every pet spec gets it.)
+            if (UsesPet(classId, specIndex))
+                engine->AddStrategy("pet");
 
             // --- class-specific combat strategies (S7+) ----------------------
             if (classId == CLASS_DEATH_KNIGHT)
@@ -156,6 +202,34 @@ namespace psychobot
                 // Spec rotation (arcane/fire/frost) + mage base.
                 engine->AddStrategy("mage");
                 engine->AddStrategy(Mage::CombatStrategyForSpec(specIndex));
+                return;
+            }
+            if (classId == CLASS_WARLOCK)
+            {
+                // Spec rotation (affliction/demonology/destruction) + warlock base.
+                engine->AddStrategy("warlock");
+                engine->AddStrategy(Warlock::CombatStrategyForSpec(specIndex));
+                return;
+            }
+            if (classId == CLASS_DRUID)
+            {
+                // Spec rotation (balance/feral/guardian/restoration) + druid base.
+                engine->AddStrategy("druid");
+                engine->AddStrategy(Druid::CombatStrategyForSpec(specIndex));
+                return;
+            }
+            if (classId == CLASS_MONK)
+            {
+                // Spec rotation (brewmaster/mistweaver/windwalker) + monk base.
+                engine->AddStrategy("monk");
+                engine->AddStrategy(Monk::CombatStrategyForSpec(specIndex));
+                return;
+            }
+            if (classId == CLASS_DEMON_HUNTER)
+            {
+                // Spec rotation (havoc/vengeance) + demon hunter base.
+                engine->AddStrategy("demon hunter");
+                engine->AddStrategy(DemonHunter::CombatStrategyForSpec(specIndex));
                 return;
             }
 

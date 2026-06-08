@@ -44,6 +44,11 @@ namespace psychobot
         bool   StopMoving(PsychobotAI* ai);
         // Start auto-attacking target (melee swing).
         bool   AttackTarget(PsychobotAI* ai, Unit* target);
+
+        // --- pet control seam (S19) -----------------------------------------
+        bool   PetAttack(PsychobotAI* ai, Unit* target);
+        bool   PetFollow(PsychobotAI* ai);
+        bool   PetCastSpell(PsychobotAI* ai, std::string const& name, Unit* target);
     }
 }
 

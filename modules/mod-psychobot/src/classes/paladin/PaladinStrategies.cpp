@@ -63,6 +63,10 @@ namespace psychobot
             NextAction::Array(1, new NextAction("cast heal::Word of Glory", ACTION_LIGHT_HEAL), nullptr)));
         triggers.push_back(new TriggerNode("party member low health",
             NextAction::Array(1, new NextAction("cast heal::Flash of Light", ACTION_LIGHT_HEAL - 1), nullptr)));
+
+        // S21: cure a debuffed ally (Cleanse removes Magic/Poison/Disease).
+        triggers.push_back(new TriggerNode("party member needs dispel",
+            NextAction::Array(1, new NextAction("cast dispel::Cleanse", ACTION_DISPEL), nullptr)));
     }
 
     // ----------------------------------------------------------------------

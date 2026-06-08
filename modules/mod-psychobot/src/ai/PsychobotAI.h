@@ -59,6 +59,18 @@ namespace psychobot
         // Apply BfA spec + talents to this bot (idempotent).
         void EnsureSpecAndTalents();
 
+        // --- S27 command surface (chat-driven control) --------------------
+        // Toggle an extra combat strategy on/off (persisted via DbStore).
+        // Returns the new state (true = now active).
+        bool ToggleCombatStrategy(std::string const& name);
+        // One-shot orders from the master:
+        bool OrderAttackMasterTarget();   // attack what the master has selected
+        bool OrderStay();                 // stop + hold position (no follow)
+        bool OrderFollow();               // resume following the master
+        bool OrderCast(std::string const& spellName);  // cast on master's target
+        // Active strategies of the combat engine, comma-joined (for help/status).
+        std::string ListCombatStrategies() const;
+
     private:
         void UpdateState();                       // combat/non-combat engine swap
 
@@ -67,6 +79,7 @@ namespace psychobot
         BotState   _state;
         uint32     _updateDelay;                  // ms accumulator (throttle)
         bool       _specApplied;
+        bool       _staying = false;              // S27: "stay" order suppresses follow
 
         std::unique_ptr<AiObjectContext> _context;
         std::unique_ptr<Engine> _nonCombatEngine;

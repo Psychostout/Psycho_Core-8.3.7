@@ -13,9 +13,14 @@
 #include "PsychobotGearMgr.h"
 #include "../PsychobotPopulationMgr.h"
 #include "../PsychobotGroupMgr.h"
+#include "../travel/PsychobotTravelMgr.h"
+#include "../pvp/PsychobotPvpMgr.h"
+#include "../dungeon/PsychobotDungeonMgr.h"
+#include "../world/PsychobotDbStore.h"
 #include "../PsychobotAIFwd.h"
 #include "../engine/AiObjectContext.h"
 #include "../engine/Engine.h"
+#include "../engine/ServerFacade.h"
 #include "Player.h"
 #include "Unit.h"
 #include "MotionMaster.h"
@@ -76,7 +81,69 @@ namespace psychobot
         {
             _combatEngine->ClearStrategies();
             AiFactory::InitCombatEngine(this, _combatEngine.get());
+
+            // S27: re-apply the master's saved extra combat strategies.
+            if (_bot)
+                for (std::string const& s : sPsychobotDbStore->GetStrategies(_bot->GetGUID()))
+                    _combatEngine->AddStrategy(s);
         }
+    }
+
+    // ----------------------------------------------------------------------
+    // S27 command surface
+    // ----------------------------------------------------------------------
+    bool PsychobotAI::ToggleCombatStrategy(std::string const& name)
+    {
+        if (!_combatEngine || !_bot)
+            return false;
+        bool nowOn = sPsychobotDbStore->ToggleStrategy(_bot->GetGUID(), name);
+        if (nowOn)
+            _combatEngine->AddStrategy(name);
+        else
+            _combatEngine->RemoveStrategy(name);
+        return nowOn;
+    }
+
+    bool PsychobotAI::OrderAttackMasterTarget()
+    {
+        Player* master = GetMaster();
+        if (!_bot || !master)
+            return false;
+        Unit* sel = master->GetSelectedUnit();
+        if (!sel || !_bot->IsValidAttackTarget(sel))
+            return false;
+        _staying = false;   // attacking implies we may move
+        return AttackTarget(sel);
+    }
+
+    bool PsychobotAI::OrderStay()
+    {
+        _staying = true;
+        return StopMoving();
+    }
+
+    bool PsychobotAI::OrderFollow()
+    {
+        _staying = false;
+        return FollowMaster();
+    }
+
+    bool PsychobotAI::OrderCast(std::string const& spellName)
+    {
+        Player* master = GetMaster();
+        if (!_bot || !master)
+            return false;
+        uint32 id = GetSpellIdByName(spellName);
+        if (!id)
+            return false;
+        Unit* sel = master->GetSelectedUnit();
+        Unit* target = (sel && _bot->IsValidAttackTarget(sel)) ? sel : static_cast<Unit*>(_bot);
+        return CastSpell(id, target);
+    }
+
+    std::string PsychobotAI::ListCombatStrategies() const
+    {
+        return _combatEngine ? _combatEngine->ListStrategies() : std::string();
     }
 
     void PsychobotAI::UpdateState()
@@ -120,6 +187,18 @@ namespace psychobot
         // Keep gear roughly level-appropriate (cheap; persistence-gated).
         GearMgr::GearUp(_bot);
 
+        // S20 group coordination (cheap, every tick):
+        //  - bots auto-accept ready checks (always ready)
+        //  - tank/leader bots mark their target with Skull so the group focuses
+        GroupMgr::AnswerReadyCheck(_bot);
+        if (_bot->IsInCombat())
+            GroupMgr::MarkSkullTarget(_bot);
+
+        // S25: react to the current boss encounter's mechanics (move out of
+        // fire, etc.). No-op outside instances / when no script is registered.
+        if (_bot->IsInCombat() && DungeonMgr::InDungeonOrRaid(_bot))
+            DungeonMgr::RunEncounterScript(_bot);
+
         UpdateState();
 
         // Dead bots stay idle until release/rez handling (later step).
@@ -143,6 +222,11 @@ namespace psychobot
 
         if (Unit* assist = GroupMgr::GetGroupAssistTarget(_bot))
             return assist;
+
+        // S24: in an active battleground/arena, hunt the nearest enemy player.
+        if (PvpMgr::InActiveBattleground(_bot))
+            if (Unit* foe = PvpMgr::GetPvpTarget(_bot, 60.0f))
+                return foe;
 
         if (Player* master = GetMaster())
             if (Unit* sel = master->GetSelectedUnit())
@@ -213,12 +297,20 @@ namespace psychobot
 
     bool PsychobotAI::FollowMaster()
     {
+        if (_staying)
+            return false;   // S27: "stay" order holds position
         Player* master = GetMaster();
         if (!_bot || !master || !master->IsInWorld())
             return false;
-        if (master->GetMap() != _bot->GetMap())
-            return false;   // cross-map teleport handled later
-        _bot->GetMotionMaster()->MoveFollow(master, 2.0f, static_cast<float>(M_PI));
+
+        // S23: travel catch-up first. If the master is on another map or beyond
+        // the leash, this teleports us in and returns true (we're done this tick).
+        if (TravelMgr::FollowMasterTravel(_bot, master, 2.0f))
+            return true;
+
+        // Same map + within leash: normal follow with the S20 formation angle.
+        float angle = GroupMgr::GetFollowFormationAngle(_bot);
+        _bot->GetMotionMaster()->MoveFollow(master, 2.0f, angle);
         return true;
     }
 
@@ -260,5 +352,27 @@ namespace psychobot
         bool   FollowMaster(PsychobotAI* ai) { return ai && ai->FollowMaster(); }
         bool   StopMoving(PsychobotAI* ai) { return ai && ai->StopMoving(); }
         bool   AttackTarget(PsychobotAI* ai, Unit* target) { return ai && ai->AttackTarget(target); }
+
+        // --- pet control seam (S19) -----------------------------------------
+        bool PetAttack(PsychobotAI* ai, Unit* target)
+        {
+            Player* bot = ai ? ai->GetBot() : nullptr;
+            return bot && ServerFacade::PetAttack(bot, target);
+        }
+        bool PetFollow(PsychobotAI* ai)
+        {
+            Player* bot = ai ? ai->GetBot() : nullptr;
+            return bot && ServerFacade::PetFollow(bot);
+        }
+        bool PetCastSpell(PsychobotAI* ai, std::string const& name, Unit* target)
+        {
+            if (!ai)
+                return false;
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+            uint32 spellId = ai->GetSpellIdByName(name);
+            return spellId && ServerFacade::PetCastSpell(bot, spellId, target);
+        }
     }
 }

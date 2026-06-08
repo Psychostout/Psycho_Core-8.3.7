@@ -149,6 +149,74 @@ namespace psychobot
         return "Could not add '" + bot->GetName() + "' to your party (full / already grouped?).";
     }
 
+    // ----------------------------------------------------------------------
+    // S27 chat-command grammar - apply an order to every bot owned by `master`.
+    // ----------------------------------------------------------------------
+    namespace
+    {
+        // Count of bots affected, via a per-bot callback.
+        template <class Fn>
+        uint32 ForEachOwnedBot(std::unordered_map<ObjectGuid, std::unique_ptr<PsychobotAI>>& bots,
+                               Player* master, Fn&& fn)
+        {
+            if (!master)
+                return 0;
+            ObjectGuid mg = master->GetGUID();
+            uint32 n = 0;
+            for (auto& pair : bots)
+            {
+                PsychobotAI* ai = pair.second.get();
+                if (ai && ai->GetMasterGuid() == mg)
+                    if (fn(ai))
+                        ++n;
+            }
+            return n;
+        }
+    }
+
+    std::string PsychobotMgr::OrderFollow(Player* master)
+    {
+        uint32 n = ForEachOwnedBot(_bots, master, [](PsychobotAI* ai) { return ai->OrderFollow(); });
+        return std::to_string(n) + " bot(s) now following.";
+    }
+
+    std::string PsychobotMgr::OrderStay(Player* master)
+    {
+        uint32 n = ForEachOwnedBot(_bots, master, [](PsychobotAI* ai) { return ai->OrderStay(); });
+        return std::to_string(n) + " bot(s) holding position.";
+    }
+
+    std::string PsychobotMgr::OrderAttack(Player* master)
+    {
+        if (!master || !master->GetSelectedUnit())
+            return "Select an enemy target first.";
+        uint32 n = ForEachOwnedBot(_bots, master, [](PsychobotAI* ai) { return ai->OrderAttackMasterTarget(); });
+        return std::to_string(n) + " bot(s) attacking your target.";
+    }
+
+    std::string PsychobotMgr::OrderCast(Player* master, std::string const& spellName)
+    {
+        if (spellName.empty())
+            return "Usage: .psychobot cast <spell name>";
+        std::string spell = spellName;
+        uint32 n = ForEachOwnedBot(_bots, master, [&spell](PsychobotAI* ai) { return ai->OrderCast(spell); });
+        return std::to_string(n) + " bot(s) cast '" + spellName + "'.";
+    }
+
+    std::string PsychobotMgr::ToggleStrategy(Player* master, std::string const& args)
+    {
+        if (args.empty())
+            return "Usage: .psychobot strategy <name>   (toggles e.g. 'tank', 'ranged')";
+        std::string name = args;
+        bool last = false;
+        uint32 n = ForEachOwnedBot(_bots, master, [&name, &last](PsychobotAI* ai)
+        {
+            last = ai->ToggleCombatStrategy(name);
+            return true;
+        });
+        return std::to_string(n) + " bot(s): strategy '" + name + "' " + (last ? "ON" : "OFF") + ".";
+    }
+
     void PsychobotMgr::OnPlayerLogout(Player* player)
     {
         if (!player)

@@ -106,6 +106,17 @@ namespace psychobot
         return GroupMgr::GetGroupHealTarget(bot, 80.0f);
     }
 
+    Unit* PartyMemberToDispelValue::Calculate()
+    {
+        Player* bot = GetBot();
+        if (!bot)
+            return nullptr;
+        // DISPEL_ALL_MASK = magic|curse|disease|poison. The specific cure spell
+        // only succeeds against the type it can remove; the game ignores the rest.
+        uint32 const allMask = (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4);
+        return GroupMgr::GetGroupDispelTarget(bot, allMask);
+    }
+
     // ----------------------------------------------------------------------
     // Registration - one cached context holding every core value creator.
     // ----------------------------------------------------------------------
@@ -127,6 +138,7 @@ namespace psychobot
                 _creators["target has aura"]     = [](PsychobotAI* ai) -> UntypedValue* { return new TargetHasAuraValue(ai); };
                 _creators["spell ready"]         = [](PsychobotAI* ai) -> UntypedValue* { return new SpellReadyValue(ai); };
                 _creators["party member to heal"]= [](PsychobotAI* ai) -> UntypedValue* { return new PartyMemberToHealValue(ai); };
+                _creators["party member to dispel"]= [](PsychobotAI* ai) -> UntypedValue* { return new PartyMemberToDispelValue(ai); };
             }
         };
     }

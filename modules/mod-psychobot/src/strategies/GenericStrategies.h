@@ -42,6 +42,17 @@ namespace psychobot
         NextAction** GetDefaultNonCombatActions() override;
     };
 
+    // --- non-combat: rest / repair (S22 world housekeeping) ----------------
+    class RestStrategy : public Strategy
+    {
+    public:
+        RestStrategy(PsychobotAI* ai) : Strategy(ai) { }
+        std::string GetName() const override { return "rest"; }
+        int GetType() override { return STRATEGY_TYPE_NONCOMBAT; }
+    protected:
+        NextAction** GetDefaultNonCombatActions() override;
+    };
+
     // --- combat: melee ----------------------------------------------------
     class MeleeCombatStrategy : public Strategy
     {

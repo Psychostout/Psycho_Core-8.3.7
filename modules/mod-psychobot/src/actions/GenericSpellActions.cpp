@@ -141,6 +141,25 @@ namespace psychobot
     }
 
     // ----------------------------------------------------------------------
+    // CastDispelSpellAction - cure the "party member to dispel" value.
+    // ----------------------------------------------------------------------
+    Unit* CastDispelSpellAction::GetTarget()
+    {
+        AiObjectContext* ctx = PsychobotAIBridge::GetContext(GetAI());
+        if (!ctx)
+            return nullptr;
+        Value<Unit*>* v = ctx->GetValue<Unit*>("party member to dispel");
+        return v ? v->Get() : nullptr;
+    }
+
+    bool CastDispelSpellAction::IsUseful()
+    {
+        if (!ResolveSpell())
+            return false;
+        return GetTarget() != nullptr;   // someone has a removable debuff
+    }
+
+    // ----------------------------------------------------------------------
     // CastSelfSpellAction - self-cast summon/cooldown (no target/aura gate).
     // ----------------------------------------------------------------------
     Unit* CastSelfSpellAction::GetTarget()
@@ -171,6 +190,7 @@ namespace psychobot
                 _creators["cast buff"]           = [](PsychobotAI* ai) -> Action* { return new CastBuffSpellAction(ai); };
                 _creators["cast self"]           = [](PsychobotAI* ai) -> Action* { return new CastSelfSpellAction(ai); };
                 _creators["cast heal"]           = [](PsychobotAI* ai) -> Action* { return new CastHealSpellAction(ai); };
+                _creators["cast dispel"]         = [](PsychobotAI* ai) -> Action* { return new CastDispelSpellAction(ai); };
                 _creators["cast melee aoe"]      = [](PsychobotAI* ai) -> Action* { return new CastMeleeAoeSpellAction(ai); };
                 _creators["cast ranged debuff"]  = [](PsychobotAI* ai) -> Action* { return new CastRangedDebuffSpellAction(ai); };
                 _creators["cast pet"]            = [](PsychobotAI* ai) -> Action* { return new CastPetSpellAction(ai); };

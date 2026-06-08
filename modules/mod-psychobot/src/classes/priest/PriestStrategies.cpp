@@ -74,6 +74,10 @@ namespace psychobot
         // Pain Suppression on a critically low ally.
         triggers.push_back(new TriggerNode("party member low health",
             NextAction::Array(1, new NextAction("cast heal::Pain Suppression", ACTION_CRITICAL_HEAL), nullptr)));
+
+        // S21: cure a debuffed ally (Purify removes Magic + Disease).
+        triggers.push_back(new TriggerNode("party member needs dispel",
+            NextAction::Array(1, new NextAction("cast dispel::Purify", ACTION_DISPEL), nullptr)));
     }
 
     // ----------------------------------------------------------------------
@@ -102,6 +106,10 @@ namespace psychobot
         // Guardian Spirit on a critically low ally.
         triggers.push_back(new TriggerNode("party member low health",
             NextAction::Array(1, new NextAction("cast heal::Guardian Spirit", ACTION_EMERGENCY), nullptr)));
+
+        // S21: cure a debuffed ally (Purify removes Magic + Disease).
+        triggers.push_back(new TriggerNode("party member needs dispel",
+            NextAction::Array(1, new NextAction("cast dispel::Purify", ACTION_DISPEL), nullptr)));
     }
 
     // ----------------------------------------------------------------------

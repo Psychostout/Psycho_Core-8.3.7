@@ -139,6 +139,23 @@ namespace psychobot
     };
 
     // ----------------------------------------------------------------------
+    // CastDispelSpellAction - cast a cure/dispel on the "party member to dispel"
+    // value (a group member carrying a removable debuff). Ranged friendly cast.
+    // Used by healer dispel wiring (S21).
+    // ----------------------------------------------------------------------
+    class CastDispelSpellAction : public CastSpellAction
+    {
+    public:
+        CastDispelSpellAction(PsychobotAI* ai, std::string name = "cast dispel")
+            : CastSpellAction(ai, std::move(name)) { }
+        bool  IsUseful() override;
+        Unit* GetTarget() override;                                 // dispel target
+    protected:
+        float GetCastRange() override { return 40.0f; }
+        std::string GetReachActionName() override { return ""; }
+    };
+
+    // ----------------------------------------------------------------------
     // CastMeleeAoeSpellAction - melee AoE (e.g. cleave/whirlwind).
     // ----------------------------------------------------------------------
     class CastMeleeAoeSpellAction : public CastMeleeSpellAction

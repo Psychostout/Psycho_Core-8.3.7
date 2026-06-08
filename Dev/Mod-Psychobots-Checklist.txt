@@ -1083,9 +1083,9 @@
  PROGRESS SUMMARY (update as you go)
 ================================================================================
  Reference files total .......... 985
- Done [x] ...................... 169  (... DK..Shaman + S14 Mage)
+ Done [x] ...................... 351  (... + S27 persistence+commands)
  In progress [~] ............... 0
- Remaining [ ] ................. 816
+ Remaining [ ] ................. 634
  NEW (no reference) to author ... Monk (3 specs) + Demon Hunter (2 specs)
 
  STEP -> CHECKLIST SECTION MAP (see playerbots_docs/06_FAT_PORT_STEPS.txt):
@@ -1268,3 +1268,166 @@
  NOTE: proc-driven (Clearcasting/Hot Streak/Brain Freeze/Fingers of Frost) read
        as named auras; Arcane Charges = percent power::16. cmangos ref has no
        mage/ folder -> authored from research.
+
+================================================================================
+ S15 CREATED EQUIVALENTS (Phase C - Warlock)  [2026-06-08]
+================================================================================
+ [x] warlock/WarlockAiObjectContext.{h,cpp} => classes/warlock/WarlockAiObjectContext.{h,cpp}
+ [x] warlock/WarlockTriggers.{h,cpp}        => classes/warlock/WarlockTriggers.{h,cpp}
+ [x] warlock/WarlockStrategy.{h,cpp}        => classes/warlock/WarlockStrategies (GenericWarlockStrategy)
+ [x] warlock/AfflictionWarlockStrategy      => classes/warlock/WarlockStrategies (AfflictionWarlockStrategy)
+ [x] warlock/DemonologyWarlockStrategy      => classes/warlock/WarlockStrategies (DemonologyWarlockStrategy)
+ [x] warlock/DestructionWarlockStrategy     => classes/warlock/WarlockStrategies (DestructionWarlockStrategy)
+ [x] warlock/(non-combat pet/healthstone)   => classes/warlock/WarlockStrategies (GenericWarlockNonCombatStrategy)
+ [x] warlock/WarlockActions / WarlockMultipliers => NOT NEEDED: S5 family + pet seam
+ NOTE: Soul Shards = percent power::7; pet via ServerFacade seam (S10). cmangos
+       ref has no warlock/ folder -> authored from research.
+
+================================================================================
+ S16 CREATED EQUIVALENTS (Phase C - Druid, 4 specs)  [2026-06-08]
+================================================================================
+ [x] druid/DruidAiObjectContext.{h,cpp} => classes/druid/DruidAiObjectContext.{h,cpp}
+ [x] druid/DruidTriggers.{h,cpp}        => classes/druid/DruidTriggers.{h,cpp}
+ [x] druid/DruidStrategy.{h,cpp}        => classes/druid/DruidStrategies (GenericDruidStrategy)
+ [x] druid/BalanceDruidStrategy         => classes/druid/DruidStrategies (BalanceDruidStrategy)
+ [x] druid/FeralDruidStrategy           => classes/druid/DruidStrategies (FeralDruidStrategy)
+ [x] druid/GuardianDruidStrategy        => classes/druid/DruidStrategies (GuardianDruidStrategy)
+ [x] druid/RestorationDruidStrategy     => classes/druid/DruidStrategies (RestorationDruidStrategy)
+ [x] druid/(non-combat Mark of the Wild) => classes/druid/DruidStrategies (GenericDruidNonCombatStrategy)
+ [x] druid/DruidActions / DruidMultipliers => NOT NEEDED: S5 family + cast heal
+ NOTE: FOUR specs + form upkeep (Moonkin/Cat/Bear shift before rotating).
+       Astral Power = power::8; combo points raw; Resto stays caster form.
+
+================================================================================
+ S17 CREATED EQUIVALENTS (Phase C - Monk, NEW class)  [2026-06-08]
+================================================================================
+ [NEW] no cmangos reference - authored 100% from BfA 8.3 research.
+ [x] => classes/monk/MonkAiObjectContext.{h,cpp}
+ [x] => classes/monk/MonkTriggers.{h,cpp}
+ [x] => classes/monk/MonkStrategies (GenericMonkStrategy)
+ [x] => classes/monk/MonkStrategies (BrewmasterMonkStrategy - tank, Stagger/brews)
+ [x] => classes/monk/MonkStrategies (MistweaverMonkStrategy - healer, mists)
+ [x] => classes/monk/MonkStrategies (WindwalkerMonkStrategy - dps, Chi/Energy)
+ [x] => classes/monk/MonkStrategies (GenericMonkNonCombatStrategy)
+ NOTE: Chi = raw count (POWER_CHI=12); Energy = percent. Brewmaster has no Chi
+       (Energy/brews). All melee. AUTHORED FROM RESEARCH (no reference).
+
+================================================================================
+ S18 CREATED EQUIVALENTS (Phase C - Demon Hunter, NEW class)  [2026-06-08]
+ >>> PHASE C COMPLETE: ALL 12 CLASSES / 36 SPECS PLAY THEIR ROTATIONS <<<
+================================================================================
+ [NEW] no cmangos reference - authored 100% from BfA 8.3 research.
+ [x] => classes/demonhunter/DemonHunterAiObjectContext.{h,cpp}
+ [x] => classes/demonhunter/DemonHunterTriggers.{h,cpp}
+ [x] => classes/demonhunter/DemonHunterStrategies (GenericDemonHunterStrategy)
+ [x] => classes/demonhunter/DemonHunterStrategies (HavocDemonHunterStrategy - dps, Fury)
+ [x] => classes/demonhunter/DemonHunterStrategies (VengeanceDemonHunterStrategy - tank, Pain/fragments)
+ [x] => classes/demonhunter/DemonHunterStrategies (GenericDemonHunterNonCombatStrategy)
+ NOTE: only 2 specs. Fury=power::17, Pain=power::18; soul fragments via aura.
+
+ CLASS ROSTER (all done): Death Knight, Warrior, Paladin, Hunter, Rogue, Priest,
+   Shaman, Mage, Warlock, Druid (S7-S16) + Monk, Demon Hunter (NEW, S17-S18).
+
+================================================================================
+ S19 CREATED EQUIVALENTS (Phase D - pet system depth)  [2026-06-08]
+================================================================================
+ [x] (pet actions/values/strategies) => pets/PetActions.{h,cpp} + pets/PetStrategy.{h,cpp}
+ [x] ServerFacade pet-control seam    => engine/ServerFacade.* (PetAttack/Follow/
+       AttackingTarget/SpellReady/CastSpell)
+ [x] bridge PetAttack/PetFollow/PetCastSpell => PsychobotAIFwd.h + PsychobotAI.cpp
+ [x] AiFactory UsesPet() gate + "pet" strategy wiring => ai/PsychobotAiFactory.cpp
+ PET CLASSES: Hunter (BM/Survival), Warlock (all), DK Unholy ghoul, Frost Mage.
+ NOTE: pet ABILITY casts reuse keystone "cast pet::<spell>"; SUMMONING stays the
+       class non-combat job. Pet kept on the bot's target each tick via "pet idle".
+
+================================================================================
+ S20 CREATED EQUIVALENTS (Phase D - group/raid coordination)  [2026-06-08]
+================================================================================
+ [x] RTI / raid target icons (Skull focus)  => GroupMgr::MarkSkullTarget (SetTargetIcon 7)
+ [x] main-assist / main-tank targeting       => GroupMgr::GetGroupAssistTarget (MEMBER_FLAG priority)
+ [x] tank-priority heal selection            => GroupMgr::GetGroupHealTarget (main-tank bias)
+ [x] ready checks (auto-accept)              => GroupMgr::AnswerReadyCheck
+ [x] follow formations (fan-out)             => GroupMgr::GetFollowFormationAngle + PsychobotAI::FollowMaster
+ [x] focus / assist wiring                   => already routed via GroupMgr (all classes)
+ NOTE: "assist the skull" = everyone assists the main-assist/tank (no public core
+       getter for the marked GUID; documented). Wired into PsychobotAI::UpdateAI.
+
+================================================================================
+ S21 CREATED EQUIVALENTS (Phase D - healing depth)  [2026-06-08]
+================================================================================
+ [x] smart heal-target selection      => GroupMgr::GetGroupHealTarget (tiered + tank bias, S20)
+ [x] dispels / cures                   => ServerFacade::HasDispellableAura + GroupMgr::GetGroupDispelTarget
+                                          + "party member to dispel" value + "party member needs dispel" trigger
+                                          + "cast dispel" action; wired to all 5 healer specs
+ [x] mana management                   => ServerFacade::GetManaPct + "low mana" trigger (<25%, mana users only)
+ [x] emergency CDs / tank priority     => already in S20 (main-tank heal bias) + per-spec emergency heals (S9/S12/S13/S16/S17)
+ NOTE: cure relevance = ACTION_DISPEL (50). Cure spells per class: Cleanse (Pala),
+       Purify (Priest), Cleanse Spirit (Shaman), Nature's Cure (Druid), Detox (Monk).
+
+================================================================================
+ S22 CREATED EQUIVALENTS (Phase D - non-combat world)  [2026-06-08]
+================================================================================
+ [x] rest / eat / drink           => world/PsychobotWorldMgr::Rest + actions "rest" + RestStrategy
+ [x] repair                       => WorldMgr::Repair (DurabilityRepairAll) + action "repair"
+ [x] buffs upkeep                 => already per-class non-combat strategies (S7-S18)
+ [~] mount                        => WorldMgr::MountForTravel hook (needs mount collection; on-server)
+ [~] vendor / repair / sell       => repair DONE; SellJunk hook (needs vendor object; on-server)
+ [~] loot                         => WorldMgr::LootNearby hook (needs corpse/loot packets; on-server)
+ [~] quest accept / turn-in       => WorldMgr::HandleQuests hook (needs quest giver; on-server)
+ [~] gather                       => WorldMgr::GatherNearby hook (needs node/gather; on-server)
+ NOTE: Rest restores to full (deterministic) vs consuming real items; hooks
+       documented for the first running-server pass.
+
+================================================================================
+ S23 CREATED EQUIVALENTS (Phase D - travel)  [2026-06-08]
+================================================================================
+ [x] WorldPosition                 => travel/PsychobotTravelMgr.h (struct {mapId,x,y,z,o})
+ [x] TravelNode                    => travel/PsychobotTravelMgr.h (named WorldPosition) + AddNode/GetNode registry
+ [x] TravelMgr (local nav+follow)  => travel/PsychobotTravelMgr.{h,cpp} (GetPosition/DistanceTo/MoveTo/FollowMasterTravel)
+ [x] cross-map + far follow catch-up => PsychobotAI::FollowMaster -> TravelMgr::FollowMasterTravel (TeleportTo)
+ [~] full node-graph navigation (8.3 maps, flight paths, transports) => documented later expansion (seed registry in place)
+
+================================================================================
+ S24 CREATED EQUIVALENTS (Phase D - PvP / battlegrounds)  [2026-06-08]
+================================================================================
+ [x] BattleGroundTactics (flavor classification) => PvpMgr::GetBgFlavor + BgFlavor enum
+ [x] PvP combat target (BG + arena)              => PvpMgr::GetPvpTarget + wired into GetCurrentTarget
+ [x] arena (deathmatch via PvP target)           => PvpMgr::InArena / DoArenaTactics (uses GetPvpTarget)
+ [~] per-BG objectives (flag/base/resource/payload) => DoFlag/Base/Resource hooks (need live BG objects; on-server)
+ [~] OutdoorPvP                                   => documented later (uses GetPvpTarget for open-world PvP combat now)
+ NOTE: all 12 classes fight in BGs immediately because objective-free PvP routes
+       through the existing "current target" value; objective play is next layer.
+
+================================================================================
+ S25 CREATED EQUIVALENTS (Phase D - dungeon/raid)  [2026-06-08]
+================================================================================
+ [x] dungeon/raid context detection    => DungeonMgr::InDungeonOrRaid
+ [x] boss detection                    => DungeonMgr::FightingBoss (IsDungeonBoss/isWorldBoss)
+ [x] interrupt boss casts              => DungeonMgr::BossCastingInterruptible + existing per-class "target casting" kick
+ [x] boss-mechanic framework           => EncounterScript registry (RegisterEncounter/RunEncounterScript/InitEncounters), wired into UpdateAI
+ [~] specific encounter reactions      => EncounterScript hooks (need per-boss positions/spell ids; on-server pass + a few key encounters)
+ NOTE: generic boss awareness (detect/interrupt/encounter-tick) ships; concrete
+       move-out-of-fire/soak/spread are documented per-encounter hooks.
+
+================================================================================
+ S26 CREATED EQUIVALENTS (Phase D - ahbot, ref ahbot/ 14 files)  [2026-06-08]
+================================================================================
+ [x] ahbot seller: item candidate selection => PsychobotAhBot::IsSellable
+ [x] ahbot seller: price model              => PsychobotAhBot::PriceItem (quality-aware)
+ [x] ahbot seller: listing builder          => PsychobotAhBot::BuildListings (deterministic)
+ [x] ahbot cycle / throttle                 => Update/RunCycle + IntervalSeconds + MaxListingsPerCycle
+ [~] ahbot post (live AddAuction)           => PostAuction hook (needs owner account + item DB2; on-server)
+ [~] ahbot buyer (buy under-priced)         => later hook (needs live AH listings)
+ NOTE: the cmangos ahbot/ 14-file split is consolidated into one cohesive manager;
+       the full SELL decision logic is real/verifiable, AddAuction is the gated step.
+
+================================================================================
+ S27 CREATED EQUIVALENTS (Phase D - persistence + commands)  [2026-06-08]
+================================================================================
+ [x] PlayerbotDbStore (saved strategies)  => world/PsychobotDbStore.{h,cpp} (in-mem real; DB Save/Load hooks)
+ [x] command grammar: follow/stay/attack   => PsychobotMgr::OrderFollow/Stay/Attack + AI orders + .psychobot cmds
+ [x] command grammar: cast                  => PsychobotMgr::OrderCast + AI OrderCast (by spell name) + .psychobot cast
+ [x] command grammar: strategy toggle       => PsychobotMgr::ToggleStrategy + AI ToggleCombatStrategy (+ DbStore persist)
+ [x] help text                              => .psychobot help (lists full grammar)
+ [~] ChatFilter/ChatHelper LINK parsing     => spell/item hyperlink parse = later refinement (cast-by-name works now)
+ [~] cross-relog persistence                => DbStore Save/Load DB hooks (need characters-DB table; on-server)

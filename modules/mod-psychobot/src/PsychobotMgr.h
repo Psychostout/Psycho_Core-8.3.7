@@ -39,6 +39,13 @@ namespace psychobot
         std::string SetSpec(Player* master, std::string const& args);   // "<name> <specIndex>"
         std::string GroupBot(Player* master, std::string const& charName); // add bot to master's party
 
+        // --- S27 chat-command grammar (master orders all owned bots) --------
+        std::string OrderFollow(Player* master);                 // ".psychobot follow"
+        std::string OrderStay(Player* master);                   // ".psychobot stay"
+        std::string OrderAttack(Player* master);                 // ".psychobot attack" (master's target)
+        std::string OrderCast(Player* master, std::string const& spellName); // ".psychobot cast <spell>"
+        std::string ToggleStrategy(Player* master, std::string const& args); // ".psychobot strategy <name>"
+
         // Called when a connected player whom we manage as a bot is detected,
         // or when a master logs out (cleanup).
         void OnPlayerLogout(Player* player);

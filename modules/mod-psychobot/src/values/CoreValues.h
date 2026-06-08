@@ -151,6 +151,17 @@ namespace psychobot
         Unit* Calculate() override;
     };
 
+    // S21: a group member (or self) carrying a dispellable debuff (any type),
+    // or nullptr. Used by healer cure wiring.
+    class PartyMemberToDispelValue : public CalculatedValue<Unit*>
+    {
+    public:
+        PartyMemberToDispelValue(PsychobotAI* ai)
+            : CalculatedValue<Unit*>(ai, "party member to dispel", 1) { }
+    protected:
+        Unit* Calculate() override;
+    };
+
     // Register all core values into the bot's base value context.
     void RegisterCoreValues(AiObjectContext* context);
 }

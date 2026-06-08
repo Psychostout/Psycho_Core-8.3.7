@@ -63,6 +63,26 @@ namespace psychobot
         Unit*  GetPet(Player* bot);
         bool   HasLivingPet(Player* bot);
         float  GetPetHealthPct(Player* bot);   // 0 if no living pet
+
+        // --- pet CONTROL (S19 pet depth) ------------------------------------
+        // Sic the pet on `target` (sets aggressive react + AttackStart).
+        bool   PetAttack(Player* bot, Unit* target);
+        // Tell the pet to follow the owner (defensive react + stop attacking).
+        bool   PetFollow(Player* bot);
+        // Is the pet currently attacking `target` already?
+        bool   PetAttackingTarget(Player* bot, Unit* target);
+        // Cast a pet ability `spellId` on `target` (known + off CD on the pet).
+        bool   PetCastSpell(Player* bot, uint32 spellId, Unit* target);
+        // Does the pet know `spellId` and is it ready (off cooldown)?
+        bool   PetSpellReady(Player* bot, uint32 spellId);
+
+        // --- healing depth (S21) --------------------------------------------
+        // Does `unit` carry a removable (non-positive) aura whose Dispel type is
+        // in `dispelMask` (a bitmask of (1<<DispelType))? Lets a healer decide
+        // whether to cast a dispel/cure on a group member.
+        bool   HasDispellableAura(Unit* unit, uint32 dispelMask);
+        // The unit's mana as a percent (0..100); 0 if it has no mana bar.
+        float  GetManaPct(Unit* unit);
     }
 }
 

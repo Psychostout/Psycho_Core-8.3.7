@@ -992,3 +992,391 @@
            (0/1/2) confirmed; Fire rotation traced (Hot Streak -> instant
            Pyroblast wins). NOT compile-tested. cmangos ref has no mage/ folder.
 [DOC]    Checklist: Mage section marked; progress 155 -> 169.
+
+================================================================================
+ 2026-06-08  PHASE C - S15  WARLOCK (Affliction/Demonology/Destruction + pet/shards)
+================================================================================
+[S15]    BfA 8.3 Warlock, all 3 specs, on the real engine (research: wowhead.com /
+           maxroll / community megathreads):
+           classes/warlock/WarlockTriggers.{h,cpp} - soul shards high (power::7),
+             agony/corruption/immolate absent (DoTs), demonic core proc, no
+             warlock pet (ServerFacade pet seam). + RegisterWarlockTriggers.
+           classes/warlock/WarlockStrategies.{h,cpp}:
+             Generic (Drain Life self-heal, Unending Resolve, Fear melee enemy,
+               summon Imp if no pet),
+             Affliction (Agony/Corruption DoTs, Unstable Affliction shard spend,
+               Summon Darkglare CD, Drain Soul filler, Seed of Corruption AoE),
+             Demonology (Demonbolt on Demonic Core, Call Dreadstalkers, Hand of
+               Gul'dan shard spend, Summon Demonic Tyrant CD, Implosion AoE,
+               Shadow Bolt builder),
+             Destruction (Immolate DoT, Conflagrate, Chaos Bolt shard spend,
+               Summon Infernal CD, Incinerate filler, Rain of Fire AoE),
+             NonCombat (Summon Imp + Create Healthstone).
+           classes/warlock/WarlockAiObjectContext.{h,cpp} - bundle + spec map
+             (0=affliction,1=demonology,2=destruction).
+[WIRE]   AiFactory: CLASS_WARLOCK registers Warlock context, installs "warlock" +
+           spec strategy in combat, "warlock nc" in non-combat (pet/healthstone).
+           Reuses the ServerFacade pet seam (added in S10) for "no warlock pet".
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (107
+           files, ~10125 LOC); guards unique; includes resolve; every override
+           defined; spec names map; bridge decl==def; robust trigger-resolution
+           passes for ALL 9 classes; POWER_SOUL_SHARDS=7 + warlock spec order
+           (0/1/2) confirmed; Affliction rotation traced (no pet -> Summon Imp@25
+           first, then DoTs). NOT compile-tested. cmangos ref has no warlock/ folder.
+[DOC]    Checklist: Warlock section marked; progress 169 -> 183.
+
+================================================================================
+ 2026-06-08  PHASE C - S16  DRUID (Balance/Feral dps, Guardian tank, Resto heal)
+================================================================================
+[S16]    BfA 8.3 Druid - the FOUR-spec class with FORMS - on the real engine
+           (research: wowhead.com / method / maxroll):
+           classes/druid/DruidTriggers.{h,cpp} - astral power high (power::8),
+             rage high (power::1), combo points full (raw POWER_COMBO_POINTS),
+             moonkin/cat/bear form absent, ironfur absent, moonfire/sunfire/rake/
+             rip/thrash absent. + RegisterDruidTriggers.
+           classes/druid/DruidStrategies.{h,cpp}:
+             Generic (Barkskin defensive),
+             Balance (Moonkin Form -> Moonfire/Sunfire DoTs, Wrath filler,
+               Starsurge AP spend, Starfall AoE),
+             Feral (Cat Form -> Rake/Rip bleeds, Shred builder, Ferocious Bite
+               finisher @5 CP, Tiger's Fury CD, Swipe AoE),
+             Guardian (Bear Form -> Mangle, Thrash bleed, Ironfur + Frenzied
+               Regeneration mitigation, Maul rage dump),
+             Restoration (caster -> Rejuvenation/Swiftmend/Regrowth/Wild Growth
+               on party member to heal; Wrath filler),
+             NonCombat (Mark of the Wild buff).
+           classes/druid/DruidAiObjectContext.{h,cpp} - bundle + 4-spec map
+             (0=balance,1=feral,2=guardian,3=restoration).
+[DESIGN] FORM upkeep is the top combat priority (ACTION_HIGH+5=25): each spec
+           shifts into Moonkin/Cat/Bear before its rotation; Resto stays caster.
+           SpecRoles already had Druid as the only 4-spec entry (index 3 = Resto).
+[WIRE]   AiFactory: CLASS_DRUID registers Druid context, installs "druid" + spec
+           strategy in combat, "druid nc" in non-combat.
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (113
+           files, ~10691 LOC); guards unique; includes resolve; every override
+           defined (10 incl. 4 specs); spec names map; bridge decl==def; robust
+           trigger-resolution passes for ALL 10 classes; POWER_LUNAR_POWER=8 +
+           druid spec order (0/1/2/3) confirmed; Feral rotation traced (Cat Form
+           shift -> bleeds -> finisher). NOT compile-tested. cmangos ref had a
+           druid/ folder but this is authored fresh for BfA 8.3 + our engine.
+[DOC]    Checklist: Druid section marked; progress 183 -> 203.
+           >>> ALL 10 reference-backed classes done. S17 Monk + S18 Demon Hunter
+               (NEW, no cmangos ref) remain for the 12-class milestone. <<<
+
+================================================================================
+ 2026-06-08  PHASE C - S17  MONK (NEW - Brewmaster/Mistweaver/Windwalker)
+================================================================================
+[S17]    BfA 8.3 Monk - NEW class (no cmangos reference; authored from wowhead/
+           community research) - all 3 specs on the real engine:
+           classes/monk/MonkTriggers.{h,cpp} - chi high(>=4)/enough(>=2) (raw
+             POWER_CHI=12), energy high (power::3), target low health (Touch of
+             Death <=15%), ironskin brew absent, shuffle absent.
+             + RegisterMonkTriggers.
+           classes/monk/MonkStrategies.{h,cpp}:
+             Generic (Expel Harm self-heal, Spear Hand Strike interrupt, Touch of
+               Death execute),
+             Brewmaster (tank: Keg Smash/Blackout Strike/Tiger Palm, Ironskin +
+               Purifying Brew mitigation, Shuffle upkeep, Breath of Fire, SCK AoE),
+             Mistweaver (healer: Renewing Mist/Vivify/Enveloping Mist/Essence Font
+               on party member to heal; Tiger Palm fistweave filler),
+             Windwalker (dps: Tiger Palm Chi gen, Rising Sun Kick + Blackout Kick
+               Chi spend, Fists of Fury CD, Spinning Crane Kick AoE),
+             NonCombat (Legacy of the Emperor stat buff).
+           classes/monk/MonkAiObjectContext.{h,cpp} - bundle + spec map
+             (0=brewmaster,1=mistweaver,2=windwalker).
+[WIRE]   AiFactory: CLASS_MONK registers Monk context, installs "monk" + spec
+           strategy in combat, "monk nc" in non-combat.
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (119
+           files, ~11206 LOC); guards unique; includes resolve; every override
+           defined; spec names map; bridge decl==def; robust trigger-resolution
+           passes for ALL 11 classes; POWER_CHI=12/POWER_ENERGY=3 + monk spec
+           order (0/1/2) confirmed; Windwalker rotation traced (Chi spend wins).
+           NOT compile-tested. AUTHORED FROM RESEARCH (no reference), like DH next.
+[DOC]    Checklist: Monk section marked; progress 203 -> 223. 11/12 classes done.
+
+================================================================================
+ 2026-06-08  PHASE C - S18  DEMON HUNTER (NEW - Havoc/Vengeance)
+            >>>>>>>>>>  MILESTONE: ALL 12 CLASSES PLAY THEIR SPECS  <<<<<<<<<<
+================================================================================
+[S18]    BfA 8.3 Demon Hunter - NEW class (no cmangos ref; authored from wowhead/
+           method research) - the FINAL class, only TWO specs:
+           classes/demonhunter/DemonHunterTriggers.{h,cpp} - fury high (power::17),
+             pain high (power::18), soul fragments high (aura), immolation aura
+             absent, demon spikes absent. + RegisterDemonHunterTriggers.
+           classes/demonhunter/DemonHunterStrategies.{h,cpp}:
+             Generic (Consume Magic interrupt, Fel Rush gap-closer, Immolation
+               Aura upkeep),
+             Havoc (Demon's Bite gen -> Chaos Strike spend, Eye Beam CD, Blade
+               Dance AoE, Metamorphosis CD),
+             Vengeance (Fracture gen -> Soul Cleave spend + Spirit Bomb on soul
+               fragments, Demon Spikes + Fiery Brand mitigation, Sigil of Flame),
+             NonCombat (no standing buff - placeholder hook).
+           classes/demonhunter/DemonHunterAiObjectContext.{h,cpp} - bundle +
+             2-spec map (0=havoc,1=vengeance).
+[WIRE]   AiFactory: CLASS_DEMON_HUNTER registers DH context + spec strategy +
+           "demon hunter nc". >>> ALL 12 CLASSES now register a context. <<<
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (125
+           files, ~11650 LOC); guards unique; includes resolve; every override
+           defined; spec names map; bridge decl==def; AiFactory has 12/12 class
+           RegisterContext cases; robust trigger-resolution passes for ALL 12
+           classes; POWER_FURY=17/POWER_PAIN=18 + DH spec order (0/1) confirmed;
+           Havoc/Vengeance rotations traced. NOT compile-tested. AUTHORED FROM
+           RESEARCH (no reference).
+[DOC]    Checklist: Demon Hunter section marked; progress 223 -> 239. 12/12
+           classes DONE. >>> PHASE C COMPLETE (S7-S18). <<< Next: Phase D depth
+           (S19 pets / S20 group-raid / S21 healing / ...).
+
+================================================================================
+ 2026-06-08  PHASE D - S19  PET SYSTEM DEPTH
+================================================================================
+[S19]    Real pet control for every pet-using class (Hunter BM/Survival, all
+           Warlock, DK Unholy ghoul, Frost Mage water elemental):
+           engine/ServerFacade pet-control seam: PetAttack (aggressive react +
+             Attack target), PetFollow (defensive react + AttackStop),
+             PetAttackingTarget, PetSpellReady, PetCastSpell. (Pet : Guardian :
+             ... : Unit; uses SetReactState + Attack + GetSpellHistory.)
+           pets/PetActions.{h,cpp} - "pet attack" (sic on current target) +
+             "pet follow"; RegisterPetActions.
+           pets/PetStrategy.{h,cpp} - "pet idle" trigger (living pet + valid
+             target + pet NOT already on it) -> "pet attack" @ACTION_HIGH; the
+             "pet" strategy + RegisterPetSystem (actions+trigger+strategy).
+           PsychobotAIFwd.h + PsychobotAI.cpp bridge: PetAttack/PetFollow/
+             PetCastSpell route through ServerFacade.
+[WIRE]   AiFactory: UsesPet(class,spec) gate -> RegisterPetSystem in CreateContext
+           and AddStrategy("pet") in InitCombatEngine (layered on top of the spec
+           rotation; AddStrategy is a no-op for non-pet classes). Pet abilities
+           still use the keystone "cast pet::<spell>"; summoning stays the class
+           non-combat job (Hunter Call Pet, Warlock Summon Imp, etc.).
+[VERIFY] 4 new files + seam/bridge/factory edits: whole module braces/parens
+           balanced (129 files, ~12042 LOC); guards unique; module includes
+           resolve (Pet.h is a core header); bridge decl==def; all trigger refs
+           resolve (12 classes + pet); ReactStates/CommandStates/Pet inheritance
+           confirmed in core; Unholy-DK ghoul trace OK. NOT compile-tested.
+[DOC]    Checklist: pet section marked; progress 239 -> 251.
+
+================================================================================
+ 2026-06-08  PHASE D - S20  GROUP / RAID COORDINATION
+================================================================================
+[S20]    Real group/raid combat coordination, wired through PsychobotGroupMgr:
+           GetGroupAssistTarget UPGRADED to a priority order: main-assist's
+             victim (MEMBER_FLAG_MAINASSIST) > main-tank's victim (MAINTANK) >
+             any tank-role member's victim > leader's victim. (Reads core
+             Group::GetMemberFlags.)
+           GetGroupHealTarget: main-tank gets a -10% effective-health bias so a
+             hurt tank is healed before equally-hurt dps.
+           NEW MarkSkullTarget(bot) - the leader / main-tank / tank-role bot marks
+             its current target with the Skull raid icon (RTI 7) via
+             Group::SetTargetIcon so the group focuses it.
+           NEW AnswerReadyCheck(bot) - bots auto-accept an in-progress ready check
+             (Group::IsReadyCheckStarted + SetMemberReadyCheck).
+           NEW GetFollowFormationAngle(bot) - fans bots out in an arc behind the
+             master by their group-slot ordinal (no more stacking).
+[WIRE]   PsychobotAI::UpdateAI now (cheap, every tick): AnswerReadyCheck + (in
+           combat) MarkSkullTarget. FollowMaster uses GetFollowFormationAngle for
+           the MoveFollow angle. Assist/heal target selection already routed
+           through GroupMgr -> the new priorities apply to every class.
+[NOTE]   Core Group API has no PUBLIC getter for the marked-target GUID, so
+           "assist the skull" is realised by everyone assisting the main-assist/
+           main-tank (who is the marker + on the skull). Documented limitation;
+           a tiny core getter could make it literal later (Phase A-style edit).
+[VERIFY] GroupMgr.{h,cpp} + PsychobotAI.cpp edits: whole module braces/parens
+           balanced (129 files, ~12161 LOC); guards unique; bridge decl==def; all
+           trigger refs resolve; core APIs cross-checked (SetTargetIcon(uint8,
+           guid,guid,uint8); SetMemberReadyCheck(guid,bool); MEMBER_FLAG_* global
+           enum; MoveFollow angle). NOT compile-tested.
+[DOC]    Checklist: group/raid coordination marked; progress 251 -> 263.
+
+================================================================================
+ 2026-06-08  PHASE D - S21  HEALING DEPTH
+================================================================================
+[S21]    Dispels/cures, smart dispel-target selection, mana awareness, tank
+           priority (the latter shipped in S20) - all class-agnostic:
+           engine/ServerFacade: HasDispellableAura(unit, dispelMask) - scans
+             GetAppliedAuras(), checks each non-positive aura's SpellInfo->Dispel
+             against (1<<DispelType) mask; GetManaPct(unit) (POWER_MANA pct, 0 if
+             no mana bar).
+           PsychobotGroupMgr::GetGroupDispelTarget(bot, dispelMask) - self-first
+             then group scan for a member with a removable debuff.
+           values/CoreValues: "party member to dispel" (any DispelType) value.
+           triggers/CoreTriggers: "party member needs dispel" + "low mana"
+             (<25%; only trips for real mana users).
+           actions/GenericSpellActions: "cast dispel" (CastDispelSpellAction -
+             cures the dispel-target value; 40yd, no chase).
+[WIRE]   All 5 healer specs now cure debuffs at ACTION_DISPEL relevance:
+             Holy Paladin -> Cleanse; Disc + Holy Priest -> Purify; Resto Shaman
+             -> Cleanse Spirit; Resto Druid -> Nature's Cure; Mistweaver Monk ->
+             Detox. (Cure relevance 50 sits above routine heals, below emergency
+             heals.) Heal-target tank priority + main-tank heal bias already
+             added in S20.
+[VERIFY] seam/groupmgr/values/triggers/actions + 5 strategy edits: whole module
+           braces/parens balanced (129 files, ~12362 LOC); guards unique; bridge
+           decl==def; ALL trigger refs resolve (incl. new dispel trigger);
+           ACTION_DISPEL=50 confirmed; core dispel API cross-checked (GetApplied
+           Auras / AuraApplication::GetBase/IsPositive / SpellInfo::Dispel;
+           DispelType MAGIC=1/CURSE=2/DISEASE=3/POISON=4); SpellAuras.h is a core
+           header. NOT compile-tested. Resto-Druid cure trace OK.
+[DOC]    Checklist: healing depth marked; progress 263 -> 275.
+
+================================================================================
+ 2026-06-08  PHASE D - S22  NON-COMBAT WORLD
+================================================================================
+[S22]    Out-of-combat housekeeping (self-contained, safe):
+           world/PsychobotWorldMgr.{h,cpp} - CanRest (safe-state gate); Rest
+             (eat/drink: SetFullHealth + refill mana for mana users when hurt and
+             out of combat); Repair (self-repair via Player::DurabilityRepairAll,
+             pays from the bot's coinage). FRAMEWORK HOOKS (return false until the
+             first on-server pass, need live world objects/packets): MountForTravel,
+             SellJunk, LootNearby, HandleQuests, GatherNearby.
+           actions/WorldActions.{h,cpp} - "rest" + "repair" engine actions.
+           strategies/GenericStrategies: NEW RestStrategy ("rest") non-combat
+             default actions (rest @ACTION_NORMAL, repair @ACTION_IDLE+1).
+[WIRE]   AiFactory: RegisterWorldActions in CreateContext; every bot's non-combat
+           engine now runs "follow" + "rest" (rest outranks follow when hurt;
+           repair is cheap upkeep). Buff upkeep already per-class (S7-S18 NC
+           strategies). Buffs/mount/vendor/loot/quest/gather framework in place.
+[VERIFY] 4 new files + strategy/factory edits: whole module braces/parens
+           balanced (133 files, ~12647 LOC); guards unique; bridge decl==def; all
+           trigger/strategy refs resolve; core APIs cross-checked
+           (DurabilityRepairAll(bool,float,bool); SetFullHealth; SetPower(Powers,
+           int32); GetMaxPower/GetPowerPct). NOT compile-tested. Hurt-bot rest
+           trace OK.
+[NOTE]   Rest restores to full deterministically (models food/water) rather than
+           consuming real bag items; a real-item version + mount-from-collection +
+           vendor/loot/quest/gather are the documented first-on-server tasks.
+[DOC]    Checklist: non-combat world marked; progress 275 -> 287.
+
+================================================================================
+ 2026-06-08  PHASE D - S23  TRAVEL (minimal: local nav + robust follow)
+================================================================================
+[S23]    travel/PsychobotTravelMgr.{h,cpp}:
+           WorldPosition - lightweight {mapId,x,y,z,o} struct (IsValid()).
+           TravelNode    - named WorldPosition (seed of the 8.3 travel graph).
+           TravelMgr: GetPosition; DistanceTo (same-map, huge if maps differ);
+             MoveTo (cross-map or >teleportRange -> TeleportTo; within walkRange
+             -> pathed MovePoint; otherwise path toward); FollowMasterTravel
+             (cross-map or >80yd leash -> TeleportTo the master, else return
+             false so normal MoveFollow runs); AddNode/GetNode seed registry.
+[WIRE]   PsychobotAI::FollowMaster now calls TravelMgr::FollowMasterTravel first
+           (handles cross-map + far catch-up via teleport), then falls back to
+           the S20 formation MoveFollow when close. This fixes the old "bail on
+           cross-map" follow gap.
+[VERIFY] 2 new files + FollowMaster edit: whole module braces/parens balanced
+           (135 files, ~12868 LOC); guards unique; bridge decl==def; all trigger
+           refs resolve; core APIs cross-checked (TeleportTo(uint32,f,f,f,f,uint32);
+           MovePoint(uint32,f,f,f,bool); GetMapId; GetDistance). NOT compile-tested.
+           Cross-map follow trace OK.
+[NOTE]   Minimal by design: real node-graph navigation across 8.3 zones (long-
+           distance pathing, flight paths, transports) is the documented later
+           expansion; AddNode/GetNode + WorldPosition are the seed for it.
+[DOC]    Checklist: travel marked; progress 287 -> 299.
+
+================================================================================
+ 2026-06-08  PHASE D - S24  PvP / BATTLEGROUNDS
+================================================================================
+[S24]    pvp/PsychobotPvpMgr.{h,cpp}:
+           BgFlavor (FlagCarry/BaseCapture/Resource/Payload/Arena) + GetBgFlavor
+             (classifies the bot's BG by BattlegroundTypeId: WS/TP/EY/TK flag;
+             AB/BFG/DG base; AV/IC resource; SM payload; arenas).
+           InActiveBattleground (joined + STATUS_IN_PROGRESS), InArena.
+           GetPvpTarget - nearest valid ENEMY PLAYER within range
+             (SelectNearestPlayer + IsValidAttackTarget).
+           Per-BG objective tactics (DoFlag/Base/Resource/Arena) = framework
+             hooks (need live BG objective objects/positions; on-server pass).
+[WIRE]   PsychobotAI::GetCurrentTarget now, when in an active BG, returns the
+           nearest enemy player -> EVERY class strategy then reaches/casts on it
+           through the existing "current target" value (no per-class edits). So
+           all 12 classes fight in BGs/arenas immediately; objective play is the
+           documented next layer.
+[VERIFY] 2 new files + GetCurrentTarget edit: whole module braces/parens balanced
+           (137 files, ~13031 LOC); guards unique; bridge decl==def; core APIs
+           cross-checked (SelectNearestPlayer(float); GetBattleground; GetStatus;
+           all BG type ids: WS/TP/EY/TK/AB/BFG/DG/AV/IC/SM). NOT compile-tested.
+           Active-WSG target trace OK.
+[NOTE]   OutdoorPvP + per-BG objective behaviour (carry flag, cap base, take boss/
+           vehicle) are framework hooks - they need live objective objects that
+           can't be statically resolved; the always-safe "fight the nearest enemy"
+           PvP behaviour ships now.
+[DOC]    Checklist: PvP/BG marked; progress 299 -> 311.
+
+================================================================================
+ 2026-06-08  PHASE D - S25  DUNGEON / RAID scripted strategies (boss awareness)
+================================================================================
+[S25]    dungeon/PsychobotDungeonMgr.{h,cpp}:
+           InDungeonOrRaid (Map::IsDungeon/IsRaid); FightingBoss (current target
+             is a DungeonBoss/worldboss); BossCastingInterruptible (boss's active
+             generic/channeled cast has SPELL_INTERRUPT_FLAG_INTERRUPT).
+           EncounterScript framework: RegisterEncounter(creatureEntry, fn) +
+             RunEncounterScript(bot) (runs the boss's script each combat tick) +
+             InitEncounters() (seeded; example registration pattern shown).
+[WIRE]   PsychobotAI::UpdateAI runs RunEncounterScript in combat while in an
+           instance (no-op until per-boss scripts are filled in). mod_psychobot
+           OnConfigLoad calls InitEncounters(). Boss interrupts already work via
+           the per-class "target casting" trigger (the boss IS the current target),
+           so bots kick interruptible boss casts with no extra wiring.
+[VERIFY] 2 new files + AI/module edits: whole module braces/parens balanced (139
+           files, ~13222 LOC); guards unique; bridge decl==def; core APIs cross-
+           checked (IsDungeon/IsRaid; IsDungeonBoss/isWorldBoss; GetEntry;
+           GetCurrentSpell(uint32); ToCreature; SPELL_INTERRUPT_FLAG_INTERRUPT=
+           0x08). NOT compile-tested. Boss-interrupt + encounter-tick trace OK.
+[NOTE]   Generic boss awareness ships (detect boss, interrupt its casts, run the
+           encounter tick). Concrete per-encounter reactions (move out of THIS
+           ground effect, soak/spread/stack, add-switch) need encounter-specific
+           positions/spell ids -> EncounterScript registry hooks for the first
+           on-server pass with a couple of key encounters added then.
+[DOC]    Checklist: dungeon/raid marked; progress 311 -> 323.
+
+================================================================================
+ 2026-06-08  PHASE D - S26  AHBOT (auction posting/buying for 8.3 item data)
+================================================================================
+[S26]    PsychobotAhBot deepened from scaffold to a real, structured ahbot
+           (clean-room re-impl of the cmangos ahbot/ 14-file seller LOGIC):
+           IsSellable(entry) - candidate gate: skip quest/key items, soulbound &
+             quest-bound (BIND_ON_ACQUIRE/BIND_QUEST), zero-merchant-value trash,
+             quality > MaxQuality, below MinItemLevel.
+           PriceItem(entry) - quality-aware buyout model: base SellPrice *
+             PriceMultiplier * (1 + 0.25*quality).
+           BuildListings() - pure/deterministic scan of sObjectMgr item-template
+             store -> AhListing{entry,stackCount,auctions,unitPrice}, throttled by
+             MaxListingsPerCycle. (Unit-testable; no AH access.)
+           Update()/RunCycle() - cycle on IntervalSeconds; PostAuction() is the
+             single live step (create Item* + AuctionHouseObject::AddAuction under
+             an AH-owner account) - gated + documented for the on-server pass.
+[CONF]   Added Psychobot.AhBot.{MaxListingsPerCycle,MinItemLevel,MaxQuality,
+           PriceMultiplier} to mod_psychobot.conf.dist (build-glue: no MyCode hdr).
+[VERIFY] AhBot.{h,cpp} rewrite + conf: whole module braces/parens balanced (139
+           files); methods declared==defined; core APIs cross-checked
+           (sObjectMgr; GetItemTemplateStore/GetItemTemplate; ItemTemplateContainer
+           = unordered_map<uint32,ItemTemplate>; GetSellPrice/GetQuality/
+           GetMaxStackSize/GetBaseRequiredLevel/GetBonding/GetClass; ITEM_CLASS_*,
+           BIND_*; GetFloatDefault). NOT compile-tested.
+[NOTE]   Full ahbot decision logic (what to sell + how to price) is REAL and
+           verifiable; only the AddAuction packet/DB step is a gated hook (needs
+           owner account + client item DB2). Buying under-priced auctions is a
+           later hook (needs live AH listings).
+[DOC]    Checklist: ahbot (14 ref files) marked; progress 323 -> 337.
+
+================================================================================
+ 2026-06-08  PHASE D - S27  PERSISTENCE + COMMANDS
+================================================================================
+[S27]    world/PsychobotDbStore.{h,cpp} - per-bot saved combat-strategy overrides
+           keyed by character GUID (Get/Has/Set/Toggle/Clear). In-memory store is
+           real; Save/Load are documented DB hooks (characters-DB table + prepared
+           statements; on-server pass). Re-applied on spec rebuild.
+         PsychobotAI command surface: ToggleCombatStrategy (persists via DbStore +
+           Engine Add/Remove), OrderAttackMasterTarget, OrderStay (+ _staying flag
+           that suppresses follow), OrderFollow, OrderCast (master's target/self),
+           ListCombatStrategies.
+         PsychobotMgr grammar: OrderFollow/Stay/Attack/Cast/ToggleStrategy apply
+           to every bot the master owns (ForEachOwnedBot helper) with status text.
+         mod_psychobot commands: .psychobot follow|stay|attack|cast <spell>|
+           strategy <name>|help (help text lists the full grammar).
+[VERIFY] 2 new files + AI/Mgr/loader edits: whole module braces/parens balanced
+           (141 files, ~13724 LOC); guards unique; bridge decl==def; DbStore/AI/Mgr
+           methods declared==defined; 6 new chat handlers wired; ListCombatStrategies
+           const-correct vs Engine::ListStrategies() const. NOT compile-tested.
+           strategy-toggle trace OK.
+[NOTE]   Saved strategies persist for the SESSION (in-memory) now; cross-relog
+           persistence is the Save/Load DB hook (needs a DB table; on-server).
+           ChatHelper item/spell-LINK parsing (parse a [Spell]/[Item] hyperlink
+           in chat) is a later refinement; "cast <name>" by spell name works now.
+[DOC]    Checklist: persistence + commands marked; progress 337 -> 351.
