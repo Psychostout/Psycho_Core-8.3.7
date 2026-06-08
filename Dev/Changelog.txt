@@ -613,3 +613,382 @@
          Audit is exhaustive static cross-reference. Phase A (socketless login)
          is the only intentionally-deferred feature.
 --------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] FAT PORT - study + plan (Path A); NO code changed
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Mod-Psychobots-Ref.txt - full reference architecture study
+           (engine tick flow, primitives, registry, per-class pattern, shared
+           libs, managers, expansion #ifdef, dependency surface ~3137 names, and
+           a "what I might have missed" list).
+[DOC]    Added Dev/playerbots_docs/05_FAT_PORT_PLAN.txt - the fat-port plan:
+           KEEP packaging+managers; REPLACE thin engine; build fat engine ->
+           shared libs -> 12 class folders. Milestones M1..M14.
+[DECISION] Core-engine replacement (not full restart). Awaiting GO for M1.
+[NOTE]   No code changed this step (report-first, as requested).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] FAT PORT - master per-file checklist (no engine code yet)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/Mod-Psychobots-Checklist.txt - ALL 985 reference files (18
+           sections), each annotated with its classes + a [ ] tick + "=>" slot.
+           Marked [x] the 8 already covered by our managers/talents (977 remain).
+           Includes progress summary, milestone->section map, "missed?" list,
+           and NEW Monk + Demon Hunter (no-reference) author entries.
+[DECISION] Confirmed: core-engine replacement (keep packaging+managers, replace
+           thin engine, build fat engine + shared libs + class folders).
+[NOTE]   No engine code changed this step (checklist + plan; report-first).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] FAT PORT - validated + split into 29 ordered steps (no code)
+--------------------------------------------------------------------------------
+[DOC]    Added Dev/playerbots_docs/06_FAT_PORT_STEPS.txt: 29 ordered steps in 4
+           phases (engine core / shared libs+rewire / 12 classes / depth+
+           integration incl. Phase-A socketless login). Validated build order via
+           engine #include graph + keystone (CastSpellAction family) + actual
+           class dependency surface. Synced checklist STEP->section map.
+[NOTE]   No code changed (validation + planning; report-first).
+--------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+[2026-06-07] FAT PORT S1 - engine primitives
+--------------------------------------------------------------------------------
+[BUILD]  NEW modules/mod-psychobot/src/engine/: AiObject.{h,cpp} (+ ActionPriority
+           / ActionThreatType), Event.h, ActionBasket.h, NamedObjectContext.h
+           (Qualified/Factory/Context/List). NEW src/PsychobotAIFwd.h bridge +
+           PsychobotAIBridge impl in PsychobotAI.cpp (avoids engine<->AI cycle).
+[VERIFY] Brace/paren balanced; unique guards; include dirs resolve (engine/ auto-
+           added); bridge parity; MyCode headers. Not compile-tested (no toolchain).
+[DOC]    Ticked 7 reference files on the checklist (15 done / 970 todo).
+--------------------------------------------------------------------------------
+
+================================================================================
+ 2026-06-08  PHASE B - S2..S6  (engine core finished + shared libs + REWIRE)
+================================================================================
+[S2]     Engine value/action graph primitives (all MyCode-headered):
+           engine/Value.h (UntypedValue, Value<T>, Calculated/Single/Memory),
+           engine/NextAction.{h,cpp} (Size/Clone/Merge/Array/Destroy),
+           engine/Action.{h,cpp} (Execute/IsPossible/IsUseful, P/A/C virtuals),
+           engine/ActionNode.h (P/A/C merge + ACTION_NODE_P/A/C macros).
+[S3]     Engine decision core:
+           engine/Trigger.h (Trigger + TriggerNode), engine/Multiplier.h,
+           engine/Strategy.{h,cpp} (+ BotState, StrategyType, ActionNode factory),
+           engine/Queue.{h,cpp} (relevance pop, dedupe, expiry),
+           engine/AiObjectContext.h (4 chained NamedObjectContextLists +
+           templated GetValue<T>), engine/Engine.{h,cpp} (DoNextAction:
+           ProcessTriggers -> PushDefaultActions -> pop highest -> multipliers
+           -> prereq/alt/continuer walk, depth-bounded), engine/ServerFacade.
+           {h,cpp} (TC 8.3 core-API seam: liveness/range/aura/power/cooldown).
+[S4]     Core VALUES -> values/CoreValues.{h,cpp} (11: target/self/master target,
+           health, power-pct, distance, in-combat, has-aura, target-has-aura,
+           spell-ready, party-member-to-heal) + RegisterCoreValues.
+         Core TRIGGERS -> triggers/CoreTriggers.{h,cpp} (14: low/medium/critical
+           health, has/no target, enemy in/out of melee, target casting, has/no
+           aura, target-has-no-aura, spell-ready, party-member-low-health) +
+           RegisterCoreTriggers.
+[S5]     KEYSTONE CastSpellAction family -> actions/GenericSpellActions.{h,cpp}
+           (Cast / CastMelee / CastAura / CastBuff / CastMeleeAoe /
+           CastRangedDebuff / CastPet; qualifier = spell NAME, range-gated,
+           auto-prereq "reach melee"/"reach spell"). Movement+attack ->
+           actions/MovementActions.{h,cpp} (reach melee, reach spell, follow
+           master, stop, attack).
+[S6]     Generic STRATEGIES -> strategies/GenericStrategies.{h,cpp} (follow,
+           melee, ranged, tank, heal). AiFactory -> ai/PsychobotAiFactory.{h,cpp}
+           (CreateContext registers all base contexts; per-state engine wiring by
+           spec role). Spec->role table -> ai/PsychobotSpecRoles.{h,cpp} (12
+           classes / 36 specs). PsychobotAI REWRITTEN to own one AiObjectContext
+           + 3 per-state Engines (NonCombat/Combat/Dead) and the cast/move bridge
+           seam; PsychobotGroupMgr re-pointed to SpecRoles.
+[DEL]    Thin engine removed (replaced by real engine): ai/PsychobotEngine.{h,cpp},
+           ai/PsychobotClassAI.{h,cpp}, ai/PsychobotClassRegistry.cpp,
+           ai/PsychobotStrategies.{h,cpp}.
+[VERIFY] All 35 new/changed files: braces/parens balanced; guards unique; relative
+           ../engine,../values,... includes resolve; bridge declared==defined
+           (10/10); no references to deleted headers; Strategy::GetName override
+           parity OK; Qualified MI (dynamic_cast) sound; core APIs cross-checked
+           (MoveChase/Attack/SetSelection/GetSelectedUnit/HasCooldown/GetPowerPct/
+           IsWithinMeleeRange/isInFront/CastSpell(Unit*,id,bool)). NOT compile-
+           tested (no toolchain / no 8.3.7 client data) - first real compile on
+           desktop is the truth check.
+[DOC]    Checklist progress 15 -> 53 done / 932 todo; S2-S6 created-equivalents
+           block appended. >>> MILESTONE: bot follows + chases + auto-attacks +
+           (once class strategies land in S7+) casts via the REAL engine. <<<
+
+================================================================================
+ 2026-06-08  PHASE C - S7  DEATH KNIGHT (first full class vertical slice)
+================================================================================
+[S7]     BfA 8.3 Death Knight, all 3 specs, driven by the real engine:
+           classes/deathknight/DKTriggers.{h,cpp} - DK conditions reading core
+             values by NAME (DB2-agnostic): runic power high/enough (power::6),
+             frost/blood/virulent plague absent (target has aura by name),
+             killing machine / rime / sudden doom procs (has aura by name),
+             bone shield low. + RegisterDeathKnightTriggers.
+           classes/deathknight/DKStrategies.{h,cpp} - GenericDKStrategy (Death
+             Strike emergency heal, Death Grip pull) + Blood (Marrowrend/Bone
+             Shield, Heart Strike, Death Strike RP dump, Blood Boil, Death and
+             Decay) + Frost (Howling Blast/Frost Fever + Rime, Obliterate +
+             Killing Machine, Frost Strike RP, Pillar of Frost CD) + Unholy
+             (Outbreak/Virulent Plague, Festering/Scourge Strike, Death Coil +
+             Sudden Doom, Apocalypse CD, Death and Decay) + GenericDKNonCombat
+             (Raise Dead ghoul, Horn of Winter). All casts via the keystone
+             CastSpell family, referenced by spell NAME.
+           classes/deathknight/DKAiObjectContext.{h,cpp} - bundles DK triggers+
+             strategies; CombatStrategyForSpec(0=blood/1=frost/2=unholy).
+[ENGINE] Added keystone CastSelfSpellAction ("cast self") - self-cast summon/CD
+           with no target/aura gate (Raise Dead, Horn of Winter, Army, etc.).
+         Core values: aura / spell-ready qualifiers now accept a spell NAME
+           (resolved via the bot) as well as a numeric id -> class wiring is
+           DB2-agnostic (ResolveQualifierSpell in CoreValues.cpp).
+[WIRE]   AiFactory: CreateContext layers DK context for DK bots; InitCombatEngine
+           installs "dk" + spec strategy for DK (generic melee/ranged/tank/heal
+           for other classes); InitNonCombatEngine adds "dk nc". SpecRoles gained
+           GetBotSpecIndex(). EnsureSpecAndTalents already rebuilds the combat
+           engine after spec applies, so a DK gets blood/frost/unholy correctly.
+[VERIFY] 6 new DK files + edits: braces/parens balanced; guards unique; all
+           includes resolve; every trigger/strategy override defined; GetValue<T>
+           2-arg overload exists; Queue dedups same-named nodes; POWER_RUNIC_POWER
+           =6 confirmed; CLASS_DEATH_KNIGHT path confirmed; rotation traced end-to-
+           end (proc reactions > disease upkeep > RP dump > rune builders). NOT
+           compile-tested (no toolchain/8.3.7 DB2). Spell NAMES from BfA 8.3 DK
+           guides; exact id resolution happens at runtime against client DB2.
+[DOC]    Checklist: DK section (20 ref files) marked; progress 53 -> 73 done.
+           >>> MILESTONE: DK bot plays a real 8.3 rotation end-to-end. <<<
+
+================================================================================
+ 2026-06-08  PHASE C - S8  WARRIOR (Arms / Fury / Protection + stances)
+================================================================================
+[S8]     BfA 8.3 Warrior, all 3 specs, on the real engine:
+           classes/warrior/WarriorTriggers.{h,cpp} - rage high/enough (power::1),
+             target low health (Execute window <=20%), sudden death proc,
+             overpower ready, enrage absent, battle/defensive stance absent,
+             shield block absent. + RegisterWarriorTriggers.
+           classes/warrior/WarriorStrategies.{h,cpp}:
+             Generic (Charge gap-closer, Shield Wall/Die by the Sword defensive),
+             Arms (Mortal Strike key, Overpower proc, Execute, Slam rage dump,
+               Colossus Smash CD, Whirlwind AoE),
+             Fury (Rampage @ high rage / Enrage refresh, Bloodthirst, Raging Blow,
+               Execute, Recklessness CD, Whirlwind cleave),
+             Protection (Shield Slam on CD, Revenge, Devastate, Shield Block +
+               Ignore Pain mitigation, Thunder Clap AoE),
+             NonCombat (Battle/Defensive stance upkeep).
+           classes/warrior/WarriorAiObjectContext.{h,cpp} - bundle + spec map
+             (0=arms,1=fury,2=protection).
+[WIRE]   AiFactory: CLASS_WARRIOR registers Warrior context, installs "warrior"
+           + spec strategy in combat, "warrior nc" in non-combat.
+[VERIFY] 6 new files + factory edits: braces/parens balanced (whole module);
+           guards unique; all includes resolve; every override defined; POWER_RAGE
+           =1 + warrior spec order (0/1/2) confirmed; rotation traced (Arms:
+           Execute window beats fillers). Per-bot class-scoped contexts mean
+           "protection"/"fury" names don't collide across classes. NOT compile-
+           tested (no toolchain/8.3.7 DB2); spell NAMES from BfA 8.3 guides.
+[DOC]    Checklist: Warrior section (16 ref files) marked; progress 73 -> 89.
+
+================================================================================
+ 2026-06-08  PHASE C - S9  PALADIN (Holy / Protection / Retribution + auras)
+================================================================================
+[S9]     BfA 8.3 Paladin, all 3 specs (FIRST HEALER), on the real engine:
+           classes/paladin/PaladinTriggers.{h,cpp} - holy power high (power::9,
+             >=60% ~ 3 HP), target low health (Hammer of Wrath <=20%), devotion
+             aura absent, shield of righteous absent. + RegisterPaladinTriggers.
+           classes/paladin/PaladinStrategies.{h,cpp}:
+             Generic (Hammer of Wrath execute, Lay on Hands/Divine Shield save),
+             Holy (Holy Shock + Word of Glory + Flash of Light on the party
+               member to heal via cast heal; Judgment/Crusader Strike filler),
+             Protection (Avenger's Shield, Judgment, Hammer of the Righteous,
+               Consecration AoE, Shield of the Righteous mitigation),
+             Retribution (Crusader Strike/Judgment/Blade of Justice HP gen,
+               Templar's Verdict 3 HP, Divine Storm AoE, Avenging Wrath CD),
+             NonCombat (Devotion Aura + Blessing of Kings upkeep).
+           classes/paladin/PaladinAiObjectContext.{h,cpp} - bundle + spec map
+             (0=holy,1=protection,2=retribution).
+[ENGINE] Added keystone CastHealSpellAction ("cast heal") - casts a friendly
+           heal on the "party member to heal" value (most-injured group member,
+           or self solo); 40yd, no chase. Reused by all future healer specs.
+[WIRE]   AiFactory: CLASS_PALADIN registers Paladin context, installs "paladin"
+           + spec strategy in combat, "paladin nc" in non-combat. Healer heals
+           use ACTION_*_HEAL relevance tiers so a hurt ally outranks any DPS.
+[VERIFY] 6 new files + keystone/factory edits: whole module braces/parens
+           balanced; guards unique; all includes resolve; every override defined;
+           bridge decl==def; POWER_HOLY_POWER=9 + paladin spec order (0/1/2)
+           confirmed; heal rotation traced (hurt member -> Holy Shock@70 beats
+           DPS filler@11). NOT compile-tested (no toolchain/8.3.7 DB2); spell
+           NAMES from BfA 8.3 guides.
+[DOC]    Checklist: Paladin section (10 ref files) marked; progress 89 -> 99.
+           Added Dev/remember_prompt.txt (chat-loss recovery brief).
+
+================================================================================
+ 2026-06-08  PHASE C - S10  HUNTER (Beast Mastery / Marksmanship / Survival + pets)
+================================================================================
+[S10]    BfA 8.3 Hunter, all 3 specs, on the real engine (research: wowhead.com):
+           classes/hunter/HunterTriggers.{h,cpp} - focus high/enough (power::2),
+             target low health (Kill Shot <=20%), no pet, pet hurt (<60%),
+             serpent sting absent. + RegisterHunterTriggers.
+           classes/hunter/HunterStrategies.{h,cpp}:
+             Generic (Kill Shot execute, Exhilaration self-heal),
+             Beast Mastery (ranged/pet: Kill Command/Barbed Shot/Cobra Shot,
+               Bestial Wrath CD, Multi-Shot AoE; revives/summons pet first),
+             Marksmanship (ranged: Aimed Shot/Arcane Shot/Steady Shot, Serpent
+               Sting DoT, Rapid Fire/Trueshot CDs, Multi-Shot AoE),
+             Survival (MELEE/pet: Kill Command/Raptor Strike/Wildfire Bomb,
+               Serpent Sting, Coordinated Assault CD, Carve AoE; pet upkeep),
+             NonCombat (Call Pet 1 / Revive Pet / Mend Pet upkeep).
+           classes/hunter/HunterAiObjectContext.{h,cpp} - bundle + spec map
+             (0=beast mastery,1=marksmanship,2=survival).
+[ENGINE] ServerFacade gained pet helpers: GetPet/HasLivingPet/GetPetHealthPct
+           (Player::GetPet; Pet IS-A Unit). First use of the pet seam (S19 deepens
+           it). Pet summon/revive relevance (ACTION_HIGH+5=25) outranks the
+           rotation so BM/Survival fix a dead pet before dpsing.
+[WIRE]   AiFactory: CLASS_HUNTER registers Hunter context, installs "hunter" +
+           spec strategy in combat, "hunter nc" in non-combat. (Survival is the
+           one melee hunter spec; its strategy uses cast melee:: for Raptor/Carve.)
+[VERIFY] 6 new files + ServerFacade/factory edits: whole module braces/parens
+           balanced (77 files); guards unique; includes resolve (Pet.h added);
+           every override defined; spec names match CombatStrategyForSpec; bridge
+           decl==def; POWER_FOCUS=2 + hunter spec order (0/1/2) confirmed; pet-
+           upkeep rotation traced (no pet -> Revive Pet@25 beats rotation). NOT
+           compile-tested (no toolchain/8.3.7 DB2); spell NAMES from wowhead BfA.
+[DOC]    Checklist: Hunter section marked; progress 99 -> 113. (No cmangos
+           hunter/ folder existed in the ref clone; authored from BfA research +
+           the established per-class pattern.)
+
+================================================================================
+ 2026-06-08  PHASE C - S11  ROGUE (Assassination / Outlaw / Subtlety + stealth/CP)
+================================================================================
+[S11]    BfA 8.3 Rogue, all 3 specs, on the real engine (research: wowhead.com /
+           Ravenholdt BfA quickstart):
+           classes/rogue/RogueTriggers.{h,cpp} - combo points full(>=5)/low(<=1)
+             (RAW POWER_COMBO_POINTS=4 count), energy high (power::3), stealthed/
+             not stealthed (Stealth or Shadow Dance aura), target low health(<=35),
+             rupture/garrote absent, slice and dice absent. + RegisterRogueTriggers.
+           classes/rogue/RogueStrategies.{h,cpp}:
+             Generic (Crimson Vial self-heal, Kick interrupt, Cheap Shot stealth
+               opener),
+             Assassination (Mutilate builder -> Envenom finisher @5CP; Garrote +
+               Rupture bleeds; Vendetta CD; Fan of Knives AoE),
+             Outlaw (Sinister Strike builder -> Dispatch finisher; Roll the Bones/
+               Slice and Dice; Adrenaline Rush CD; Blade Flurry AoE),
+             Subtlety (Backstab/Shadowstrike builders -> Eviscerate finisher;
+               Nightblade bleed; Symbols of Death + Shadow Dance CDs; Shuriken
+               Storm AoE),
+             NonCombat (Stealth upkeep out of combat).
+           classes/rogue/RogueAiObjectContext.{h,cpp} - bundle + spec map
+             (0=assassination,1=outlaw,2=subtlety).
+[DESIGN] FINISHERS gated by "combo points full" (>=5 CP) at relevance 15 so they
+           outrank builders (11) and only fire when CP is capped - models the
+           builder/finisher loop. Combo points read as a RAW count via
+           ServerFacade::GetPower (max 5), not a percent.
+[WIRE]   AiFactory: CLASS_ROGUE registers Rogue context, installs "rogue" + spec
+           strategy in combat, "rogue nc" in non-combat.
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (83
+           files); guards unique; includes resolve; every override defined; spec
+           names match CombatStrategyForSpec; bridge decl==def; POWER_ENERGY=3 +
+           POWER_COMBO_POINTS=4 + rogue spec order (0/1/2) confirmed; finisher
+           rotation traced (5 CP -> Envenom@15 beats builders). NOT compile-tested
+           (no toolchain/8.3.7 DB2); spell NAMES from wowhead BfA. (cmangos ref
+           clone has NO rogue/ folder -> authored from research + pattern.)
+[DOC]    Checklist: Rogue section marked; progress 113 -> 127.
+
+================================================================================
+ 2026-06-08  PHASE C - S12  PRIEST (Discipline/Holy heal + Shadow dps)
+================================================================================
+[S12]    BfA 8.3 Priest, all 3 specs (TWO healers + one dps), on the real engine
+           (research: wowhead.com / icy-veins spell lists):
+           classes/priest/PriestTriggers.{h,cpp} - insanity high (power::13),
+             target low health (SW:Death <=20), shadow word pain / vampiric touch
+             absent, shadowform absent, atonement low (heal target lacks Atonement
+             - checks the party-member-to-heal unit). + RegisterPriestTriggers.
+           classes/priest/PriestStrategies.{h,cpp}:
+             Generic (Power Word: Shield a hurt ally, Desperate Prayer self-save,
+               Shadow Word: Death execute),
+             Discipline (atonement: PWS to apply Atonement + Penance/Pain
+               Suppression direct heals + Smite/SW:Pain damage->atonement heal),
+             Holy (direct: Holy Word: Serenity/Flash Heal/Heal tiered + Guardian
+               Spirit emergency; Smite filler),
+             Shadow (DoTs SW:Pain + Vampiric Touch, Mind Blast/Mind Flay fillers,
+               Void Eruption/Devouring Plague Insanity spend, Shadowfiend CD),
+             NonCombat (Shadowform + Power Word: Fortitude upkeep).
+           classes/priest/PriestAiObjectContext.{h,cpp} - bundle + spec map
+             (0=discipline,1=holy,2=shadow).
+[WIRE]   AiFactory: CLASS_PRIEST registers Priest context, installs "priest" +
+           spec strategy in combat, "priest nc" in non-combat. Heals use
+           ACTION_*_HEAL tiers; atonement upkeep at ACTION_LIGHT_HEAL+5.
+[FIX]    Caught + fixed a missing "target low health" trigger in the Priest
+           context (referenced by the SW:Death execute). Added a ROBUST whole-
+           module check: every TriggerNode name referenced by every class
+           strategy now provably resolves to a registered trigger (core or class).
+           All 6 classes pass.
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (89
+           files, ~8526 LOC); guards unique; includes resolve; every override
+           defined; spec names map to registered strategies; bridge decl==def;
+           POWER_INSANITY=13 + priest spec order (0/1/2) confirmed. NOT compile-
+           tested. cmangos ref has no priest/ folder -> authored from research.
+[DOC]    Checklist: Priest section marked; progress 127 -> 141.
+
+================================================================================
+ 2026-06-08  PHASE C - S13  SHAMAN (Elemental/Enhancement dps, Restoration heal)
+================================================================================
+[S13]    BfA 8.3 Shaman, all 3 specs, on the real engine (research: wowhead.com /
+           maxroll spell lists):
+           classes/shaman/ShamanTriggers.{h,cpp} - maelstrom high (power::11),
+             flame shock absent, maelstrom weapon high (Enh aura), windfury/
+             flametongue weapon absent (imbues), lightning shield absent.
+             + RegisterShamanTriggers.
+           classes/shaman/ShamanStrategies.{h,cpp}:
+             Generic (Wind Shear interrupt, Healing Surge self-heal),
+             Elemental (ranged: Flame Shock DoT, Lava Burst on CD, Earth Shock at
+               high Maelstrom, Lightning Bolt filler, Fire Elemental CD, Chain
+               Lightning AoE),
+             Enhancement (melee: Stormstrike/Lava Lash, instant Lightning Bolt at
+               Maelstrom Weapon stacks, Flame Shock, Feral Spirit CD, Crash
+               Lightning AoE),
+             Restoration (healer: Riptide HoT + Healing Surge/Wave + Chain Heal;
+               Lightning Bolt damage filler when nobody hurt),
+             NonCombat (Windfury + Flametongue weapon imbues, Lightning Shield).
+           classes/shaman/ShamanAiObjectContext.{h,cpp} - bundle + spec map
+             (0=elemental,1=enhancement,2=restoration).
+[WIRE]   AiFactory: CLASS_SHAMAN registers Shaman context, installs "shaman" +
+           spec strategy in combat, "shaman nc" in non-combat (weapon imbues).
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (95
+           files, ~9075 LOC); guards unique; includes resolve; every override
+           defined; spec names map; bridge decl==def; robust trigger-resolution
+           check passes for ALL 7 classes; POWER_MAELSTROM=11 + shaman spec order
+           (0/1/2) confirmed; Ele rotation traced (Earth Shock spends high
+           Maelstrom first). NOT compile-tested. cmangos ref has no shaman/ folder.
+[DOC]    Checklist: Shaman section marked; progress 141 -> 155.
+
+================================================================================
+ 2026-06-08  PHASE C - S14  MAGE (Arcane / Fire / Frost dps + conjure/polymorph)
+================================================================================
+[S14]    BfA 8.3 Mage, all 3 specs, on the real engine (research: wowhead.com BfA
+           mage-changes + icy-veins):
+           classes/mage/MageTriggers.{h,cpp} - arcane charges high (power::16),
+             clearcasting / hot streak / brain freeze / fingers of frost procs
+             (named auras), target low health (Scorch execute), arcane intellect
+             absent. + RegisterMageTriggers.
+           classes/mage/MageStrategies.{h,cpp}:
+             Generic (Counterspell interrupt, Ice Block self-save, Frost Nova
+               root when an enemy reaches melee),
+             Arcane (Arcane Blast builder, Arcane Missiles on Clearcasting,
+               Arcane Barrage charge dump, Arcane Power CD, Arcane Explosion AoE),
+             Fire (Fireball filler, Pyroblast on Hot Streak, Fire Blast banker,
+               Scorch execute, Combustion CD, Flamestrike AoE),
+             Frost (Frostbolt filler, Flurry on Brain Freeze, Ice Lance on
+               Fingers of Frost, Frozen Orb/Icy Veins CDs, Blizzard AoE),
+             NonCombat (Arcane Intellect buff + Conjure Refreshment).
+           classes/mage/MageAiObjectContext.{h,cpp} - bundle + spec map
+             (0=arcane,1=fire,2=frost).
+[WIRE]   AiFactory: CLASS_MAGE registers Mage context, installs "mage" + spec
+           strategy in combat, "mage nc" in non-combat (Intellect/conjure).
+[VERIFY] 6 new files + factory edits: whole module braces/parens balanced (101
+           files, ~9600 LOC); guards unique; includes resolve; every override
+           defined; spec names map; bridge decl==def; robust trigger-resolution
+           passes for ALL 8 classes; POWER_ARCANE_CHARGES=16 + mage spec order
+           (0/1/2) confirmed; Fire rotation traced (Hot Streak -> instant
+           Pyroblast wins). NOT compile-tested. cmangos ref has no mage/ folder.
+[DOC]    Checklist: Mage section marked; progress 155 -> 169.

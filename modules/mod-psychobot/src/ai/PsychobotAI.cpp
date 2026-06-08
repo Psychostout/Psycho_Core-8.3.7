@@ -8,12 +8,14 @@
  */
 
 #include "PsychobotAI.h"
-#include "PsychobotStrategies.h"
-#include "PsychobotClassAI.h"
+#include "PsychobotAiFactory.h"
 #include "PsychobotTalentMgr.h"
 #include "PsychobotGearMgr.h"
-#include "PsychobotPopulationMgr.h"
-#include "PsychobotGroupMgr.h"
+#include "../PsychobotPopulationMgr.h"
+#include "../PsychobotGroupMgr.h"
+#include "../PsychobotAIFwd.h"
+#include "../engine/AiObjectContext.h"
+#include "../engine/Engine.h"
 #include "Player.h"
 #include "Unit.h"
 #include "MotionMaster.h"
@@ -22,43 +24,34 @@
 #include "SpellInfo.h"
 #include "DB2Stores.h"
 #include "DBCEnums.h"
-#include "Log.h"
-#include <cctype>
+#include "Common.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 
 namespace psychobot
 {
-    // Throttle: run the decision engine ~ every 250ms (4x/sec) to stay cheap.
+    // Run the decision engine ~ every 250ms (4x/sec).
     static uint32 const PSYCHOBOT_AI_TICK_MS = 250;
 
     PsychobotAI::PsychobotAI(Player* bot, ObjectGuid masterGuid)
         : _bot(bot), _masterGuid(masterGuid), _state(BotState::NonCombat),
           _updateDelay(0), _specApplied(false), _currentEngine(nullptr)
     {
-        _nonCombatEngine = std::make_unique<Engine>(this);
-        _combatEngine    = std::make_unique<Engine>(this);
-        _classAI         = std::make_unique<ClassAI>(this);
+        // Build the bot's context (generic + class vocabulary/behaviour).
+        _context.reset(AiFactory::CreateContext(this));
 
-        // Install the generic strategies (follow / class-rotation combat).
-        BuildNonCombatEngine(this, _nonCombatEngine.get());
-        BuildCombatEngine(this, _combatEngine.get());
+        // One engine per state, sharing the single context.
+        _nonCombatEngine = std::make_unique<Engine>(this, _context.get(), BotState::NonCombat);
+        _combatEngine    = std::make_unique<Engine>(this, _context.get(), BotState::Combat);
+        _deadEngine      = std::make_unique<Engine>(this, _context.get(), BotState::Dead);
+
+        // Install starting strategies.
+        AiFactory::InitNonCombatEngine(this, _nonCombatEngine.get());
+        AiFactory::InitCombatEngine(this, _combatEngine.get());
+        AiFactory::InitDeadEngine(this, _deadEngine.get());
 
         _currentEngine = _nonCombatEngine.get();
-    }
-
-    void PsychobotAI::EnsureSpecAndTalents()
-    {
-        if (_specApplied || !_bot)
-            return;
-        // Stage 2: give the bot its class default spec + a basic talent build.
-        TalentMgr::SetupSpec(_bot, /*specIndex*/ -1, /*preferColumn*/ 0);
-        _specApplied = true;
-    }
-
-    std::string PsychobotAI::DoClassRotation(Unit* target)
-    {
-        return _classAI ? _classAI->DoRotation(target) : std::string();
     }
 
     PsychobotAI::~PsychobotAI() = default;
@@ -70,14 +63,41 @@ namespace psychobot
         return ObjectAccessor::FindConnectedPlayer(_masterGuid);
     }
 
+    void PsychobotAI::EnsureSpecAndTalents()
+    {
+        if (_specApplied || !_bot)
+            return;
+        TalentMgr::SetupSpec(_bot, /*specIndex*/ -1, /*preferColumn*/ 0);
+        _specApplied = true;
+
+        // The combat engine's strategy depends on the (now-applied) spec role,
+        // so rebuild its starting strategies once after spec setup.
+        if (_combatEngine)
+        {
+            _combatEngine->ClearStrategies();
+            AiFactory::InitCombatEngine(this, _combatEngine.get());
+        }
+    }
+
     void PsychobotAI::UpdateState()
     {
-        BotState desired = IsInCombat() ? BotState::Combat : BotState::NonCombat;
+        BotState desired;
+        if (!_bot->IsAlive())
+            desired = BotState::Dead;
+        else if (_bot->IsInCombat())
+            desired = BotState::Combat;
+        else
+            desired = BotState::NonCombat;
+
         if (desired != _state)
         {
             _state = desired;
-            _currentEngine = (_state == BotState::Combat)
-                ? _combatEngine.get() : _nonCombatEngine.get();
+            switch (_state)
+            {
+                case BotState::Combat:    _currentEngine = _combatEngine.get();    break;
+                case BotState::Dead:      _currentEngine = _deadEngine.get();      break;
+                case BotState::NonCombat: _currentEngine = _nonCombatEngine.get(); break;
+            }
         }
     }
 
@@ -86,60 +106,44 @@ namespace psychobot
         if (!_bot || !_bot->IsInWorld())
             return;
 
-        // Dead bots do nothing in Stage 1 (rez handling is a later stage).
-        if (!_bot->IsAlive())
-            return;
-
         _updateDelay += diff;
         if (_updateDelay < PSYCHOBOT_AI_TICK_MS)
             return;
         _updateDelay = 0;
 
-        // Stage 3 scaling gate: SmartScale / BotActiveAlone /
-        // DisabledWithoutRealPlayer may pause this bot's AI to save CPU.
-        // (Master-owned alts stay active when random-bot scaling is disabled.)
+        // Scaling gate (SmartScale / BotActiveAlone / DisabledWithoutRealPlayer).
         if (!sPsychobotPopulation->ShouldBotBeActive(_bot))
             return;
 
-        // One-time: ensure the bot has a spec + talents (Stage 2).
         EnsureSpecAndTalents();
 
-        // Stage 3: keep gear roughly level-appropriate (cheap; persistence-gated).
+        // Keep gear roughly level-appropriate (cheap; persistence-gated).
         GearMgr::GearUp(_bot);
 
         UpdateState();
+
+        // Dead bots stay idle until release/rez handling (later step).
+        if (_state == BotState::Dead)
+            return;
 
         if (_currentEngine)
             _currentEngine->DoNextAction();
     }
 
     // ----------------------------------------------------------------------
-    // ServerFacade-style seam (TrinityCore BfA 8.3 core API lives ONLY here)
+    // Cast / target seam
     // ----------------------------------------------------------------------
-    bool PsychobotAI::IsAlive(Unit* unit) const
-    {
-        return unit && unit->IsAlive();
-    }
-
-    bool PsychobotAI::IsInCombat() const
-    {
-        return _bot && _bot->IsInCombat();
-    }
-
     Unit* PsychobotAI::GetCurrentTarget() const
     {
         if (!_bot)
             return nullptr;
 
-        // Prefer the bot's own victim if it's still valid.
         if (Unit* victim = _bot->GetVictim())
             return victim;
 
-        // In a group: assist the tank/leader (Stage 4 group play).
         if (Unit* assist = GroupMgr::GetGroupAssistTarget(_bot))
             return assist;
 
-        // Else mirror the master's selection.
         if (Player* master = GetMaster())
             if (Unit* sel = master->GetSelectedUnit())
                 return sel;
@@ -147,30 +151,15 @@ namespace psychobot
         return nullptr;
     }
 
-    float PsychobotAI::GetDistance(Unit* to) const
-    {
-        if (!_bot || !to)
-            return 99999.0f;
-        return _bot->GetDistance(to);
-    }
-
-    bool PsychobotAI::HasSpell(uint32 spellId) const
-    {
-        return _bot && spellId && _bot->HasSpell(spellId);
-    }
-
     uint32 PsychobotAI::GetSpellIdByName(std::string const& name) const
     {
-        if (name.empty())
+        if (name.empty() || !_bot)
             return 0;
 
-        // Lowercase the query once.
         std::string lower = name;
         std::transform(lower.begin(), lower.end(), lower.begin(),
             [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-        // Scan the DB2 SpellName store for a known spell whose name matches.
-        // (Stage 1: simple linear scan; a cached name->id map is a later optimization.)
         for (SpellNameEntry const* entry : sSpellNameStore)
         {
             if (!entry)
@@ -184,7 +173,7 @@ namespace psychobot
             std::transform(sn.begin(), sn.end(), sn.begin(),
                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-            if (sn == lower && _bot && _bot->HasSpell(entry->ID))
+            if (sn == lower && _bot->HasSpell(entry->ID))
                 return entry->ID;
         }
         return 0;
@@ -202,7 +191,6 @@ namespace psychobot
         if (!_bot->HasSpell(spellId))
             return false;
 
-        // Don't double-cast while already casting.
         if (_bot->IsNonMeleeSpellCast(false))
             return false;
 
@@ -210,40 +198,67 @@ namespace psychobot
         return true;
     }
 
-    bool PsychobotAI::CastSpell(std::string const& name, Unit* target)
-    {
-        uint32 id = GetSpellIdByName(name);
-        if (!id)
-            return false;
-        return CastSpell(id, target);
-    }
-
     // ----------------------------------------------------------------------
     // Movement seam
     // ----------------------------------------------------------------------
-    void PsychobotAI::FollowMaster()
+    bool PsychobotAI::ReachTarget(Unit* target, float distance)
+    {
+        if (!_bot || !target)
+            return false;
+        if (target->GetMap() != _bot->GetMap())
+            return false;
+        _bot->GetMotionMaster()->MoveChase(target, distance);
+        return true;
+    }
+
+    bool PsychobotAI::FollowMaster()
     {
         Player* master = GetMaster();
         if (!_bot || !master || !master->IsInWorld())
-            return;
-
-        if (master->GetMap() != _bot->GetMap())
-            return; // cross-map teleport handled in a later stage
-
-        // Standard follow: 2.0 yd behind, slightly to the side.
-        _bot->GetMotionMaster()->MoveFollow(master, 2.0f, static_cast<float>(M_PI));
-    }
-
-    void PsychobotAI::StopMoving()
-    {
-        if (_bot)
-            _bot->GetMotionMaster()->Clear();
-    }
-
-    bool PsychobotAI::IsMoving() const
-    {
-        if (!_bot || _bot->GetMotionMaster()->empty())
             return false;
-        return _bot->GetMotionMaster()->GetCurrentMovementGeneratorType() != IDLE_MOTION_TYPE;
+        if (master->GetMap() != _bot->GetMap())
+            return false;   // cross-map teleport handled later
+        _bot->GetMotionMaster()->MoveFollow(master, 2.0f, static_cast<float>(M_PI));
+        return true;
+    }
+
+    bool PsychobotAI::StopMoving()
+    {
+        if (!_bot)
+            return false;
+        _bot->GetMotionMaster()->Clear();
+        return true;
+    }
+
+    bool PsychobotAI::AttackTarget(Unit* target)
+    {
+        if (!_bot || !target)
+            return false;
+        if (!_bot->IsValidAttackTarget(target))
+            return false;
+
+        // Set selection + begin/maintain auto-attack, and chase into range.
+        _bot->SetSelection(target->GetGUID());
+        _bot->Attack(target, true);
+        _bot->GetMotionMaster()->MoveChase(target);
+        return true;
+    }
+
+    // ----------------------------------------------------------------------
+    // Engine bridge (declared in PsychobotAIFwd.h)
+    // ----------------------------------------------------------------------
+    namespace PsychobotAIBridge
+    {
+        Player* GetBot(PsychobotAI* ai)    { return ai ? ai->GetBot() : nullptr; }
+        Player* GetMaster(PsychobotAI* ai) { return ai ? ai->GetMaster() : nullptr; }
+        Unit*   GetCurrentTarget(PsychobotAI* ai) { return ai ? ai->GetCurrentTarget() : nullptr; }
+        AiObjectContext* GetContext(PsychobotAI* ai) { return ai ? ai->GetContext() : nullptr; }
+
+        uint32 GetSpellId(PsychobotAI* ai, std::string const& name) { return ai ? ai->GetSpellIdByName(name) : 0; }
+        bool   CastSpell(PsychobotAI* ai, uint32 spellId, Unit* target) { return ai && ai->CastSpell(spellId, target); }
+        bool   ReachTarget(PsychobotAI* ai, Unit* target, float distance) { return ai && ai->ReachTarget(target, distance); }
+        bool   FollowMaster(PsychobotAI* ai) { return ai && ai->FollowMaster(); }
+        bool   StopMoving(PsychobotAI* ai) { return ai && ai->StopMoving(); }
+        bool   AttackTarget(PsychobotAI* ai, Unit* target) { return ai && ai->AttackTarget(target); }
     }
 }

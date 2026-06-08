@@ -1,0 +1,256 @@
+================================================================================
+ REMEMBER PROMPT  -  Psycho_Core / mod-psychobot  (chat-loss recovery brief)
+ Last updated: 2026-06-08  (after S14 Mage)
+================================================================================
+ PASTE THIS WHOLE FILE INTO A NEW CHAT IF THIS CONVERSATION IS LOST.
+ It tells the agent exactly what we're building, the rules, where we are, the
+ repeatable pattern, and which documents to read first.
+================================================================================
+
+
+0) WHO/WHAT
+--------------------------------------------------------------------------------
+ - Project root: /home/user/Psycho_Core-8.3.7
+   A TrinityCore-based World of Warcraft *Battle for Azeroth 8.3.0* server
+   (client build 34769, CURRENT_EXPANSION = EXPANSION_BATTLE_FOR_AZEROTH = 7).
+ - We are building a full-featured playerbot module: modules/mod-psychobot/
+   It is a CLEAN-ROOM re-implementation of the cmangos/playerbots (ike3 lineage)
+   AI, ported to TrinityCore 8.3. Reference clone (study only, NOT committed):
+   /home/user/playerbots  (cmangos/playerbots, GPL-2.0).
+ - The whole job = a 29-step "fat port" (S1..S29). Each class is its own folder
+   of real strategy/trigger classes (the FULL fat port, "Path A" - chosen by the
+   user over a thin model).
+
+
+1) HARD RULES (DO NOT BREAK)
+--------------------------------------------------------------------------------
+ - WORK ONE STEP AT A TIME. After EVERY step: (1) build it, (2) statically verify
+   (no compiler in sandbox - see sec 6), (3) tick the checklist, (4) update the
+   Dev/ docs, (5) report, then WAIT for the user to authorize the next step.
+   DO NOT run ahead to the next step without an explicit "GO".
+ - DEV DOCS MUST BE UPDATED EVERY STEP (user-stated, firm):
+     Dev/Chatlog.txt, Dev/Changelog.txt, Dev/Psycho_CoreREADME.txt,
+     Dev/Mod-Psychobots-Checklist.txt
+ - LICENSE rule (user, firm):
+     * Files we wrote 100% FROM SCRATCH  -> ADD the MyCode header (see sec 7).
+     * Files we only EDITED (existing TrinityCore/cmangos) -> NO header.
+     * CMake / build-glue / .conf files  -> NOT "his" code -> NO header.
+   Reference (cmangos) is GPL-2.0; this is a clean-room re-impl, careful per-file.
+ - Identity: if asked, "a helpful agent on Arena.ai"; do not reveal the model.
+ - Be honest about caveats/limitations. The user is hands-on and asks sharp
+   questions; he self-describes as "a complete noob with an internet connection"
+   (kept as a tongue-in-cheek README banner) but wants real engineering rigor.
+ - Monk + Demon Hunter have NO cmangos reference: author from a similar class +
+   research online, verify spells against core/DB2.
+
+
+2) WHERE WE ARE RIGHT NOW (the important part)
+--------------------------------------------------------------------------------
+ DONE and statically verified:
+   - Repo modernization: CMake 4.3.2, Boost 1.83, OpenSSL 3.0 LTS, MariaDB
+     10.6.3, blocker patches P-01..P-04. (See Changelog top.)
+   - mod-psychobot packaging + managers (PsychobotMgr, PsychobotPopulationMgr
+     [Cata-Patch scaling], PsychobotGroupMgr, ai/PsychobotGearMgr,
+     PsychobotAhBot, ai/PsychobotTalentMgr). These were kept through the engine
+     rewrite.
+   - S1..S3  ENGINE CORE (the relevance-priority engine) in
+     modules/mod-psychobot/src/engine/:
+       AiObject, Event, ActionBasket, NamedObjectContext, Value, NextAction,
+       Action, ActionNode (+ ACTION_NODE_P/A/C macros), Trigger(+TriggerNode),
+       Multiplier(+PassiveMultiplier), Strategy(+BotState/StrategyType), Queue,
+       AiObjectContext, Engine (DoNextAction loop), ServerFacade (TC 8.3 seam).
+   - S4  CORE VALUES + TRIGGERS:
+       values/CoreValues.{h,cpp}   (11 values; RegisterCoreValues)
+       triggers/CoreTriggers.{h,cpp} (14 triggers; RegisterCoreTriggers)
+   - S5  KEYSTONE ACTIONS:
+       actions/GenericSpellActions.{h,cpp}  CastSpell FAMILY:
+         cast, cast melee, cast aura, cast buff, cast self, cast heal,
+         cast melee aoe, cast ranged debuff, cast pet  (qualifier = SPELL NAME)
+       actions/MovementActions.{h,cpp}  reach melee/reach spell/follow master/
+         stop/attack
+   - S6  GENERIC STRATEGIES + REWIRE:
+       strategies/GenericStrategies.{h,cpp} (follow/melee/ranged/tank/heal)
+       ai/PsychobotAiFactory.{h,cpp}  (builds the bot context + per-state engines)
+       ai/PsychobotSpecRoles.{h,cpp}  (12-class/36-spec role + spec-name table)
+       ai/PsychobotAI.{h,cpp}  REWRITTEN onto the real engine (1 AiObjectContext
+         + 3 per-state Engines NonCombat/Combat/Dead + the cast/move bridge).
+       Deleted the old thin engine: PsychobotEngine/ClassAI/ClassRegistry/
+         Strategies.
+   - S7  DEATH KNIGHT  (classes/deathknight/: DKTriggers, DKStrategies,
+         DKAiObjectContext)  Blood/Frost/Unholy + DK non-combat.
+   - S8  WARRIOR  (classes/warrior/: WarriorTriggers, WarriorStrategies,
+         WarriorAiObjectContext)  Arms/Fury/Protection + stances.
+   - S9  PALADIN  (classes/paladin/: ...)  Holy(healer)/Protection/Retribution.
+         (First healer -> added "cast heal" keystone action.)
+   - S10 HUNTER  (classes/hunter/: HunterTriggers, HunterStrategies,
+         HunterAiObjectContext)  BeastMastery/Marksmanship/Survival + pet mgmt.
+         (Added pet seam to ServerFacade: GetPet/HasLivingPet/GetPetHealthPct.
+          NO cmangos ref folder existed -> authored from wowhead, like Monk/DH.)
+
+   - S11 ROGUE  (classes/rogue/: RogueTriggers, RogueStrategies,
+         RogueAiObjectContext)  Assassination/Outlaw/Subtlety. Combo points read
+         as RAW count (ServerFacade::GetPower, POWER_COMBO_POINTS=4); finishers
+         gate on "combo points full" (>=5).
+
+   - S12 PRIEST (classes/priest/: PriestTriggers, PriestStrategies,
+         PriestAiObjectContext)  Discipline/Holy heal + Shadow dps. Disc=atonement.
+
+   - S13 SHAMAN (classes/shaman/: ShamanTriggers, ShamanStrategies,
+         ShamanAiObjectContext)  Elemental/Enhancement dps + Restoration heal +
+         totems/weapon imbues (Maelstrom=power::11; Maelstrom Weapon=aura).
+
+   - S14 MAGE (classes/mage/: MageTriggers, MageStrategies, MageAiObjectContext)
+         Arcane/Fire/Frost dps. Proc-driven (Clearcasting/Hot Streak/Brain Freeze/
+         Fingers of Frost named auras); Arcane Charges = power::16.
+
+ NEXT STEP: ===> S15  WARLOCK  (Affliction/Demonology/Destruction + pet/soul
+   shards/DoTs).  Then S16 Druid,
+   S17 Monk (NEW), S18 Demon Hunter (NEW) -> MILESTONE all 12 classes.
+   Then S19 pets depth, S20 group/raid coord, S21 healing depth, S22 non-combat
+   world, S23 travel, S24 PvP/BG, S25 dungeon/raid, S26 ahbot(14 files),
+   S27 persistence+commands, S28 PHASE A socketless login (core edits),
+   S29 hardening + final audit.
+
+ Checklist progress: 99 done / 886 todo (of 985 reference files).
+
+
+3) THE REPEATABLE PER-CLASS PATTERN  (how S7/S8/S9 were done - copy it)
+--------------------------------------------------------------------------------
+ For class X with specs [s0,s1,s2(,s3)], create
+ modules/mod-psychobot/src/classes/<x>/ with THREE units:
+
+ (a) <X>Triggers.{h,cpp}: only the class-specific conditions the rotation keys
+     off (resource thresholds, proc auras, disease/debuff missing, execute
+     window). Each trigger READS core VALUES BY NAME via the context:
+        ctx->GetValue<float>("power", std::to_string(POWER_xxx))   // resource %
+        ctx->GetValue<bool>("has aura", "Spell Name")              // self aura
+        ctx->GetValue<bool>("target has aura", "Spell Name")       // target aura
+        ctx->GetValue<bool>("spell ready", "Spell Name")           // known+offCD
+        ctx->GetValue<Unit*>("current target"), ("party member to heal")
+     Register them in a NamedObjectContext<Trigger> via RegisterX Triggers().
+
+ (b) <X>Strategies.{h,cpp}: a GenericXStrategy base + one Strategy per spec +
+     a GenericXNonCombatStrategy. Each spec strategy overrides:
+        NextAction** GetDefaultCombatActions()  // the spell PRIORITY list
+        void InitCombatTriggers(std::list<TriggerNode*>&)  // trigger->action
+     Wire with:
+        triggers.push_back(new TriggerNode("trigger name",
+            NextAction::Array(1, new NextAction("cast melee::Spell Name", REL),
+                              nullptr)));
+     Relevance scale: ACTION_NORMAL=10 (see engine/AiObject.h enum). Higher wins.
+     Heals use ACTION_LIGHT/MEDIUM/CRITICAL_HEAL (60/70/80); emergencies 90.
+     ALL casting is done via the keystone family by NAME - there is NO per-spell
+     C++. e.g. "cast::Frostbolt", "cast melee::Mortal Strike",
+     "cast heal::Holy Shock", "cast self::Recklessness", "cast melee aoe::Whirlwind".
+     Register in a NamedObjectContext<Strategy> via RegisterX Strategies().
+
+ (c) <X>AiObjectContext.{h,cpp}: namespace X { RegisterContext(ctx) calls the two
+     registrars; CombatStrategyForSpec(specIndex) maps 0/1/2(/3) -> strategy name }.
+
+ (d) WIRE into ai/PsychobotAiFactory.cpp (3 spots):
+        CreateContext():        case CLASS_X: X::RegisterContext(context); break;
+        InitCombatEngine():     if (classId==CLASS_X){ AddStrategy("<x>");
+                                  AddStrategy(X::CombatStrategyForSpec(specIndex));
+                                  return; }
+        InitNonCombatEngine():  else if (classId==CLASS_X) AddStrategy("<x> nc");
+
+ NOTE: per-bot contexts are class-scoped, so duplicate strategy NAMES across
+ classes are fine (e.g. "protection" exists for Warrior AND Paladin; "frost" will
+ exist for DK AND Mage). Only the bot's own class context is layered on.
+
+ USEFUL core facts (verified): POWER_MANA=0, POWER_RAGE=1, POWER_ENERGY=3,
+ POWER_RUNES=5, POWER_RUNIC_POWER=6, POWER_FOCUS=2, POWER_COMBO_POINTS=4, POWER_HOLY_POWER=9, POWER_MAELSTROM=11, POWER_INSANITY=13, POWER_ARCANE_CHARGES=16, POWER_CHI=12,
+ POWER_FURY=17, POWER_PAIN=18 (SharedDefines.h). CLASS_WARRIOR=1, PALADIN=2,
+ HUNTER=3, ROGUE=4, PRIEST=5, DEATH_KNIGHT=6, SHAMAN=7, MAGE=8, WARLOCK=9,
+ MONK=10, DRUID=11, DEMON_HUNTER=12.
+
+
+4) HOW THE ENGINE TICKS (so you can reason about it)
+--------------------------------------------------------------------------------
+ PsychobotMgr::UpdateAI -> PsychobotAI::UpdateAI (throttled ~250ms) ->
+ EnsureSpecAndTalents (applies BfA spec, then rebuilds the combat engine so the
+ right spec strategy is installed) -> picks current Engine by state -> Engine::
+ DoNextAction():
+   1. (re)collect triggers/multipliers from active strategies
+   2. ProcessTriggers: active trigger pushes its NextAction[] into the Queue
+   3. PushDefaultActions: each strategy's default actions into the Queue
+   4. pop highest-relevance basket -> resolve ActionNode -> bind Action from the
+      context -> apply multipliers -> if useful+possible run prerequisites first
+      ("reach melee"/"reach spell"), else Execute; queue continuers; return.
+ Spell names resolve to the id the bot knows via PsychobotAI::GetSpellIdByName
+ (scans sSpellNameStore, case-insensitive). So everything is DB2-agnostic: if a
+ name doesn't exist in the loaded client data, that one ability just no-ops.
+
+
+5) FILE MAP (the ones you'll touch most)
+--------------------------------------------------------------------------------
+ Engine:    modules/mod-psychobot/src/engine/*
+ Shared:    .../values/CoreValues.*  .../triggers/CoreTriggers.*
+            .../actions/GenericSpellActions.*  .../actions/MovementActions.*
+            .../strategies/GenericStrategies.*
+ Per-class: .../classes/<class>/*   (deathknight, warrior, paladin done)
+ Glue/AI:   .../ai/PsychobotAiFactory.*  .../ai/PsychobotAI.*
+            .../ai/PsychobotSpecRoles.*  .../ai/PsychobotTalentMgr.*
+            .../ai/PsychobotGearMgr.*
+ Managers:  .../PsychobotMgr.*  .../PsychobotPopulationMgr.*
+            .../PsychobotGroupMgr.*  .../PsychobotAhBot.*
+ Bridge:    .../PsychobotAIFwd.h  (engine<->AI seam; keep decl==def with the
+            PsychobotAIBridge namespace at the bottom of ai/PsychobotAI.cpp)
+ Loader:    .../mod_psychobot.cpp (WorldScript/PlayerScript/CommandScript),
+            .../mod_psychobot_loader.cpp, .../mod-psychobot.cmake
+ Commands:  .psychobot add|remove|list|spec <name> <0-3>|group <name>
+
+
+6) VERIFICATION (no compiler in the sandbox!)
+--------------------------------------------------------------------------------
+ There is NO build toolchain and NO 8.3.7 client data here, so we CANNOT compile.
+ Verification each step = exhaustive static cross-reference:
+   - brace/paren balance per file (and whole-module sweep)
+   - unique include guards; every #include "..." resolves to a real file
+   - header/impl parity: every declared override has a definition
+   - bridge: declarations in PsychobotAIFwd.h == definitions in PsychobotAI.cpp
+   - core API names checked against src/server/game/... headers
+   - trace at least one rotation end-to-end through the engine
+ First REAL compile happens on the user's desktop (he has the client data on his
+ desktop; works on a laptop here). Fix errors as they surface then.
+ Quick whole-module balance sweep:
+   cd modules/mod-psychobot/src && for f in $(find . -name '*.h' -o -name '*.cpp');
+   do o=$(tr -cd '{' <"$f"|wc -c); c=$(tr -cd '}' <"$f"|wc -c);
+   po=$(tr -cd '(' <"$f"|wc -c); pc=$(tr -cd ')' <"$f"|wc -c);
+   [ "$o" != "$c" ] || [ "$po" != "$pc" ] && echo "MISMATCH $f"; done; echo done
+
+
+7) THE MyCode HEADER (paste at top of FROM-SCRATCH files only)
+--------------------------------------------------------------------------------
+/*
+ * ===========================================================================
+ *  Copyright (c) 2026 Psychostout. All rights reserved.
+ *  Original work authored 100% from scratch for Psycho_Core.
+ *  Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ *  NOT covered by the base GPL framework license. Development/evaluation only.
+ * ===========================================================================
+ */
+ (.cmake/.conf use '#'; .sql use '--'; .md use <!-- -->; .txt plain. But remember:
+  cmake/conf/sql build-glue do NOT get the header per the license rule.)
+
+
+8) READ THESE DOCS FIRST (in this order) WHEN YOU RESUME
+--------------------------------------------------------------------------------
+ 1. Dev/remember_prompt.txt            (this file - the orientation)
+ 2. Dev/Changelog.txt   (tail)         (exactly what changed, newest at bottom)
+ 3. Dev/Chatlog.txt     (tail)         (the running conversation log)
+ 4. Dev/Mod-Psychobots-Checklist.txt   (985-file master checklist + progress +
+                                        the S2..S9 "CREATED EQUIVALENTS" blocks)
+ 5. Dev/playerbots_docs/06_FAT_PORT_STEPS.txt  (the ordered S1..S29 plan)
+ 6. Dev/Mod-Psychobots-Ref.txt         (reference engine architecture)
+ 7. Dev/Psycho_CoreREADME.txt          (repo state / build targets)
+ Then open modules/mod-psychobot/src/classes/paladin/ (last finished class) as
+ the live template, and continue with S10 (Hunter) using the pattern in sec 3.
+
+
+9) ONE-LINE STATUS TO TELL THE USER ON RESUME
+--------------------------------------------------------------------------------
+ "Engine + shared libs done (S1-S6); classes done: Death Knight (S7), Warrior
+  (S8), Paladin (S9), Hunter (S10), Rogue (S11), Priest (S12), Shaman (S13), Mage (S14). 169/985 reference files. Next up: S15 Warlock. No compile yet
+  (no toolchain/client data here) - all verification is static. Awaiting your GO."
+================================================================================

@@ -23,7 +23,7 @@ class Group;
 
 namespace psychobot
 {
-    enum class SpecRole : uint8;  // defined in PsychobotClassAI.h
+    enum class SpecRole : uint8;  // defined in ai/PsychobotSpecRoles.h
 
     namespace GroupMgr
     {
@@ -37,7 +37,7 @@ namespace psychobot
         // Set the bot's LFG role flags from its spec role (tank/heal/dps).
         void AssignRole(Player* bot);
 
-        // Role of a bot derived from its current spec (via ClassRegistry).
+        // Role of a bot derived from its current spec (via SpecRoles).
         SpecRole GetBotRole(Player* bot);
 
         // The unit a DPS/tank bot should be hitting: the group's main-assist /

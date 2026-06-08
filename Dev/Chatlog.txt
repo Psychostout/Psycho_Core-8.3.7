@@ -960,3 +960,256 @@ AGENT: Ran a 29-point skeptical re-audit of mod-psychobot (4 stages, 23 files,
   fixed; only 2 safe-no-op TODOs; all braces balanced. No issues found.
   Unchanged caveat: not compile-tested (no toolchain/client here); Phase A
   socketless login is the one deferred feature. Updated Dev docs.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP: FAT PORT decision (full reference recreation, Path A)
+--------------------------------------------------------------------------------
+USER: I want the FULL thing recreated (Path A fat port). Go through every file in
+      the reference, learn/understand it, make Mod-Psychobots-Ref.txt notes.
+      Figure out extend-vs-restart. Research/plan/review then report (no build yet,
+      report first).
+
+AGENT (study + plan only - NO code written this step):
+  - Deep-studied the reference engine: Engine::DoNextAction = TRIGGER -> QUEUE
+    (relevance-sorted ActionBasket) -> execute, with Multipliers, Value-context
+    caching, and ActionNode P/A/C chains. Per-class = ActionNodeFactory +
+    InitCombatTriggers in spell NAMES, #ifdef per expansion. ~3,137 distinct
+    named actions/values/triggers across class files. ~238k LOC / 971 files.
+  - KEY VERDICT: our thin Stage-1 engine CANNOT host the reference class
+    strategies (no Queue/ActionBasket/ActionNode P-A-C/Multipliers/Value-context/
+    NamedObjectContext). So:
+      DECISION = CORE-ENGINE REPLACEMENT (not a full restart):
+        REPLACE the thin engine+rotations (PsychobotEngine/ClassAI/ClassRegistry/
+          Strategies/AI) with a faithful clean-room engine + registry.
+        KEEP the module packaging + managers we built & verified
+          (PsychobotMgr/Population/Group/Gear/AhBot/TalentMgr) - they sit above
+          the engine and will call into it.
+  - Wrote Dev/Mod-Psychobots-Ref.txt (full architecture notes incl. a "what I
+    might have missed" section: DbStore saved strategies, ChatFilter command
+    grammar, TravelMgr nav graph, RTI/assist, ReactionEngine, pets, BG/dungeon
+    tactics) and Dev/playerbots_docs/05_FAT_PORT_PLAN.txt (engine layer ->
+    shared libs -> 12 class folders; milestones M1 engine, M2 shared+rewire,
+    M3 DK vertical slice, M4-13 classes, M14 integration). ~150k LOC, many steps.
+  - LICENSE note: reference is GPL-2.0; clean-room re-impl, per-file licensing.
+  - Reported; awaiting GO to start M1 (engine core).
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP: Master per-file checklist for the fat port
+--------------------------------------------------------------------------------
+USER: Make a critical checklist listing ALL ~900+ reference files, one line +
+      info each; mark off as we create our equivalents. Re-study every file;
+      decide extend-vs-restart; research/plan/review; report.
+
+AGENT (checklist + study + plan; NO engine code yet):
+  - Generated Dev/Mod-Psychobots-Checklist.txt: ALL 985 reference source files
+    (playerbot/ 971 + ahbot/ 14), each annotated with the classes it defines,
+    grouped into 18 sections (ROOT 70, engine 33, actions 301, values 197,
+    triggers 48, generic 113, 10 class folders, tests 41, ahbot 14). Each line
+    has [ ] to tick + "=>" slot for our file. Added progress summary + milestone
+    map + "did I miss anything" list + NEW Monk/DH (no reference) entries.
+  - Marked [x] the 8 reference files already covered by our managers/talents
+    (PlayerbotMgr, RandomPlayerbotMgr, ServerFacade, Talentspec -> our
+    PsychobotMgr/PopulationMgr/AI-seam/TalentMgr). 977 remain.
+  - EXTEND-vs-RESTART (confirmed, see Mod-Psychobots-Ref.txt sec.9): NOT a full
+    restart -> CORE-ENGINE REPLACEMENT. Keep packaging+managers (verified),
+    replace the thin engine with a fat clean-room engine, then build shared libs
+    + 12 class folders per the checklist/milestones.
+  - Plan stands (05_FAT_PORT_PLAN.txt): M1 engine -> M2 shared+rewire -> M3 DK
+    vertical slice -> M4-13 classes(+Monk/DH) -> M14 integration. ~150k LOC.
+  - Reported; awaiting GO to start M1.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- STEP: Validate + split fat-port into ordered steps
+--------------------------------------------------------------------------------
+USER: Re-research/understand/cross-ref; review+verify the plan; use the checklist;
+      split into as many steps/stages as needed; report - I'll say go or not.
+
+AGENT (validation + planning; NO code):
+  - Mapped the engine #include dependency graph -> exact build order within the
+    engine (AiObject/Event/ActionBasket/NamedObjectContext first; Value/Action;
+    Trigger/Multiplier/Queue; Strategy; AiObjectContext; Engine).
+  - Found the KEYSTONE: class folders mostly REGISTER named instances of a small
+    CastSpellAction family (Cast/Melee/Aura/Aoe/RangedDebuff/Pet). Build it once
+    (S5) -> classes become registration+triggers, not new C++ per spell.
+  - Scoped shared libs from ACTUAL class usage (top names: low/critical health,
+    enemy out of melee, current/self target, melee, aoe, party low health, etc).
+  - Confirmed registry pattern (NamedObjectFactory->Context->ContextList chaining)
+    and core cast path (bot->CastSpell) + spec/talent APIs (already have TalentMgr).
+  - Wrote Dev/playerbots_docs/06_FAT_PORT_STEPS.txt = 29 ORDERED steps in 4
+    phases: A engine core (S1-3), B shared libs+rewire (S4-6, MILESTONE bot
+    fights via real engine), C classes (S7 DK vertical slice -> S18 incl Monk/DH),
+    D depth+integration (S19-29: pets/group/heal/noncombat/travel/pvp/dungeon/
+    ahbot/dbstore/Phase-A socketless login/hardening).
+  - Synced the checklist's STEP->section map to S1-S29. Consistency verified:
+    985 ref files (8 done/977 todo), 29 steps, 7 planning docs intact.
+  - Reported; awaiting GO to start S1.
+
+--------------------------------------------------------------------------------
+[2026-06-07] -- S1: Engine primitives (Phase A start)
+--------------------------------------------------------------------------------
+USER: Build S1 (primitives: AiObject + relevance constants, Event, ActionBasket,
+      NamedObjectContext). Verify. Tick checklist. Wait for next step.
+
+AGENT: Studied the reference primitives (exact ActionPriority enum lives in
+  Strategy.h; ActionBasket lives in Action.h; relevance tiers ACTION_IDLE..
+  ACTION_PASSTHROUGH). Built clean-room engine primitives under
+  modules/mod-psychobot/src/engine/:
+    - AiObject.h/.cpp  (AiObject + AiNamedObject + ActionPriority +
+      ActionThreatType). Engine reaches bot/master via a tiny bridge
+      (PsychobotAIFwd.h) to avoid a circular dep with PsychobotAI.
+    - Event.h          (source/param/object/owner; header-only).
+    - ActionBasket.h   (queue element: action node+relevance+event+expiry).
+    - NamedObjectContext.h (Qualified, NamedObjectFactory<T>,
+      NamedObjectContext<T> cached, NamedObjectContextList<T> chained).
+  Added PsychobotAIBridge impl in PsychobotAI.cpp.
+  VERIFY: all balanced; unique guards; includes resolve (src/engine added as an
+  include dir by CollectIncludeDirectories recursion); bridge symbols match;
+  all 6 new files MyCode-headered. NOT compile-tested (no toolchain).
+  TICKED 7 reference files (AiObject/Event/ActionBasket .h+.cpp + NamedObjectContext.h)
+  -> 15 done / 970 todo. Awaiting next step (S2).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Phase B - S4 values+triggers / S5 CastSpellAction family +
+  movement/attack (keystone) / S6 generic strategies + rewire PsychobotAI to the
+  real engine -> MILESTONE: bot follows + fights via the real engine. Report +
+  wait."
+AGENT:
+  CAVEAT FLAGGED: S2 and S3 (the engine that S4-S6 depend on) were NOT yet built
+  - only S1 primitives existed. S4-S6 are impossible without Value/Action/Trigger/
+  Strategy/Queue/AiObjectContext/Engine. So I built S2+S3 first (prerequisites),
+  then delivered S4, S5, S6 as asked, reaching the milestone in one pass.
+  S2: Value.h, NextAction.{h,cpp}, Action.{h,cpp}, ActionNode.h (P/A/C macros).
+  S3: Trigger.h, Multiplier.h, Strategy.{h,cpp}, Queue.{h,cpp}, AiObjectContext.h,
+      Engine.{h,cpp} (full DoNextAction relevance loop), ServerFacade.{h,cpp}.
+  S4: values/CoreValues.{h,cpp} (11 values) + triggers/CoreTriggers.{h,cpp} (14).
+  S5: actions/GenericSpellActions.{h,cpp} (7-class CastSpell family, qualifier =
+      spell name) + actions/MovementActions.{h,cpp} (reach/follow/stop/attack).
+  S6: strategies/GenericStrategies.{h,cpp} (follow/melee/ranged/tank/heal) +
+      ai/PsychobotAiFactory.{h,cpp} + ai/PsychobotSpecRoles.{h,cpp};
+      REWROTE ai/PsychobotAI.{h,cpp} onto the real engine (1 context + 3 engines
+      + cast/move bridge); deleted the 7 thin-engine files; re-pointed GroupMgr.
+  VERIFY: braces/parens balanced (35 files); guards unique; includes resolve;
+      bridge declared==defined 10/10; no dangling deleted-header includes; core
+      APIs cross-checked vs Unit.h/Player.h/MotionMaster.h/SpellHistory.h. NOT
+      compile-tested (no toolchain / no client data).
+  HONEST LIMITATION: generic combat = chase + auto-attack only; real per-class
+  spell ROTATIONS arrive S7 (DK first). "Fights via the real engine" today means
+  the engine drives follow/chase/attack end-to-end; spell casting is wired and
+  ready (CastSpell family) but unused until a class strategy registers casts.
+  Checklist 15 -> 53 done. Updated Changelog + README. Awaiting GO for S7 (DK).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Start PHASE C: CLASSES (DK first). S7 Death Knight full
+  vertical slice ... >>> MILESTONE: DK bot plays a real 8.3 rotation. <<< Verify
+  everything, report, wait." (S8-S18 listed for context.)
+AGENT: Did S7 ONLY (one step per the plan), then verified + reported.
+  Researched BfA 8.3 DK abilities (Frost: Howling Blast/Obliterate/Frost Strike/
+  Rime/Killing Machine/Pillar of Frost; Unholy: Outbreak/Festering/Scourge/Death
+  Coil/Sudden Doom/Apocalypse; Blood: Marrowrend/Heart Strike/Death Strike/Blood
+  Boil/Bone Shield). Built classes/deathknight/ (DKTriggers, DKStrategies,
+  DKAiObjectContext) - all rotations are trigger-wiring + cast::<name> nodes on
+  the S5 keystone, referenced by NAME so they're DB2-agnostic. Added "cast self"
+  to the family for summons/CDs; made aura/spell-ready qualifiers name-capable.
+  Wired DK into AiFactory (context + spec strategy + non-combat upkeep).
+  VERIFY: all balanced; guards unique; includes resolve; overrides defined;
+  rotation traced end-to-end through the engine (dedup OK, priorities correct).
+  NOT compile-tested. Checklist 53 -> 73 done. Awaiting GO for S8 (Warrior).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "GO on S8 - Warrior (Arms/Fury/Protection + stances)."
+AGENT: Built classes/warrior/ mirroring DK. Researched BfA 8.3 Warrior rotations.
+  WarriorTriggers (rage thresholds, Execute window, sudden death/overpower procs,
+  enrage/stance/shield-block auras). WarriorStrategies: arms (Mortal Strike/
+  Overpower/Execute/Colossus Smash/Whirlwind), fury (Rampage/Bloodthirst/Raging
+  Blow/Recklessness), protection (Shield Slam/Revenge/Shield Block/Ignore Pain/
+  Thunder Clap), + Charge gap-closer + defensive CD + stance upkeep. Wired into
+  AiFactory (CLASS_WARRIOR). All casts via the keystone, by NAME.
+  VERIFY: whole-module balanced; guards unique; includes resolve; overrides
+  defined; rotation traced (Arms Execute window wins). NOT compile-tested.
+  Checklist 73 -> 89. Awaiting GO for S9 (Paladin).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "1. S9 Paladin (Holy/Prot/Ret + blessings/auras). 2. Verify
+  everything. 3. Make remember_prompt.txt for chat-loss recovery. 4. Report+wait."
+AGENT: Built classes/paladin/ (first HEALER). Added keystone CastHealSpellAction
+  ("cast heal") that targets the 'party member to heal' value. Holy heals via
+  Holy Shock/Word of Glory/Flash of Light at ACTION_*_HEAL tiers; Prot tank
+  (Avenger's Shield/Consecration/SotR); Ret dps (CS/Judgment/BoJ -> Templar's
+  Verdict/Divine Storm); generic Hammer of Wrath execute + Lay on Hands save;
+  NC Devotion Aura + Blessing of Kings. Wired into AiFactory (CLASS_PALADIN).
+  VERIFIED EVERYTHING: whole-module balanced; includes resolve; guards unique;
+  bridge decl==def; all overrides defined; heal rotation traced. NOT compile-
+  tested. Wrote Dev/remember_prompt.txt. Checklist 89 -> 99. Awaiting GO for S10
+  (Hunter).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "1. Verify S9. 2. Research S10 on wowhead.com. 3. GO on S10
+  Hunter (BM/MM/Survival + pet mgmt). 4. Verify + report."
+AGENT: (1) Re-verified S9 Paladin - balanced, wired 3x, spec names match, all
+  referenced triggers (incl. core) exist. (2) Researched Hunter on wowhead
+  (BfA changes pages + Method/guides). (3) Built classes/hunter/. Added pet seam
+  to ServerFacade (GetPet/HasLivingPet/GetPetHealthPct). BM (ranged,pet): KC/
+  Barbed/Cobra + Bestial Wrath + Multi-Shot; MM (ranged): Aimed/Arcane/Steady +
+  Serpent Sting + Rapid Fire/Trueshot; Survival (MELEE,pet): KC/Raptor/Wildfire
+  Bomb + Serpent Sting + Carve. Pet upkeep (Call/Revive/Mend) at relevance 25 so
+  a dead pet is fixed before dpsing. Wired into AiFactory (CLASS_HUNTER).
+  (4) VERIFIED: whole-module balanced (77 files); includes resolve (Pet.h);
+  guards unique; bridge decl==def; spec names match; rotation traced (no pet ->
+  Revive Pet wins). NOT compile-tested. Checklist 99 -> 113. Awaiting GO for S11
+  (Rogue).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S10, research S11, do S11 Rogue (Assassination/Outlaw/
+  Subtlety + stealth/combo points/energy). Verify, report, wait."
+AGENT: (verify S10 OK) Researched Rogue on wowhead/Ravenholdt BfA. Built
+  classes/rogue/. Combo points read as RAW count (POWER_COMBO_POINTS=4) so
+  finishers gate on "combo points full" (>=5) at rel 15 above builders (11).
+  Assassination (Mutilate->Envenom + Garrote/Rupture/Vendetta/FoK), Outlaw
+  (Sinister Strike->Dispatch + RtB/SnD/Adrenaline Rush/Blade Flurry), Subtlety
+  (Backstab/Shadowstrike->Eviscerate + Nightblade/Symbols/Shadow Dance/Shuriken
+  Storm). Generic: Crimson Vial/Kick/Cheap Shot opener. NC: Stealth upkeep.
+  Wired into AiFactory (CLASS_ROGUE). VERIFIED: whole-module balanced (83 files);
+  includes resolve; guards unique; bridge decl==def; spec names match; finisher
+  rotation traced. NOT compile-tested. Checklist 113 -> 127. Awaiting GO for S12
+  (Priest).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S11, research S12, do S12 Priest (Disc/Holy heal,
+  Shadow dps), verify S12, report, wait."
+AGENT: (verify S11 OK) Researched Priest on wowhead/icy-veins. Built
+  classes/priest/. Disc=atonement (PWS apply + Penance + Smite/SWP damage),
+  Holy=direct heals (Serenity/Flash Heal/Heal/Guardian Spirit), Shadow=DoTs +
+  Mind Blast/Flay + Void Eruption/Devouring Plague (Insanity) + Shadowfiend.
+  Generic: PWS ally / Desperate Prayer / SW:Death execute. NC: Shadowform +
+  Fortitude. Wired into AiFactory (CLASS_PRIEST). CAUGHT + FIXED a missing
+  "target low health" trigger in the Priest context; added a robust whole-module
+  trigger-resolution check (all 6 classes pass). VERIFIED: balanced (89 files);
+  includes resolve; guards unique; bridge decl==def; spec names map. NOT
+  compile-tested. Checklist 127 -> 141. Awaiting GO for S13 (Shaman).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S12, research S13, do S13 Shaman (Ele/Enh dps, Resto
+  heal + totems/imbues), verify S13, report, wait."
+AGENT: (verify S12 OK; robust trigger check all classes pass) Researched Shaman
+  on wowhead/maxroll. Built classes/shaman/. Elemental (Flame Shock/Lava Burst/
+  Earth Shock@maelstrom/Lightning Bolt/Fire Elemental/Chain Lightning), Enhance
+  (Stormstrike/Lava Lash/instant LB@Maelstrom Weapon/Flame Shock/Feral Spirit/
+  Crash Lightning), Resto (Riptide/Healing Surge/Wave/Chain Heal). Generic: Wind
+  Shear interrupt + Healing Surge. NC: Windfury+Flametongue imbues + Lightning
+  Shield. Wired into AiFactory (CLASS_SHAMAN). VERIFIED: balanced (95 files);
+  includes resolve; guards unique; bridge decl==def; all 7 classes' trigger refs
+  resolve; Ele rotation traced. NOT compile-tested. Checklist 141 -> 155.
+  Awaiting GO for S14 (Mage).
+
+--------------------------------------------------------------------------------
+[2026-06-08] USER: "Verify S13, research S14, do S14 Mage (Arcane/Fire/Frost dps
+  + conjure/polymorph), verify S14, report, wait."
+AGENT: (verify S13 OK; all-class trigger check passes) Researched Mage on wowhead
+  BfA changes + icy-veins. Built classes/mage/. Arcane (Arcane Blast->Missiles on
+  Clearcasting->Barrage dump), Fire (Fireball/Pyroblast on Hot Streak/Fire Blast/
+  Scorch/Combustion), Frost (Frostbolt/Flurry on Brain Freeze/Ice Lance on
+  Fingers of Frost/Frozen Orb/Icy Veins). Generic: Counterspell/Ice Block/Frost
+  Nova. NC: Arcane Intellect + Conjure Refreshment. Wired into AiFactory
+  (CLASS_MAGE). VERIFIED: balanced (101 files); includes resolve; guards unique;
+  bridge decl==def; all 8 classes' trigger refs resolve; Fire rotation traced.
+  NOT compile-tested. Checklist 155 -> 169. Awaiting GO for S15 (Warlock).

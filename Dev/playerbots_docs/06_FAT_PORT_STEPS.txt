@@ -1,0 +1,134 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ FAT PORT - DETAILED STEP-BY-STEP PLAN  (validated build order)
+================================================================================
+ Source of truth for files: Dev/Mod-Psychobots-Checklist.txt (985 entries).
+ Architecture: Dev/Mod-Psychobots-Ref.txt.  This file = the ORDERED steps.
+ Each step: build -> static-verify (header/impl parity, includes, brace balance,
+ core-API cross-ref) -> tick the checklist -> update Dev docs -> report.
+ Real compile = your desktop + 8.3.7 client data; I fix errors as they surface.
+================================================================================
+
+
+VALIDATION DONE THIS PASS (why the order below is correct)
+--------------------------------------------------------------------------------
+ - Engine #include graph mapped: AiObject/Event/ActionBasket/NamedObjectContext
+   have no internal deps -> build first. Then Value+Action (mutually ref, fwd-
+   decl), then Trigger/Multiplier/Queue, then Strategy, then AiObjectContext,
+   then Engine. (See 06 header / Ref sec.1-3.)
+ - KEYSTONE confirmed: class folders mostly REGISTER named instances of a small
+   CastSpellAction FAMILY (Cast / CastMelee / CastAura / CastMeleeAoe /
+   CastRangedDebuff / CastPet...). Build that family once (Step S5) and classes
+   become registration + trigger wiring, not new C++ per spell.
+ - Shared vocabulary the classes need (top names): low/critical health, enemy
+   out of melee, current/self target, melee, aoe, party member low health, has
+   aura/buff, spell ready, no pet, stances/forms. -> S4 (values/triggers) scoped.
+ - Registry pattern confirmed: NamedObjectFactory<T> (creators map) ->
+   NamedObjectContext<T> (cached) -> NamedObjectContextList<T> (chained) so a
+   class context ADDS to base. Clean to clean-room.
+ - Core cross-ref: bot->CastSpell(Unit*,spellId,bool) is our cast path; spec via
+   sChrSpecializationStore; talents via TalentMgr (already built). All present.
+
+
+================================ THE STEPS ====================================
+
+----- PHASE A: ENGINE CORE (replaces the thin engine) -----
+ S1  Engine primitives (no deps): AiObject.h (+ relevance constants ACTION_IDLE..
+     ACTION_EMERGENCY/INTERRUPT/DISPEL/HEAL tiers, ActionThreatType), Event.h,
+     ActionBasket.{h,cpp}, NamedObjectContext.h (NamedObjectFactory/Context/
+     List + Qualified). Verify.  [checklist: strategy/ subset]
+ S2  Value<T> + Action + NextAction + ActionNode: Value.h (Calculated/Memory),
+     Action.{h,cpp}, NextAction.{h,cpp}, ActionNode.{h,cpp} (+ ACTION_NODE_P/A/C
+     macros). Verify.
+ S3  Trigger + Multiplier + Strategy + Queue + AiObjectContext + Engine:
+     Trigger.{h,cpp}, TriggerNode, Multiplier.{h,cpp}/PassiveMultiplier,
+     Strategy.{h,cpp}, Queue.{h,cpp}, AiObjectContext.{h,cpp}, Engine.{h,cpp}
+     (DoNextAction tick: ProcessTriggers->Queue->multipliers->execute P/A/C).
+     ServerFacade.{h,cpp} (TC-8.3 seam, expanded). Verify. ENGINE TICKS EMPTY.
+
+----- PHASE B: SHARED LIBRARIES (only what classes need first) -----
+ S4  Core VALUES + TRIGGERS: target values (current/self/nearest/attacker/CC/
+     assist/rti), resource values (hp/mana/rage/energy/runic/chi/fury/holy power/
+     soul shards/combo points), aura/has-buff values, distance/range, group/party
+     values; triggers (low/critical health, enemy in/out of melee, no aura, spell
+     ready, target casting=interrupt, dispellable, party member low health,
+     needs buff, no pet). Verify.  [checklist: values/ + triggers/ subset]
+ S5  CORE ACTIONS (the keystone): CastSpellAction family (Cast/CastMelee/
+     CastAura/CastMeleeAoe/CastRangedDebuff/CastPet/CastBuff), movement
+     (MoveTo/Chase/Flee/Follow/ReachTarget/Stop), AttackAction, MeleeAction,
+     use-item/potion, FollowMaster, Rest/Eat-Drink, Mount, RTI/assist. Verify.
+     [checklist: actions/ subset]
+ S6  GENERIC STRATEGIES + REWIRE: generic combat/non-combat strategies (melee,
+     ranged, dps, tank, heal-assist, follow, stay, pull, dead/rez, flee, threat,
+     default-actions). Rewire PsychobotAI to own an AiObjectContext + per-state
+     Engines and feed strategies; delete thin ClassAI/ClassRegistry/Strategies.
+     Managers (Mgr/Population/Group/Gear/Talent) call into the new AI. Verify.
+     >>> MILESTONE: a bot follows + auto-attacks + casts via the REAL engine. <<<
+
+----- PHASE C: CLASSES (one step each; DK first) -----
+ S7  DEATH KNIGHT (full vertical slice): DKAiObjectContext, DKActions, DKTriggers,
+     DKMultipliers, DK base Strategy + Blood/Frost/Unholy spec strategies
+     (ActionNodeFactory + InitCombatTriggers, 8.3 rotations: procs/runes/runic
+     power/diseases/CDs/AoE) + ghoul/pet. Register in AiFactory. Verify.
+     >>> MILESTONE: DK bot plays a real 8.3 rotation end-to-end. <<<
+ S8  WARRIOR (Arms/Fury/Protection + stances).
+ S9  PALADIN (Holy/Protection/Retribution + blessings/auras).
+ S10 HUNTER (BM/MM/Survival + pet management).
+ S11 ROGUE (Assassination/Outlaw/Subtlety + stealth/combo points/energy).
+ S12 PRIEST (Discipline/Holy/Shadow + heal logic).
+ S13 SHAMAN (Elemental/Enhancement/Restoration + totems/weapon imbues).
+ S14 MAGE (Arcane/Fire/Frost + conjure/polymorph).
+ S15 WARLOCK (Affliction/Demonology/Destruction + pet/soul shards/DoTs).
+ S16 DRUID (Balance/Feral/Guardian/Restoration + forms; 4 specs).
+ S17 MONK (NEW): Brewmaster/Mistweaver/Windwalker (Chi/Energy/Stagger). Author
+     from warrior+healer pattern; verify spells in core/DB2.
+ S18 DEMON HUNTER (NEW): Havoc/Vengeance (Fury/Pain/soul fragments/Metamorphosis).
+     >>> MILESTONE: all 12 classes play their specs. <<<
+
+----- PHASE D: DEPTH + INTEGRATION -----
+ S19 PET system depth (hunter/warlock/DK ghoul/mage water elemental) + pet
+     actions/values/strategies.
+ S20 GROUP/RAID coordination: RTI, main-assist/main-tank, focus, follow
+     formations, ready checks; wire to GroupMgr.
+ S21 HEALING depth: smart heal target selection, dispels/cures, mana mgmt,
+     emergency CDs, tank priority.
+ S22 NON-COMBAT world: rest/eat/drink (real items), buffs upkeep, mount, vendor/
+     repair/sell, loot, quest accept/turn-in (basic), gather.
+ S23 TRAVEL: TravelMgr/TravelNode/WorldPosition (start minimal: local nav +
+     follow; expand node graph for 8.3 maps later).
+ S24 PvP / BATTLEGROUNDS: BattleGroundTactics per BG + arena; OutdoorPvP.
+ S25 DUNGEON/RAID scripted strategies: boss-mechanic awareness (framework +
+     a few key encounters).
+ S26 AHBOT (ahbot/ 14 files): auction posting/buying for 8.3 item data.
+ S27 PERSISTENCE + COMMANDS: PlayerbotDbStore (saved strategies), ChatFilter/
+     ChatHelper command grammar (follow/attack/cast/links), help text.
+ S28 PHASE A CORE EDITS (socketless bot login) - unlocks offline-alt +
+     open-world population spawning (RandomPlayerbotMgr top-up).
+ S29 HARDENING + FINAL AUDIT: perf/memory throttles, null-safety, BotTests
+     (subset), full checklist reconciliation, end-to-end review.
+
+----- ONGOING (every step) -----
+ - Tick the corresponding lines in Mod-Psychobots-Checklist.txt with "=> our file".
+ - Update Dev/Chatlog.txt + Changelog.txt + Psycho_CoreREADME.txt.
+ - Static verify; flag anything needing the client DB2 (spell IDs/procs/items).
+
+
+NOTES / RISKS (honest)
+--------------------------------------------------------------------------------
+ - Steps S7-S18 are the bulk (~6k-10k LOC each). They go fast AFTER S5 keystone.
+ - Spell NAMES from research; exact name->id + proc/resource tuning verified only
+   with 8.3.7 client DB2. Engine self-adapts (unknown name = skipped, no crash).
+ - Phase A (S28) is the one core-edit milestone; everything before it runs on
+   master-owned online alts.
+ - I cannot compile here; the first desktop build is the truth check per step.
+ - Licensing: clean-room re-impl of GPL-2.0 reference; per-file licensing care.
+
+================================================================================
+ END - 29 ordered steps across 4 phases. Awaiting GO to start S1.
+================================================================================

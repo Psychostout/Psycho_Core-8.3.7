@@ -1,0 +1,127 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ FAT PORT PLAN - full reference-grade mod-psychobot for Psycho_Core 8.3
+================================================================================
+ Decision (from Mod-Psychobots-Ref.txt section 9):
+   REPLACE the thin engine with a faithful clean-room re-implementation of the
+   reference engine+registry, then build shared libraries + 12 class folders.
+   KEEP the module packaging + managers we already built & verified.
+ Licensing: the reference is GPL-2.0. A clean-room re-implementation that we
+   author (engine ideas are not copyrightable; we write fresh code against TC 8.3)
+   stays our work; where structure closely tracks GPL source we keep GPL-2.0
+   notices. (Per earlier steps: build glue = no MyCode; original logic = MyCode.)
+   We will mark the bot engine/class tree's licensing carefully per file.
+================================================================================
+
+
+KEEP (already built + verified - they sit ABOVE the engine)
+--------------------------------------------------------------------------------
+ - modules/mod-psychobot packaging: loader, WorldScript tick, PlayerScript,
+   CommandScript (.psychobot add/remove/list/spec/group), conf, cmake, README.
+ - PsychobotMgr (registry of active bots, tick fan-out, commands).
+ - PsychobotPopulationMgr (BotActiveAlone/SmartScale/DisabledWithoutRealPlayer).
+ - PsychobotGroupMgr (party/roles/assist/heal-target).
+ - PsychobotGearMgr (gear logic framework).
+ - PsychobotAhBot (scaffold).
+ - ai/PsychobotTalentMgr (generic BfA spec+talent application).
+ These will call into the NEW engine (PsychobotAI gets a real AiObjectContext +
+ engines instead of the thin ClassAI).
+
+REPLACE (the thin engine + thin rotations)
+--------------------------------------------------------------------------------
+ - ai/PsychobotEngine.{h,cpp}        -> new fat Engine + Queue + ActionBasket.
+ - ai/PsychobotClassAI.{h,cpp}       -> removed (engine drives class strategies).
+ - ai/PsychobotClassRegistry.cpp     -> removed (per-class folders replace it).
+ - ai/PsychobotStrategies.{h,cpp}    -> folded into generic/ strategies.
+ - ai/PsychobotAI.{h,cpp}            -> rebuilt around the new engine + context.
+
+
+NEW ENGINE LAYER (clean-room, TC 8.3) - the prerequisite for everything
+--------------------------------------------------------------------------------
+ src/engine/
+   AiObject.h            base (ai*, bot, master) + relevance constants + threat.
+   Action.{h,cpp}        Execute/isUseful/isPossible/P-A-C accessors.
+   NextAction.{h,cpp}    {name,relevance} + array() builder.
+   ActionNode.{h,cpp}    name + P/A/C arrays + ACTION_NODE_* macros.
+   Value.h               Value<T>/CalculatedValue/MemoryCalculatedValue.
+   Trigger.{h,cpp}       IsActive + handlers; TriggerNode.
+   Multiplier.{h,cpp}    relevance scaling.
+   Strategy.{h,cpp}      named; InitTriggers/InitMultipliers/GetDefaultActions.
+   Queue.{h,cpp} + ActionBasket.{h,cpp}  relevance priority queue.
+   NamedObjectContext.h  string->factory registry (+ Qualified parsing).
+   AiObjectContext.{h,cpp}  composes Strategy/Action/Trigger/Value contexts.
+   Engine.{h,cpp}        DoNextAction tick (ProcessTriggers->Queue->execute).
+   ServerFacade.{h,cpp}  TC-8.3 core-API seam (expand our existing seam).
+
+
+SHARED LIBRARIES (clean-room, only what class strategies need first)
+--------------------------------------------------------------------------------
+ src/values/   targets (nearest/attacker/CC/rti/assist), resources (hp/mana/
+   rage/energy/runic/chi/fury), aura checks, distance, range, group, threat.
+ src/triggers/ low health/mana, enemy in/out of melee, no aura, spell ready,
+   target casting (interrupt), dispellable, has/needs buff.
+ src/actions/  CastSpellAction (name->known spell via ServerFacade, BfA no-rank),
+   melee, MoveTo/Chase/Flee/Follow/Reach, use item/potion, mount, loot, rti,
+   stop/idle, follow master, attack, flee, etc.
+ src/generic/  combat/non-combat shared strategies (follow, stay, dps, tank,
+   heal-assist, ranged, melee, pull, dead/rez, threat).
+
+
+CLASS FOLDERS (the bulk - one milestone each)
+--------------------------------------------------------------------------------
+ src/classes/<class>/  per class:
+   <Class>AiObjectContext, <Class>Actions, <Class>Triggers, <Class>Multipliers,
+   <Class>Strategy (shared) + per-SPEC strategies (ActionNodeFactory +
+   InitCombatTriggers), reaction/noncombat/aoe as needed. 8.3 spell NAMES.
+ Order: Death Knight (vertical slice) -> Warrior -> Paladin -> Hunter -> Rogue
+   -> Priest -> Shaman -> Mage -> Warlock -> Druid -> Monk(new) -> DemonHunter(new).
+
+
+MILESTONES (each = a self-contained, verifiable chunk)
+--------------------------------------------------------------------------------
+ M1  ENGINE CORE: AiObject/Action/NextAction/ActionNode/Value/Trigger/Multiplier/
+     Strategy/Queue/ActionBasket/NamedObjectContext/AiObjectContext/Engine +
+     expanded ServerFacade. (No behaviour yet; compiles, ticks empty.)
+ M2  SHARED LIBS (minimum): core values/triggers/actions + generic combat/
+     noncombat strategies (follow/attack/melee/cast/flee/rest). Rewire PsychobotAI
+     to use AiObjectContext + engines. A bot follows + auto-attacks via the engine.
+ M3  DEATH KNIGHT (full): DK context + actions/triggers/multipliers + Blood/Frost/
+     Unholy strategies w/ real 8.3 rotations (procs/resources/CDs/AoE) + ghoul.
+     VERTICAL SLICE proven end-to-end.
+ M4-M13 remaining classes one per milestone (Warrior...DemonHunter), reusing the
+     DK pattern; add Monk/DH net-new.
+ M14 INTEGRATION: managers (population/group/gear/talent) wired to the new engine;
+     PvP/BG + dungeon strategies; travel (minimal); ahbot; DbStore for saved
+     strategies; hardening + Perf/Memory throttles.
+
+ Each milestone: implement -> static verify (header/impl parity, includes, brace
+ balance, API cross-ref) -> update Dev docs. Compile-verify happens once you have
+ the toolchain + 8.3.7 client data (needed for spell-name->id + mmaps).
+
+
+SCALE / EXPECTATIONS (honest)
+--------------------------------------------------------------------------------
+ - This is ~150k LOC of clean-room work; it is the bulk of the project and will
+   span MANY steps (engine + ~12 class milestones + integration).
+ - Spell NAMES come from research (Wowhead etc.); exact resolution to IDs +
+   procs is confirmed only with the 8.3.7 client DB2. We author against names so
+   the engine self-adapts; tuning is iterative.
+ - I cannot compile here; each milestone is statically verified. The first real
+   build (your desktop + client data) is the truth check; I fix errors as they
+   surface.
+
+
+RECOMMENDED START
+--------------------------------------------------------------------------------
+ Begin with M1 (engine core) - nothing else can be built without it. Then M2
+ (shared libs + rewire), then M3 (DK vertical slice). Report after each.
+
+================================================================================
+ END
+================================================================================

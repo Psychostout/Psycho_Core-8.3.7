@@ -1,0 +1,218 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ Mod-Psychobots-Ref.txt - REFERENCE STUDY NOTES (cmangos/playerbots)
+================================================================================
+ Source : /home/user/playerbots  (cmangos/playerbots, GPL-2.0, ~238k LOC, 971 files)
+ Purpose: full understanding of the reference so we can do a FAT clean-room
+          re-implementation for Psycho_Core (TrinityCore BfA 8.3).
+ Date   : 2026-06-07
+================================================================================
+
+
+0. THE BIG PICTURE (why our 23 files != their 971)
+--------------------------------------------------------------------------------
+ The reference is a behaviour-tree-ish AI with a TRIGGER -> QUEUE -> ACTION engine
+ plus huge shared libraries and per-class strategy folders:
+   strategy/actions   301 files / 61.7k LOC  (every concrete behaviour)
+   strategy/values    197 files / 21.4k LOC  (cached facts the AI reads)
+   strategy/triggers   48 files /  7.8k LOC  (conditions that fire actions)
+   strategy/generic   113 files /  7.8k LOC  (shared strategies)
+   strategy/<class>   ~16-20 files each, 6k-10.6k LOC each (per spec)
+   + Bot/, Mgr/, Db/, ahbot/ ... (managers, factory, travel, etc.)
+ Our current mod-psychobot (Stages 1-4) = a THIN data-driven shortcut (~2.4k LOC,
+ one rotation table). It does NOT host the reference engine. To match the
+ reference we must reimplement the engine + libraries + class folders.
+
+
+1. THE ENGINE (strategy/Engine.{h,cpp}) - HOW A TICK FLOWS
+--------------------------------------------------------------------------------
+ Engine::DoNextAction(unit, depth, minimal, isStunned):
+   1. aiObjectContext->Update()        // refresh cached values for this tick
+   2. ProcessTriggers(minimal)         // for each active strategy's TriggerNodes,
+                                        // if the named Trigger IsActive(), push its
+                                        // NextAction[] handlers into the Queue with
+                                        // a relevance.
+   3. PushDefaultActions()             // strategy default actions (e.g. "melee")
+   4. loop (iterationsPerTick):
+        basket = queue.Peek()/Pop()    // highest relevance first (Queue is sorted)
+        action = InitializeAction(actionNode)  // resolve P/A/C ActionNode -> Action
+        if action->isUseful():
+            relevance *= each Multiplier->GetValue(action)   // CC/LOS/etc scaling
+            if action->isPossible() && action->Execute(event):
+                actionExecuted = true; break
+            else push prerequisites/alternatives/continuers
+ Key members: Queue queue; list<Multiplier*> multipliers; AiObjectContext*
+   aiObjectContext; map<string,Strategy*> strategies.
+
+ ENGINES PER BOT: PlayerbotAI holds several engines keyed by BotState
+   (combat / non-combat / dead/react). Strategies are added per engine.
+
+
+2. CORE PRIMITIVES (strategy/)
+--------------------------------------------------------------------------------
+ AiObject (AiObject.h)  : base for everything; holds PlayerbotAI*, bot, master.
+ AiNamedObject          : AiObject + a name.
+ Action (Action.{h,cpp}): virtual bool Execute(Event&); isPossible(); isUseful();
+                          getPrerequisites()/getAlternatives()/getContinuers()
+                          (return NextAction** = P/A/C chains); getThreatType();
+                          GetTarget()/GetTargetValue(); relevance.
+ NextAction             : {name, relevance}. NextAction::array(0, new NextAction(
+                          "spell", REL), ..., NULL) builds a null-terminated array.
+ ActionNode (AiObject.h): wraps an action name + its P/A/C NextAction arrays.
+   Macros: ACTION_NODE_A(name,spell,alt) -> action w/ ALTERNATIVE,
+           ACTION_NODE_P(name,spell,pre) -> action w/ PREREQUISITE,
+           ACTION_NODE_C(name,spell,con) -> action w/ CONTINUER.
+ ActionBasket / ActionBasketComparator / Queue : the relevance-priority queue.
+ Trigger (Trigger.{h,cpp}): virtual bool IsActive(); getHandlers() (NextAction**).
+ TriggerNode            : {trigger name, handlers NextAction**}. A Strategy lists
+                          these in InitTriggers/InitCombatTriggers.
+ Value<T> (Value.h)     : virtual T Get(). Subclasses:
+   CalculatedValue<T>   : Calculate() once per tick, cached.
+   MemoryCalculatedValue<T>: caches + tracks change.
+   (Values = "nearest enemy", "health", "has aura", "spell ready", "rti target"...)
+ Multiplier (Multiplier.{h,cpp}) + PassiveMultiplier: scale an action's relevance
+   (e.g. 0 when stunned/LOS/out-of-range -> effectively disables it).
+ Strategy (Strategy.{h,cpp}): named; InitTriggers(list<TriggerNode*>&),
+   InitMultipliers(...), GetDefaultActions(); a StrategyType (combat/nc/etc).
+ RELEVANCE CONSTANTS (AiObject.h): ACTION_IDLE, ACTION_MOVE, ACTION_NORMAL,
+   ACTION_HIGH, ACTION_EMERGENCY, ACTION_INTERRUPT, ACTION_DISPEL,
+   ACTION_LIGHT/MEDIUM/CRITICAL_HEAL, ACTION_PASSTROUGH, ACTION_R/_U (+ offsets).
+ THREAT: ActionThreatType NONE/SINGLE/AOE (for tank threat logic).
+
+
+3. THE REGISTRY (NamedObjectContext + AiObjectContext)
+--------------------------------------------------------------------------------
+ NamedObjectContext<T> (NamedObjectContext.h): string -> factory creator map;
+   creates+caches named objects on demand; supports "qualified" names (e.g.
+   "spell:1234", "rti target"). class Qualified parses qualifiers.
+ AiObjectContext (AiObjectContext.h) composes, per object kind, several
+   NamedObjectContext sub-contexts (StrategyContext, ActionContext,
+   TriggerContext, ValueContext, SharedValueContext). GetValue<T>(name),
+   GetAction(name), GetTrigger(name), GetStrategy(name) resolve by string.
+ Per-CLASS context (e.g. WarriorAiObjectContext) EXTENDS AiObjectContext and
+   adds that class's strategy/action/trigger/value factories.
+ AiFactory::createAiObjectContext(player) switches on getClass() -> new
+   <Class>AiObjectContext. (This is where Monk/DH get added.)
+
+
+4. PER-CLASS STRUCTURE (the bulk - ~16-20 files each)
+--------------------------------------------------------------------------------
+ Example warrior/ files:
+   WarriorAiObjectContext.{h,cpp}  - registers everything for the class.
+   WarriorActions.{h,cpp}          - class spell-cast actions (CastChargeAction...)
+   WarriorTriggers.{h,cpp}         - class conditions (OverpowerTrigger...)
+   WarriorMultipliers.{h,cpp}      - class relevance multipliers (stance/rage).
+   WarriorStrategy.{h,cpp}         - shared base (buffs, common combat triggers).
+   ArmsWarriorStrategy / FuryWarriorStrategy / ProtectionWarriorStrategy .{h,cpp}
+                                   - per-SPEC ActionNodeFactory + InitCombatTriggers
+   (often) <Class>ReactionStrategy, NonCombatStrategy, AoeStrategy, etc.
+ A spec strategy (e.g. ArmsWarriorStrategy.cpp):
+   - ActionNodeFactory: maps "charge"->ACTION_NODE_A(charge,"charge","reach melee")
+   - InitCombatTriggers: pushes TriggerNode("target critical health",
+       NextAction::array(0,new NextAction("execute",ACTION_HIGH+2),NULL)) etc.
+   - #ifdef MANGOSBOT_ZERO/ONE/TWO blocks = per-expansion spell sets.
+ => Each spec = a TRIGGER->ACTION mapping + an ActionNode P/A/C graph, expressed
+    in spell NAMES. The shared CastSpellAction/values resolve names -> spells.
+
+
+5. SHARED LIBRARIES
+--------------------------------------------------------------------------------
+ strategy/actions (301): movement (MoveTo/Chase/Flee/Follow), combat
+   (CastSpellAction, CastMeleeSpell, ReachTarget), loot, quest (Accept/Complete),
+   pull, use item, mount, rti, gossip, trade, equip, BG tactics, etc.
+ strategy/values (197): nearest/attacker/CC targets, health/mana/rage/energy,
+   aura checks, distance, threat, group, rti, possible targets, etc.
+ strategy/triggers (48): low health/mana, enemy in/out of melee, no aura,
+   spell ready, target casting (interrupt), dispellable, etc.
+ strategy/generic (113): combat/non-combat shared strategies, follow, stay,
+   guard, dead, pull, threat, tank assist, ranged/melee, etc.
+
+
+6. MANAGERS / SUPPORT (outside strategy/)
+--------------------------------------------------------------------------------
+ Bot brain & lifecycle:
+   PlayerbotAI.{h,cpp} (8661 LOC) - per-bot brain; UpdateAI->Reaction->Internal;
+     CastSpell(name/id) (resolves rank+known), spell map, packet handling.
+   PlayerbotAIBase, PlayerbotAIAware, PlayerbotAIConfig (57k LOC of config keys).
+   PlayerbotMgr (per-master) + PlayerbotHolder; RandomPlayerbotMgr (4685 LOC,
+     world population); PlayerbotLoginMgr (bot login, no client); PlayerbotFactory
+     (5707 LOC - create/gear/talent a bot); RandomItemMgr/RandomPlayerbotFactory.
+   PlayerbotSecurity, PlayerbotDbStore (per-bot saved strategies), PlayerbotTextMgr
+     (i18n), PlayerbotCommandServer, PlayerbotHelpMgr, PlayerbotLLMInterface.
+ World/util:
+   ServerFacade (core-API seam, #ifdef MANGOS/CMANGOS), ChatHelper (name<->id),
+   ChatFilter, TravelMgr/TravelNode/WorldPosition/GuidPosition (navigation graph),
+   FleeManager, LootObjectStack, Helpers, Perf/MemoryMonitor.
+ ahbot/ : auction house bot.
+ sql/   : characters/world/other split by expansion (classic/tbc/wotlk).
+
+
+7. EXPANSION SWITCHING (how they retarget cores/expansions)
+--------------------------------------------------------------------------------
+ #ifdef MANGOS / CMANGOS (core family) + MANGOSBOT_ZERO/ONE/TWO
+   (Classic/TBC/WotLK) set in CMakeLists by CMAKE_PROJECT_NAME.
+ EVERY core-specific call and per-expansion spell list is wrapped in these.
+ => For us we add a TRINITY/BfA (8.3) branch everywhere + author the 8.3 spell
+    sets in the class strategies (this is the per-class authoring work).
+
+
+8. DEPENDENCY SURFACE (scale of the authoring job)
+--------------------------------------------------------------------------------
+ ~3,137 distinct quoted action/value/trigger NAMES referenced across class files.
+ To run the class strategies we must implement (clean-room, for 8.3):
+   - the engine (section 1-2),
+   - the registry (section 3),
+   - enough of the shared actions/values/triggers libraries (section 5) that the
+     class strategies reference,
+   - the 12 class folders (section 4), with 8.3 spell names.
+ This is the ~150k-LOC body of work, done class-by-class on top of a shared core.
+
+
+9. DECISION: EXTEND vs RESTART  (answering the user's Q2)
+--------------------------------------------------------------------------------
+ Our Stage-1 engine is too thin to host the reference class strategies (no Queue/
+ ActionBasket, no ActionNode P/A/C, no Multipliers, no Value-context, no
+ NamedObjectContext registry). Bolting those on = effectively replacing it.
+ => DECISION: REBUILD the AI engine + registry as a faithful clean-room
+    re-implementation of the reference (sections 1-3), then build the shared
+    libraries (5) and class folders (4). KEEP from our current work:
+      - the module packaging (modules/mod-psychobot, loader, WorldScript tick,
+        commands) - Stage 1 plumbing is reusable.
+      - PsychobotMgr / PsychobotPopulationMgr (Stage 3 scaling) / GroupMgr (Stage
+        4) / GearMgr / AhBot - these are managers that sit ABOVE the engine and
+        mostly survive; they'll call into the new engine instead of the thin one.
+      - the BfA TalentMgr (generic talent application) - reusable as-is.
+    REPLACE:
+      - PsychobotEngine.{h,cpp}, PsychobotClassAI.{h,cpp}, PsychobotClassRegistry.cpp,
+        PsychobotStrategies.{h,cpp}  (the thin engine + thin rotations) -> the
+        new fat engine + per-class folders.
+ So: NOT a full restart - a CORE-ENGINE REPLACEMENT inside the existing module,
+ keeping the managers/packaging we already verified.
+
+
+10. WHAT I MIGHT HAVE MISSED (extra things the reference has)
+--------------------------------------------------------------------------------
+ - PlayerbotDbStore: persists each bot's chosen strategies in DB (so a bot keeps
+   its build across restarts).
+ - ChatFilter / ChatHelper: master commands like "follow", "attack", item/spell
+   links parsing - a whole command grammar.
+ - TravelMgr/TravelNode: a world navigation GRAPH (huge data) for long-distance
+   travel/quest pathing - needed for real questing.
+ - RTI (raid target icons) + focus/assist target values - group coordination.
+ - Reaction system (ReactionEngine): fast interrupt/los/cc reactions between ticks.
+ - Pet management (hunter/warlock/DK ghoul) actions/values.
+ - PvP/BG tactics (BattleGroundTactics 4931 LOC) per battleground.
+ - Dungeon/raid scripted strategies (boss mechanics).
+ - PlayerbotLLMInterface (optional AI chat) - skip.
+ - Performance/Memory monitors + the SmartScale-style throttles (we have ours).
+ All of these are STAGES of the fat port; the engine+classes are the prerequisite.
+
+================================================================================
+ END OF REFERENCE NOTES - basis for the fat-port plan (see 05_FAT_PORT_PLAN.txt).
+================================================================================

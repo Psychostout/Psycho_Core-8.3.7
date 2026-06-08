@@ -6,7 +6,13 @@
  *  NOT covered by the base GPL framework license. Development/evaluation only.
  *
  *  PsychobotAI - per-bot brain. Wraps a real TrinityCore Player and drives it
- *  each tick via the Psychobot Engine. (Stage 1: foundation + main AI.)
+ *  each tick through the REAL relevance-priority engine (the fat port). It owns
+ *  one AiObjectContext (the value/trigger/action/strategy registry) and three
+ *  per-state Engines (non-combat / combat / dead); UpdateState() swaps the
+ *  active engine and DoNextAction() runs one decision tick.
+ *
+ *  It also hosts the ServerFacade-style cast/move seam the engine calls back
+ *  into via PsychobotAIBridge, so actions never touch the core API directly.
  * ===========================================================================
  */
 
@@ -15,7 +21,7 @@
 
 #include "Define.h"
 #include "ObjectGuid.h"
-#include "PsychobotEngine.h"
+#include "../engine/Strategy.h"   // BotState
 #include <memory>
 
 class Player;
@@ -23,11 +29,8 @@ class Unit;
 
 namespace psychobot
 {
-    enum class BotState : uint8
-    {
-        NonCombat = 0,
-        Combat    = 1
-    };
+    class AiObjectContext;
+    class Engine;
 
     class PsychobotAI
     {
@@ -38,48 +41,38 @@ namespace psychobot
         // Driven each world tick by PsychobotMgr.
         void UpdateAI(uint32 diff);
 
-        Player* GetBot() const { return _bot; }
-        Player* GetMaster() const;            // resolved live from guid (may be null)
+        Player*    GetBot() const { return _bot; }
+        Player*    GetMaster() const;             // resolved live (may be null)
         ObjectGuid GetMasterGuid() const { return _masterGuid; }
+        AiObjectContext* GetContext() const { return _context.get(); }
+        BotState   GetState() const { return _state; }
 
-        // --- ServerFacade-style helpers (the TC 8.3 core-API seam) ---------
-        // These are the only places that touch core combat/movement/spell APIs;
-        // engine/strategy/action code calls THESE, not the core directly.
-        bool   IsAlive(Unit* unit) const;
-        bool   IsInCombat() const;
-        Unit*  GetCurrentTarget() const;       // bot's victim / master's target
-        float  GetDistance(Unit* to) const;
-        bool   HasSpell(uint32 spellId) const;
-        bool   CastSpell(uint32 spellId, Unit* target);
-        bool   CastSpell(std::string const& name, Unit* target);
+        // --- the cast/move seam the engine calls back into ----------------
         uint32 GetSpellIdByName(std::string const& name) const;
-
-        // Movement seam.
-        void   FollowMaster();
-        void   StopMoving();
-        bool   IsMoving() const;
-
-        BotState GetState() const { return _state; }
-
-        // Class rotation entry point (used by the combat strategy).
-        std::string DoClassRotation(Unit* target);
+        bool   CastSpell(uint32 spellId, Unit* target);
+        Unit*  GetCurrentTarget() const;          // victim / assist / selection
+        bool   ReachTarget(Unit* target, float distance);
+        bool   FollowMaster();
+        bool   StopMoving();
+        bool   AttackTarget(Unit* target);
 
         // Apply BfA spec + talents to this bot (idempotent).
         void EnsureSpecAndTalents();
 
     private:
-        void   UpdateState();                  // combat vs non-combat engine swap
+        void UpdateState();                       // combat/non-combat engine swap
 
         Player*    _bot;
         ObjectGuid _masterGuid;
         BotState   _state;
-        uint32     _updateDelay;               // ms accumulator (throttle)
-        bool       _specApplied;               // talents applied once
+        uint32     _updateDelay;                  // ms accumulator (throttle)
+        bool       _specApplied;
 
+        std::unique_ptr<AiObjectContext> _context;
         std::unique_ptr<Engine> _nonCombatEngine;
         std::unique_ptr<Engine> _combatEngine;
+        std::unique_ptr<Engine> _deadEngine;
         Engine*    _currentEngine;
-        std::unique_ptr<class ClassAI> _classAI;
     };
 }
 

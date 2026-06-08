@@ -8,7 +8,7 @@
  */
 
 #include "PsychobotGroupMgr.h"
-#include "ai/PsychobotClassAI.h"
+#include "ai/PsychobotSpecRoles.h"
 #include "Player.h"
 #include "Unit.h"
 #include "Group.h"
@@ -63,18 +63,7 @@ namespace psychobot
 
         SpecRole GetBotRole(Player* bot)
         {
-            if (bot)
-            {
-                uint8 classId = bot->getClass();
-                uint8 specIndex = ClassRegistry::GetDefaultSpecIndex(classId);
-                if (uint32 specId = bot->GetPrimarySpecialization())
-                    if (ChrSpecializationEntry const* spec = sChrSpecializationStore.LookupEntry(specId))
-                        specIndex = static_cast<uint8>(spec->OrderIndex);
-
-                if (SpecRotation const* rot = ClassRegistry::GetRotation(classId, specIndex))
-                    return rot->role;
-            }
-            return SpecRole::Dps;
+            return SpecRoles::GetBotRole(bot);
         }
 
         void AssignRole(Player* bot)

@@ -1,0 +1,1270 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ MOD-PSYCHOBOT FAT-PORT MASTER CHECKLIST   (cmangos/playerbots -> Psycho_Core 8.3)
+================================================================================
+ Every source file in the reference, with the classes it defines (the "what").
+ Mark a line [x] when its Psycho_Core (TC 8.3) equivalent is created; put our
+ file name after "=>". Work top-to-bottom by milestone (engine -> shared -> class).
+ Legend: [ ] todo   [~] wip   [x] done   [-] skipped
+================================================================================
+
+--------------------------------------------------------------------------------
+ ROOT - bot brain / managers / support  (70 files)
+--------------------------------------------------------------------------------
+ [ ] AiFactory.cpp                      | (header/util)
+ [ ] AiFactory.h                        | Player,AiObjectContext,ReactionEngine,Engine
+ [ ] BotState.h                         | BotState
+ [ ] BotTests.cpp                       | struct TestRecord,struct TestResultCounts
+ [ ] BotTests.h                         | LogAnalysis
+ [ ] BroadcastHelper.cpp                | (header/util)
+ [ ] BroadcastHelper.h                  | BroadcastHelper
+ [ ] ChatFilter.cpp                     | StrategyChatFilter,RoleChatFilter,LevelChatFilter,GearChatFilter
+ [ ] ChatFilter.h                       | ChatFilter,CompositeChatFilter
+ [ ] ChatHelper.cpp                     | T
+ [ ] ChatHelper.h                       | ItemQualifier,WorldPosition,GuidPosition,ChatHelper
+ [ ] FleeManager.cpp                    | (header/util)
+ [ ] FleeManager.h                      | Player,Engine,FleePoint,FleeManager
+ [ ] GuidPosition.cpp                   | (header/util)
+ [ ] GuidPosition.h                     | GuidPosition,T,AsyncGuidPosition
+ [ ] Helpers.cpp                        | (header/util)
+ [ ] Helpers.h                          | (header/util)
+ [ ] LazyCalculatedValue.h              | TValue,TOwner,LazyCalculatedValue
+ [ ] LootObjectStack.cpp                | (header/util)
+ [ ] LootObjectStack.h                  | ItemQualifier,LootObject,LootTarget,LootTargetList
+ [ ] MemoryMonitor.cpp                  | (header/util)
+ [ ] MemoryMonitor.h                    | MemoryMonitor
+ [ ] PerformanceMonitor.cpp             | (header/util)
+ [ ] PerformanceMonitor.h               | PerformanceMonitorOperation,PerformanceMonitor
+ [ ] PlayerTalentSpec.h                 | PlayerTalentSpec
+ [ ] PlayerbotAI.cpp                    | UnitByGuidInRangeCheck,GameObjectByGuidInRangeCheck
+ [ ] PlayerbotAI.h                      | Player,PlayerbotMgr,ChatHandler,PlayerbotChatHandler
+ [ ] PlayerbotAIAware.h                 | PlayerbotAI,PlayerbotAIAware
+ [ ] PlayerbotAIBase.cpp                | (header/util)
+ [ ] PlayerbotAIBase.h                  | Player,PlayerbotMgr,ChatHandler,PerformanceMonitorOperation
+ [ ] PlayerbotAIConfig.cpp              | T,T
+ [ ] PlayerbotAIConfig.h                | Player,PlayerbotMgr,ChatHandler,BotCheatMask
+ [ ] PlayerbotCommandServer.cpp         | (header/util)
+ [ ] PlayerbotCommandServer.h           | PlayerbotCommandServer
+ [ ] PlayerbotDbStore.cpp               | (header/util)
+ [ ] PlayerbotDbStore.h                 | PlayerbotDbStore
+ [ ] PlayerbotFactory.cpp               | DestroyItemsVisitor
+ [ ] PlayerbotFactory.h                 | Player,PlayerbotMgr,ChatHandler,PlayerbotFactory
+ [ ] PlayerbotHelpMgr.cpp               | (header/util)
+ [ ] PlayerbotHelpMgr.h                 | PlayerbotHelpMgr
+ [ ] PlayerbotLLMInterface.cpp          | struct addrinfo
+ [ ] PlayerbotLLMInterface.h            | PlayerbotLLMInterface
+ [ ] PlayerbotLoginMgr.cpp              | LoginQueryHolder,PlayerbotLoginQueryHolder
+ [ ] PlayerbotLoginMgr.h                | PlayerLoginInfo,HolderState,LoginState,FillStep
+  [x] PlayerbotMgr.cpp                   | (HAVE) -> src/PsychobotMgr.cpp (partial)  :: LoginQueryHolder,CharacterHandler,level
+  [x] PlayerbotMgr.h                     | (HAVE) -> src/PsychobotMgr.h (partial)  :: WorldPacket,Player,Unit,Object
+ [ ] PlayerbotSecurity.cpp              | (header/util)
+ [ ] PlayerbotSecurity.h                | PlayerbotSecurityLevel,DenyReason,PlayerbotSecurity
+ [ ] PlayerbotTextMgr.cpp               | (header/util)
+ [ ] PlayerbotTextMgr.h                 | PlayerbotTextMgr
+ [ ] RandomItemMgr.cpp                  | from,specs,specs,specs
+ [ ] RandomItemMgr.h                    | RandomItemPredicate,BotEquipKey,RandomItemMgr
+ [ ] RandomPlayerbotFactory.cpp         | (header/util)
+ [ ] RandomPlayerbotFactory.h           | WorldPacket,Player,Unit,Object
+  [x] RandomPlayerbotMgr.cpp             | (HAVE) -> src/PsychobotPopulationMgr.cpp (partial: scaling done; spawn=Phase A)  :: PrintStatsThread,CheckBgQueueThread,CheckLfgQueueThread,CheckPlayersThread
+  [x] RandomPlayerbotMgr.h               | (HAVE) -> src/PsychobotPopulationMgr.h  :: WorldPacket,Player,Unit,Object
+  [x] ServerFacade.cpp                   | (HAVE) -> src/ai/PsychobotAI.cpp (seam; to be expanded into engine/ServerFacade)  :: (header/util)
+  [x] ServerFacade.h                     | (HAVE) -> src/ai/PsychobotAI.h (seam)  :: ServerFacade
+  [x] Talentspec.cpp                     | (HAVE) -> src/ai/PsychobotTalentMgr.cpp (BfA spec rewrite)  :: (header/util)
+  [x] Talentspec.h                       | (HAVE) -> src/ai/PsychobotTalentMgr.h  :: TalentSpec,TalentPath,ClassSpecs
+ [ ] TravelMgr.cpp                      | (header/util)
+ [ ] TravelMgr.h                        | GuidePosition,MapTransfer,PlayerTravelInfo,TravelDestination
+ [ ] TravelNode.cpp                     | TravelNodeStore
+ [ ] TravelNode.h                       | TravelNodePathType,WorldPosition,TravelNodePath,TravelNode
+ [ ] WorldPosition.cpp                  | (header/util)
+ [ ] WorldPosition.h                    | ByteBuffer,Vector2,Vector3,Vector4
+ [ ] WorldSquare.cpp                    | (header/util)
+ [ ] WorldSquare.h                      | WorldPointSquare,WorldPointContainer,T,WorldPointSquareContainer
+ [ ] playerbot.h                        | (header/util)
+ [ ] playerbotDefs.h                    | (header/util)
+
+--------------------------------------------------------------------------------
+ ENGINE CORE (strategy/)  (33 files)
+--------------------------------------------------------------------------------
+ [ ] Action.cpp                         | (header/util)
+ [ ] Action.h                           | Unit,NextAction,T,Value
+  [x] ActionBasket.cpp                   | (S1) -> engine/ActionBasket.h (inlined; no .cpp needed)  :: (header/util)
+  [x] ActionBasket.h                     | (S1) -> engine/ActionBasket.h (ActionBasket class consolidated here)  :: (header/util)
+  [x] AiObject.cpp                       | (S1) -> engine/AiObject.cpp  :: (header/util)
+  [x] AiObject.h                         | (S1) -> engine/AiObject.h (+ ActionPriority/ActionThreatType)  :: Player,PlayerbotAI,AiObjectContext,ChatHelper
+ [ ] AiObjectContext.cpp                | (header/util)
+ [ ] AiObjectContext.h                  | UntypedValue,T,Value,AiObjectContext
+ [ ] CustomStrategy.cpp                 | (header/util)
+ [ ] CustomStrategy.h                   | CustomStrategy
+ [ ] Engine.cpp                         | (header/util)
+ [ ] Engine.h                           | ActionExecutionListener,ActionExecutionListeners,Engine
+  [x] Event.cpp                          | (S1) -> engine/Event.h (inlined; no .cpp needed)  :: (header/util)
+  [x] Event.h                            | (S1) -> engine/Event.h  :: Player,Event
+ [ ] ExternalEventHelper.h              | ExternalEventHelper
+ [ ] ItemVisitors.h                     | IterateItemsVisitor,FindItemVisitor,FindAllItemVisitor,FindUsableItemVisitor
+ [ ] IterateItemsMask.h                 | IterateItemsMask
+ [ ] Multiplier.cpp                     | (header/util)
+ [ ] Multiplier.h                       | PlayerbotAI,Action,Multiplier
+  [x] NamedObjectContext.h               | (S1) -> engine/NamedObjectContext.h (Qualified/Factory/Context/List)  :: Qualified,T,NamedObjectFactory,T
+ [ ] PassiveMultiplier.cpp              | (header/util)
+ [ ] PassiveMultiplier.h                | PassiveMultiplier
+ [ ] Queue.cpp                          | (header/util)
+ [ ] Queue.h                            | Queue
+ [ ] ReactionEngine.cpp                 | (header/util)
+ [ ] ReactionEngine.h                   | ReactionEngine
+ [ ] Strategy.cpp                       | ActionNodeFactoryInternal
+ [ ] Strategy.h                         | ActionNode,NextAction,Strategy
+ [ ] StrategyContext.h                  | StrategyContext,MovementStrategyContext,AssistStrategyContext,QuestStrategyCon
+ [ ] Trigger.cpp                        | (header/util)
+ [ ] Trigger.h                          | Unit,NextAction,T,Value
+ [ ] Value.cpp                          | (header/util)
+ [ ] Value.h                            | UntypedValue,T,Value,T
+
+--------------------------------------------------------------------------------
+ SHARED ACTIONS  (301 files)
+--------------------------------------------------------------------------------
+ [ ] AcceptBattleGroundInvitationAction.h | AcceptBgInvitationAction
+ [ ] AcceptDuelAction.h                 | AcceptDuelAction
+ [ ] AcceptInvitationAction.h           | AcceptInvitationAction
+ [ ] AcceptQuestAction.cpp              | (header/util)
+ [ ] AcceptQuestAction.h                | AcceptAllQuestsAction,AcceptQuestAction,AcceptQuestShareAction,ConfirmQuestAct
+ [ ] AcceptResurrectAction.h            | AcceptResurrectAction
+ [ ] ActionContext.h                    | ActionContext
+ [ ] AddLootAction.cpp                  | (header/util)
+ [ ] AddLootAction.h                    | AddLootAction,AddAllLootAction,AddGatheringLootAction
+ [ ] AhAction.cpp                       | (header/util)
+ [ ] AhAction.h                         | AhAction,AhBidAction
+ [ ] AreaTriggerAction.cpp              | (header/util)
+ [ ] AreaTriggerAction.h                | ReachAreaTriggerAction,AreaTriggerAction
+ [ ] ArenaTeamActions.cpp               | (header/util)
+ [ ] ArenaTeamActions.h                 | ArenaTeamAcceptAction
+ [ ] AttackAction.cpp                   | (header/util)
+ [ ] AttackAction.h                     | AttackAction,AttackMyTargetAction,AttackRTITargetAction,AttackDuelOpponentActi
+ [ ] AutoCompleteQuestAction.cpp        | (header/util)
+ [ ] AutoCompleteQuestAction.h          | AutoCompleteQuestAction
+ [ ] AutoLearnSpellAction.cpp           | (header/util)
+ [ ] AutoLearnSpellAction.h             | AutoLearnSpellAction
+ [ ] BankAction.cpp                     | (header/util)
+ [ ] BankAction.h                       | BankAction
+ [ ] BattleGroundJoinAction.cpp         | (header/util)
+ [ ] BattleGroundJoinAction.h           | BGJoinAction,FreeBGJoinAction,BGLeaveAction,BGStatusAction
+ [ ] BattleGroundTactics.cpp            | enum BattleBotWsgWaitSpot,struct IsleBanners
+ [ ] BattleGroundTactics.h              | BGTactics,ArenaTactics
+ [ ] BattleGroundTacticsAV.cpp          | (header/util)
+ [ ] BlackwingLairDungeonActions.h      | BlackwingLairEnableDungeonStrategyAction,BlackwingLairDisableDungeonStrategyAc
+ [ ] BotStateActions.cpp                | (header/util)
+ [ ] BotStateActions.h                  | SetCombatStateAction,SetNonCombatStateAction,SetDeadStateAction
+ [ ] BuffAction.cpp                     | FindBuffVisitor
+ [ ] BuffAction.h                       | BuffAction
+ [ ] BuyAction.cpp                      | (header/util)
+ [ ] BuyAction.h                        | BuyAction,BuyBackAction
+ [ ] BuyGuildBankTabAction.cpp          | (header/util)
+ [ ] BuyGuildBankTabAction.h            | BuyGuildBankTabAction
+ [ ] CastCustomSpellAction.cpp          | (header/util)
+ [ ] CastCustomSpellAction.h            | CastCustomSpellAction,CastCustomNcSpellAction,CastRandomSpellAction,CraftRando
+ [ ] ChangeChatAction.cpp               | (header/util)
+ [ ] ChangeChatAction.h                 | ChangeChatAction
+ [ ] ChangeStrategyAction.cpp           | (header/util)
+ [ ] ChangeStrategyAction.h             | ChangeCombatStrategyAction,ChangeNonCombatStrategyAction,ChangeDeadStrategyAct
+ [ ] ChangeTalentsAction.cpp            | was
+ [ ] ChangeTalentsAction.h              | ChangeTalentsAction,AutoSetTalentsAction
+ [ ] ChatActionContext.h                | ChatActionContext
+ [ ] ChatShortcutActions.cpp            | (header/util)
+ [ ] ChatShortcutActions.h              | ReturnPositionResetAction,FollowChatShortcutAction,StayChatShortcutAction,Guar
+ [ ] CheatAction.cpp                    | (header/util)
+ [ ] CheatAction.h                      | CheatAction
+ [ ] CheckMailAction.cpp                | (header/util)
+ [ ] CheckMailAction.h                  | CheckMailAction
+ [ ] CheckMountStateAction.cpp          | (header/util)
+ [ ] CheckMountStateAction.h            | CheckMountStateAction
+ [ ] CheckValuesAction.cpp              | (header/util)
+ [ ] CheckValuesAction.h                | CheckValuesAction
+ [ ] ChooseRpgTargetAction.cpp          | (header/util)
+ [ ] ChooseRpgTargetAction.h            | ChooseRpgTargetAction,ClearRpgTargetAction
+ [ ] ChooseTargetActions.cpp            | (header/util)
+ [ ] ChooseTargetActions.h              | DpsAoeAction,DpsAssistAction,TankAssistAction,AttackAnythingAction
+ [ ] ChooseTravelTargetAction.cpp       | quests
+ [ ] ChooseTravelTargetAction.h         | ChooseTravelTargetAction,ChooseGroupTravelTargetAction,RefreshTravelTargetActi
+ [ ] CombatActions.cpp                  | (header/util)
+ [ ] CombatActions.h                    | SwitchToMeleeAction,SwitchToRangedAction
+ [ ] CustomStrategyEditAction.cpp       | (header/util)
+ [ ] CustomStrategyEditAction.h         | CustomStrategyEditAction
+ [ ] DebugAction.cpp                    | and,string
+ [ ] DebugAction.h                      | DebugAction
+ [ ] DelayAction.h                      | DelayAction
+ [ ] DestroyItemAction.cpp              | (header/util)
+ [ ] DestroyItemAction.h                | DestroyItemAction,SmartDestroyItemAction,DestroyAllGrayItemsAction
+ [ ] DropQuestAction.cpp                | specific
+ [ ] DropQuestAction.h                  | DropQuestAction,CleanQuestLogAction
+ [ ] DungeonActions.cpp                 | (header/util)
+ [ ] DungeonActions.h                   | MoveAwayFromHazard,MoveAwayFromCreature
+ [ ] EmoteAction.cpp                    | (header/util)
+ [ ] EmoteAction.h                      | EmoteActionBase,EmoteAction,TalkAction,MountAnimAction
+ [ ] EquipAction.cpp                    | (header/util)
+ [ ] EquipAction.h                      | EquipAction,EquipUpgradesAction
+ [ ] FactionAction.cpp                  | (header/util)
+ [ ] FactionAction.h                    | FactionAction
+ [ ] FishAction.cpp                     | (header/util)
+ [ ] FishAction.h                       | MoveToFishAction,FishAction,UseFishingBobberAction
+ [ ] FlagAction.cpp                     | (header/util)
+ [ ] FlagAction.h                       | FlagAction
+ [ ] FollowActions.cpp                  | (header/util)
+ [ ] FollowActions.h                    | FollowAction,StopFollowAction,FleeToMasterAction
+ [ ] GenericActions.cpp                 | (header/util)
+ [ ] GenericActions.h                   | MeleeAction,UseLightwellAction,ChatCommandAction,UpdateStrategyDependenciesAct
+ [ ] GenericSpellActions.cpp            | (header/util)
+ [ ] GenericSpellActions.h              | CastSpellAction,CastPetSpellAction,CastAuraSpellAction,CastMeleeSpellAction
+ [ ] GiveItemAction.cpp                 | (header/util)
+ [ ] GiveItemAction.h                   | GiveItemAction,GiveFoodAction,GiveWaterAction
+ [ ] GlyphAction.cpp                    | (header/util)
+ [ ] GlyphAction.h                      | GlyphAction,AutoSetGlyphAction
+ [ ] GoAction.cpp                       | (header/util)
+ [ ] GoAction.h                         | TravelDestination,GoAction
+ [ ] GossipHelloAction.cpp              | (header/util)
+ [ ] GossipHelloAction.h                | GossipHelloAction
+ [ ] GreetAction.cpp                    | (header/util)
+ [ ] GreetAction.h                      | GreetAction
+ [ ] GuildAcceptAction.cpp              | (header/util)
+ [ ] GuildAcceptAction.h                | GuildAcceptAction
+ [ ] GuildAcceptQuestOrderAction.cpp    | (header/util)
+ [ ] GuildAcceptQuestOrderAction.h      | GuildAcceptQuestOrderAction
+ [ ] GuildBankAction.cpp                | (header/util)
+ [ ] GuildBankAction.h                  | GuildBankAction
+ [ ] GuildCraftOrderAction.cpp          | (header/util)
+ [ ] GuildCraftOrderAction.h            | GuildCraftOrderAction
+ [ ] GuildCreateActions.cpp             | (header/util)
+ [ ] GuildCreateActions.h               | TravelTarget,BuyPetitionAction,PetitionOfferAction,PetitionOfferNearbyAction
+ [ ] GuildManagementActions.cpp         | (header/util)
+ [ ] GuildManagementActions.h           | GuidManageAction,GuildInviteAction,GuildJoinAction,GuildPromoteAction
+ [ ] GuildShareAhBuyAction.cpp          | struct AuctionCandidate
+ [ ] GuildShareAhBuyAction.h            | GuildShareAhBuyAction
+ [ ] GuildShareItemAction.cpp           | (header/util)
+ [ ] GuildShareItemAction.h             | GuildShareItemAction
+ [ ] HelpAction.cpp                     | (header/util)
+ [ ] HelpAction.h                       | HelpAction
+ [ ] HireAction.cpp                     | (header/util)
+ [ ] HireAction.h                       | HireAction
+ [ ] HonorGainAction.cpp                | (header/util)
+ [ ] HonorGainAction.h                  | HonorGainAction
+ [ ] ImbueAction.cpp                    | (header/util)
+ [ ] ImbueAction.h                      | ImbueWithStoneAction,ImbueWithOilAction,TryEmergencyAction
+ [ ] InventoryChangeFailureAction.cpp   | (header/util)
+ [ ] InventoryChangeFailureAction.h     | InventoryChangeFailureAction
+ [ ] InviteToGroupAction.cpp            | (header/util)
+ [ ] InviteToGroupAction.h              | InviteToGroupAction,JoinGroupAction,LfgAction,InviteNearbyToGroupAction
+ [ ] KarazhanDungeonActions.cpp         | (header/util)
+ [ ] KarazhanDungeonActions.h           | KarazhanEnableDungeonStrategyAction,KarazhanDisableDungeonStrategyAction,Nethe
+ [ ] KeepItemAction.cpp                 | (header/util)
+ [ ] KeepItemAction.h                   | KeepItemAction
+ [ ] LeaveGroupAction.cpp               | (header/util)
+ [ ] LeaveGroupAction.h                 | LeaveGroupAction,PartyCommandAction,UninviteAction,LeaveFarAwayAction
+ [ ] LfgActions.cpp                     | (header/util)
+ [ ] LfgActions.h                       | LfgJoinAction,LfgAcceptAction,LfgRoleCheckAction,LfgLeaveAction
+ [ ] ListQuestsActions.cpp              | (header/util)
+ [ ] ListQuestsActions.h                | ListQuestsAction
+ [ ] ListSpellsAction.cpp               | (header/util)
+ [ ] ListSpellsAction.h                 | ListSpellsAction
+ [ ] LogLevelAction.cpp                 | (header/util)
+ [ ] LogLevelAction.h                   | LogLevelAction
+ [ ] LootAction.cpp                     | enum ProfessionSpells
+ [ ] LootAction.h                       | LootAction,OpenLootAction,StoreLootAction,ReleaseLootAction
+ [ ] LootRollAction.cpp                 | (header/util)
+ [ ] LootRollAction.h                   | LootStartRollAction,RollAction,LootRollAction,AutoLootRollAction
+ [ ] LootStrategyAction.cpp             | (header/util)
+ [ ] LootStrategyAction.h               | LootStrategyAction
+ [ ] MailAction.cpp                     | TellMailProcessor,TakeMailProcessor,DeleteMailProcessor,ReadMailProcessor
+ [ ] MailAction.h                       | MailProcessor,MailAction
+ [ ] MoltenCoreDungeonActions.cpp       | (header/util)
+ [ ] MoltenCoreDungeonActions.h         | MoltenCoreEnableDungeonStrategyAction,MoltenCoreDisableDungeonStrategyAction,M
+ [ ] MoveStyleAction.cpp                | (header/util)
+ [ ] MoveStyleAction.h                  | MoveStyleAction
+ [ ] MoveToRpgTargetAction.cpp          | (header/util)
+ [ ] MoveToRpgTargetAction.h            | MoveToRpgTargetAction
+ [ ] MoveToTravelTargetAction.cpp       | (header/util)
+ [ ] MoveToTravelTargetAction.h         | MoveToTravelTargetAction
+ [ ] MovementActions.cpp                | (header/util)
+ [ ] MovementActions.h                  | MovementAction,FleeAction,FleeWithPetAction,RunAwayAction
+ [ ] NaxxramasDungeonActions.cpp        | (header/util)
+ [ ] NaxxramasDungeonActions.h          | NaxxramasEnableDungeonStrategyAction,NaxxramasDisableDungeonStrategyAction,Fou
+ [ ] OnyxiasLairDungeonActions.cpp      | (header/util)
+ [ ] OnyxiasLairDungeonActions.h        | OnyxiasLairEnableDungeonStrategyAction,OnyxiasLairDisableDungeonStrategyAction
+ [ ] OutfitAction.cpp                   | (header/util)
+ [ ] OutfitAction.h                     | OutfitAction
+ [ ] PassLeadershipToMasterAction.h     | PassLeadershipToMasterAction,GiveLeaderAction
+ [ ] PetitionSignAction.cpp             | (header/util)
+ [ ] PetitionSignAction.h               | PetitionSignAction
+ [ ] PositionAction.cpp                 | (header/util)
+ [ ] PositionAction.h                   | PositionAction,MoveToPositionAction,GuardAction,SetReturnPositionAction
+ [ ] PullActions.cpp                    | (header/util)
+ [ ] PullActions.h                      | PullRequestAction,PullMyTargetAction,PullRTITargetAction,PullStartAction
+ [ ] QueryItemUsageAction.cpp           | (header/util)
+ [ ] QueryItemUsageAction.h             | ItemQualifier,QueryItemUsageAction
+ [ ] QueryQuestAction.cpp               | (header/util)
+ [ ] QueryQuestAction.h                 | QueryQuestAction
+ [ ] QuestAction.cpp                    | (header/util)
+ [ ] QuestAction.h                      | QuestAction,QuestUpdateAddKillAction,QuestUpdateAddItemAction,QuestUpdateFaile
+ [ ] QuestRewardActions.cpp             | (header/util)
+ [ ] QuestRewardActions.h               | QuestRewardAction
+ [ ] RandomBotUpdateAction.h            | RandomBotUpdateAction
+ [ ] RangeAction.cpp                    | (header/util)
+ [ ] RangeAction.h                      | RangeAction
+ [ ] ReachTargetActions.h               | ReachTargetAction,CastReachTargetSpellAction,ReachMeleeAction,ReachSpellAction
+ [ ] ReadyCheckAction.cpp               | ReadyChecker,HealthChecker,ManaChecker,DistanceChecker
+ [ ] ReadyCheckAction.h                 | ReadyCheckAction,FinishReadyCheckAction
+ [ ] ReleaseSpiritAction.h              | ReleaseSpiritAction,AutoReleaseSpiritAction,RepopAction,SelfResurrectAction
+ [ ] RememberTaxiAction.cpp             | (header/util)
+ [ ] RememberTaxiAction.h               | RememberTaxiAction
+ [ ] RemoveAuraAction.cpp               | (header/util)
+ [ ] RemoveAuraAction.h                 | RemoveAuraAction
+ [ ] RepairAllAction.cpp                | (header/util)
+ [ ] RepairAllAction.h                  | RepairAllAction
+ [ ] ResetAiAction.cpp                  | (header/util)
+ [ ] ResetAiAction.h                    | ResetAiAction,SaveAiAction,LoadAiAction,ListAiAction
+ [ ] ResetInstancesAction.cpp           | (header/util)
+ [ ] ResetInstancesAction.h             | ResetInstancesAction,ResetRaidsAction
+ [ ] RevealGatheringItemAction.cpp      | AnyGameObjectInObjectRangeCheck
+ [ ] RevealGatheringItemAction.h        | RevealGatheringItemAction
+ [ ] ReviveFromCorpseAction.cpp         | (header/util)
+ [ ] ReviveFromCorpseAction.h           | ReviveFromCorpseAction,FindCorpseAction,SpiritHealerAction
+ [ ] RewardAction.cpp                   | (header/util)
+ [ ] RewardAction.h                     | RewardAction
+ [ ] RpgAction.cpp                      | (header/util)
+ [ ] RpgAction.h                        | RpgAction,CRpgAction
+ [ ] RpgSubActions.cpp                  | (header/util)
+ [ ] RpgSubActions.h                    | RpgHelper,RpgEnabled,RpgSubAction,RpgStayAction
+ [ ] RtiAction.cpp                      | (header/util)
+ [ ] RtiAction.h                        | RtiAction,MarkRtiAction
+ [ ] RtscAction.cpp                     | (header/util)
+ [ ] RtscAction.h                       | RTSCAction
+ [ ] SaveManaAction.cpp                 | (header/util)
+ [ ] SaveManaAction.h                   | SaveManaAction
+ [ ] SayAction.cpp                      | (header/util)
+ [ ] SayAction.h                        | SayAction,ChatReplyAction,SpeakAction
+ [ ] SecurityCheckAction.cpp            | (header/util)
+ [ ] SecurityCheckAction.h              | SecurityCheckAction
+ [ ] SeeSpellAction.cpp                 | (header/util)
+ [ ] SeeSpellAction.h                   | SeeSpellAction
+ [ ] SellAction.cpp                     | SellItemsVisitor
+ [ ] SellAction.h                       | SellAction
+ [ ] SendMailAction.cpp                 | (header/util)
+ [ ] SendMailAction.h                   | SendMailAction
+ [ ] SetAvoidAreaAction.cpp             | (header/util)
+ [ ] SetAvoidAreaAction.h               | SetAvoidAreaAction
+ [ ] SetCraftAction.cpp                 | (header/util)
+ [ ] SetCraftAction.h                   | SetCraftAction
+ [ ] SetHomeAction.cpp                  | (header/util)
+ [ ] SetHomeAction.h                    | SetHomeAction
+ [ ] SetValueAction.cpp                 | (header/util)
+ [ ] SetValueAction.h                   | SetValueAction
+ [ ] ShareQuestAction.cpp               | (header/util)
+ [ ] ShareQuestAction.h                 | ShareQuestAction,AutoShareQuestAction
+ [ ] SkillAction.cpp                    | (header/util)
+ [ ] SkillAction.h                      | SkillAction
+ [ ] SkipSpellsListAction.cpp           | (header/util)
+ [ ] SkipSpellsListAction.h             | SkipSpellsListAction
+ [ ] StatsAction.cpp                    | (header/util)
+ [ ] StatsAction.h                      | StatsAction
+ [ ] StayActions.cpp                    | (header/util)
+ [ ] StayActions.h                      | StayActionBase,StayAction,SitAction
+ [ ] SuggestWhatToDoAction.cpp          | FindTradeItemsVisitor
+ [ ] SuggestWhatToDoAction.h            | SuggestWhatToDoAction,SuggestTradeAction
+ [ ] TalkToQuestGiverAction.cpp         | (header/util)
+ [ ] TalkToQuestGiverAction.h           | TalkToQuestGiverAction
+ [ ] TaxiAction.cpp                     | (header/util)
+ [ ] TaxiAction.h                       | TaxiAction
+ [ ] TeleportAction.cpp                 | (header/util)
+ [ ] TeleportAction.h                   | TeleportAction
+ [ ] TellCastFailedAction.cpp           | (header/util)
+ [ ] TellCastFailedAction.h             | TellSpellAction,TellCastFailedAction
+ [ ] TellItemCountAction.cpp            | (header/util)
+ [ ] TellItemCountAction.h              | TellItemCountAction
+ [ ] TellLosAction.cpp                  | (header/util)
+ [ ] TellLosAction.h                    | LosModifierType,TellLosAction
+ [ ] TellMasterAction.h                 | TellMasterAction,OutOfReactRangeAction
+ [ ] TellReputationAction.cpp           | (header/util)
+ [ ] TellReputationAction.h             | TellReputationAction
+ [ ] TellTargetAction.cpp               | (header/util)
+ [ ] TellTargetAction.h                 | TellTargetAction,TellAttackersAction,TellPossibleAttackTargetsAction
+ [ ] TradeAction.cpp                    | (header/util)
+ [ ] TradeAction.h                      | TradeAction
+ [ ] TradeStatusAction.cpp              | (header/util)
+ [ ] TradeStatusAction.h                | TradeStatusAction
+ [ ] TrainerAction.cpp                  | (header/util)
+ [ ] TrainerAction.h                    | TrainerAction
+ [ ] TravelAction.cpp                   | (header/util)
+ [ ] TravelAction.h                     | TravelAction,MoveToDarkPortalAction,DarkPortalAzerothAction,MoveFromDarkPortal
+ [ ] UnequipAction.cpp                  | (header/util)
+ [ ] UnequipAction.h                    | UnequipAction
+ [ ] UnstuckAction.cpp                  | (header/util)
+ [ ] UnstuckAction.h                    | PlayerbotAI,UnstuckAction
+ [ ] UpdateGearAction.cpp               | and
+ [ ] UpdateGearAction.h                 | UpdateGearAction
+ [ ] UseConsumableAction.cpp            | (header/util)
+ [ ] UseConsumableAction.h              | ConsumableType,BotConsumableRole,UseConsumableAction
+ [ ] UseItemAction.cpp                  | (header/util)
+ [ ] UseItemAction.h                    | bypasses,BotUseItemSpell,UseAction,UseItemIdAction
+ [ ] UseMeetingStoneAction.cpp          | AnyGameObjectInObjectRangeCheck
+ [ ] UseMeetingStoneAction.h            | SummonAction,UseMeetingStoneAction,AcceptSummonAction
+ [ ] UseTrinketAction.cpp               | (header/util)
+ [ ] UseTrinketAction.h                 | UseTrinketAction
+ [ ] ValueActions.cpp                   | (header/util)
+ [ ] ValueActions.h                     | SetFocusHealTargetsAction,SetWaitForAttackTimeAction,SetFollowTargetAction,Set
+ [ ] VehicleActions.cpp                 | (header/util)
+ [ ] VehicleActions.h                   | EnterVehicleAction,LeaveVehicleAction
+ [ ] WaitForAttackAction.cpp            | (header/util)
+ [ ] WaitForAttackAction.h              | WaitForAttackKeepSafeDistanceAction
+ [ ] WhoAction.cpp                      | (header/util)
+ [ ] WhoAction.h                        | WhoAction
+ [ ] WorldBuffAction.cpp                | (header/util)
+ [ ] WorldBuffAction.h                  | WorldBuffAction
+ [ ] WorldBuffTravelActions.cpp         | struct SongflowerFinder,struct BonfireFinder
+ [ ] WorldBuffTravelActions.h           | WorldBuffTravelApplyAction,WorldBuffTravelSetTargetAction,WorldBuffTravelSongf
+ [ ] WorldPacketActionContext.h         | WorldPacketActionContext
+ [ ] WtsAction.cpp                      | (header/util)
+ [ ] WtsAction.h                        | WtsAction
+ [ ] XpGainAction.cpp                   | (header/util)
+ [ ] XpGainAction.h                     | XpGainAction
+
+--------------------------------------------------------------------------------
+ SHARED VALUES  (197 files)
+--------------------------------------------------------------------------------
+ [ ] ActiveSpellValue.cpp               | (header/util)
+ [ ] ActiveSpellValue.h                 | ActiveSpellValue
+ [ ] AlwaysLootListValue.cpp            | (header/util)
+ [ ] AlwaysLootListValue.h              | AlwaysLootListValue
+ [ ] AoeHealValues.cpp                  | (header/util)
+ [ ] AoeHealValues.h                    | AoeHealValue
+ [ ] AoeValues.cpp                      | (header/util)
+ [ ] AoeValues.h                        | AoePositionValue,AoeCountValue,HasAreaDebuffValue
+ [ ] Arrow.cpp                          | (header/util)
+ [ ] Arrow.h                            | UnitPosition,FormationUnit,UnitPlacer,FormationSlot
+ [ ] AttackerCountValues.cpp            | (header/util)
+ [ ] AttackerCountValues.h              | AttackersCountValue,PossibleAttackTargetsCountValue,HasAttackersValue,HasPossi
+ [ ] AttackerWithoutAuraTargetValue.cpp | (header/util)
+ [ ] AttackerWithoutAuraTargetValue.h   | AttackerWithoutAuraTargetValue
+ [ ] AttackersValue.cpp                 | (header/util)
+ [ ] AttackersValue.h                   | AttackersValue,AttackersTargetingMeValue
+ [ ] AvailableLootValue.h               | AvailableLootValue,LootTargetValue,CanLootValue
+ [ ] BankValues.cpp                     | (header/util)
+ [ ] BankValues.h                       | ShouldBankDepositValue,ShouldBankWithdrawValue,ShouldGuildBankDepositValue,Sho
+ [ ] BudgetValues.cpp                   | (header/util)
+ [ ] BudgetValues.h                     | NeedMoneyFor,RepairCostValue,MaxGearRepairCostValue,MinRepairCostValue
+ [ ] CcTargetValue.cpp                  | FindTargetForCcStrategy
+ [ ] CcTargetValue.h                    | CcTargetValue
+ [ ] ChatValue.h                        | ChatValue
+ [ ] CollisionValue.cpp                 | (header/util)
+ [ ] CollisionValue.h                   | CollisionValue
+ [ ] CombatStartTimeValue.h             | CombatStartTimeValue
+ [ ] CraftValues.cpp                    | (header/util)
+ [ ] CraftValues.h                      | CraftData,CraftValue,CraftSpellsValue,EnchantSpellsValue
+ [ ] CurrentCcTargetValue.cpp           | FindCurrentCcTargetStrategy
+ [ ] CurrentCcTargetValue.h             | CurrentCcTargetValue
+ [ ] CurrentTargetValue.cpp             | (header/util)
+ [ ] CurrentTargetValue.h               | CurrentTargetValue
+ [ ] DeadValues.cpp                     | (header/util)
+ [ ] DeadValues.h                       | GraveyardValue,BestGraveyardValue,ShouldSpiritHealerValue
+ [ ] DistanceValue.h                    | DistanceValue,InsideTargetValue
+ [ ] DpsTargetValue.cpp                 | FindMaxHpTargetStrategy
+ [ ] DpsTargetValue.h                   | DpsTargetValue,DpsAoeTargetValue
+ [ ] DuelTargetValue.cpp                | (header/util)
+ [ ] DuelTargetValue.h                  | DuelTargetValue
+ [ ] EnemyHealerTargetValue.cpp         | (header/util)
+ [ ] EnemyHealerTargetValue.h           | EnemyHealerTargetValue
+ [ ] EnemyPlayerValue.cpp               | (header/util)
+ [ ] EnemyPlayerValue.h                 | EnemyPlayersValue,HasEnemyPlayersValue,EnemyPlayerValue
+ [ ] EngineValues.cpp                   | (header/util)
+ [ ] EngineValues.h                     | ActionPossibleValue,ActionUsefulValue,TriggerActiveValue,HasStrategyValue
+ [ ] EntryValues.cpp                    | (header/util)
+ [ ] EntryValues.h                      | MCRunesValue,SuppressionDevicesValue
+ [ ] FishValues.cpp                     | (header/util)
+ [ ] FishValues.h                       | FishLocation,FishZone,FishLocationMapValue,CanFishValue
+ [ ] Formations.cpp                     | MeleeFormation,QueueFormation,NearFormation,ChaosFormation
+ [ ] Formations.h                       | Formation,FollowFormation,MoveFormation,MoveAheadFormation
+ [ ] FreeMoveValues.cpp                 | (header/util)
+ [ ] FreeMoveValues.h                   | FreeMoveCenterValue,FreeMoveRangeValue,CanFreeMoveValue
+ [ ] GlyphValues.cpp                    | (header/util)
+ [ ] GlyphValues.h                      | GlyphSlotType,AvailableGlyphsValue,WantedGlyphsValue,EquipedGlyphsValue
+ [ ] GrindTargetValue.cpp               | struct MemberInfo
+ [ ] GrindTargetValue.h                 | GrindTargetValue
+ [ ] GroupValues.cpp                    | (header/util)
+ [ ] GroupValues.h                      | GroupMembersValue,IsFollowingPartyValue,IsNearLeaderValue,GroupBoolCountValue
+ [ ] GuidPositionValues.cpp             | (header/util)
+ [ ] GuidPositionValues.h               | GameObjectsValue,EntryFilterValue,GuidFilterValue,RangeFilterValue
+ [ ] GuildValues.cpp                    | struct CountOnlineMembers,struct CountAllDeficits
+ [ ] GuildValues.h                      | GuildAccess,GuildOrderType,GuildOrderValue,HasGuildOrderValue
+ [ ] HasAvailableLootValue.h            | HasAvailableLootValue
+ [ ] HasTotemValue.h                    | HasTotemValue
+ [ ] HaveAnyTotemValue.h                | HaveAnyTotemValue
+ [ ] HazardsValue.cpp                   | (header/util)
+ [ ] HazardsValue.h                     | Hazard,StoredHazardsValue,AddHazardValue,HazardsValue
+ [ ] InvalidTargetValue.cpp             | (header/util)
+ [ ] InvalidTargetValue.h               | InvalidTargetValue
+ [ ] IsBehindValue.h                    | IsBehindValue
+ [ ] IsFacingValue.h                    | IsFacingValue
+ [ ] IsMovingValue.h                    | IsMovingValue,IsSwimmingValue
+ [ ] ItemCountValue.cpp                 | (header/util)
+ [ ] ItemCountValue.h                   | ItemCountValue,InventoryItemValue,BankItemCountValue,BankItemValue
+ [ ] ItemForSpellValue.cpp              | (header/util)
+ [ ] ItemForSpellValue.h                | ItemForSpellValue
+ [ ] ItemUsageValue.cpp                 | consumables,and,is,restriction
+ [ ] ItemUsageValue.h                   | ItemQualifier,ItemUsage,ForceItemUsage,ItemUsageValue
+ [ ] LastMovementValue.h                | LastMovement,LastMovementValue,StayTimeValue,LastLongMoveValue
+ [ ] LastPotionUsedTimeValue.h          | LastPotionUsedTimeValue
+ [ ] LastSaidValue.h                    | LastSaidValue,LastEmoteValue
+ [ ] LastSpellCastTimeValue.h           | LastSpellCastTimeValue
+ [ ] LastSpellCastValue.h               | LastSpellCast,LastSpellCastValue
+ [ ] LeastHpTargetValue.cpp             | (header/util)
+ [ ] LeastHpTargetValue.h               | FindLeastHpTargetStrategy,LeastHpTargetValue
+ [ ] LfgValues.h                        | LfgProposalValue,BotRolesValue
+ [ ] LineTargetValue.cpp                | (header/util)
+ [ ] LineTargetValue.h                  | LineTargetValue
+ [ ] LogLevelValue.h                    | LogLevelValue
+ [ ] LootStrategyValue.cpp              | (header/util)
+ [ ] LootStrategyValue.h                | LootStrategyValue
+ [ ] LootValues.cpp                     | (header/util)
+ [ ] LootValues.h                       | copy,LootLootGroupAccess,LootTemplateAccess,LootAccess
+ [ ] MaintenanceValues.cpp              | (header/util)
+ [ ] MaintenanceValues.h                | CanMoveAroundValue,ShouldHomeBindValue,ShouldRepairValue,CanRepairValue
+ [ ] ManaSaveLevelValue.h               | ManaSaveLevelValue
+ [ ] MasterTargetValue.h                | MasterTargetValue
+ [ ] MountValues.cpp                    | (header/util)
+ [ ] MountValues.h                      | MountValue,CurrentMountSpeedValue,FullMountListValue,MountListValue
+ [ ] MoveStyleValue.cpp                 | (header/util)
+ [ ] MoveStyleValue.h                   | MoveStyleValue
+ [ ] NearestAdsValue.cpp                | (header/util)
+ [ ] NearestAdsValue.h                  | NearestAddsValue
+ [ ] NearestCorpsesValue.cpp            | AnyDeadUnitInObjectRangeCheck
+ [ ] NearestCorpsesValue.h              | NearestCorpsesValue
+ [ ] NearestFriendlyPlayersValue.cpp    | (header/util)
+ [ ] NearestFriendlyPlayersValue.h      | NearestFriendlyPlayersValue
+ [ ] NearestGameObjects.cpp             | AnyDynamicObjectInObjectRangeCheck
+ [ ] NearestGameObjects.h               | AnyGameObjectInObjectRangeCheck,GameObjectsInObjectRangeCheck,NearestGameObjec
+ [ ] NearestNonBotPlayersValue.cpp      | (header/util)
+ [ ] NearestNonBotPlayersValue.h        | NearestNonBotPlayersValue
+ [ ] NearestNpcsValue.cpp               | (header/util)
+ [ ] NearestNpcsValue.h                 | NearestNpcsValue,NearestVehiclesValue
+ [ ] NearestUnitsValue.h                | NearestUnitsValue,NearestStealthedUnitsValue,NearestStealthedSingleUnitValue
+ [ ] NewPlayerNearbyValue.cpp           | (header/util)
+ [ ] NewPlayerNearbyValue.h             | NewPlayerNearbyValue,AlreadySeenPlayersValue
+ [ ] OperatorValues.cpp                 | (header/util)
+ [ ] OperatorValues.h                   | BoolAndValue,NotValue,BoolOrValue,GT32Value
+ [ ] OutfitListValue.cpp                | (header/util)
+ [ ] OutfitListValue.h                  | OutfitListValue
+ [ ] PartyMemberToDispel.cpp            | PartyMemberToDispelPredicate
+ [ ] PartyMemberToDispel.h              | PartyMemberToDispel
+ [ ] PartyMemberToHeal.cpp              | IsTargetOfHealingSpell
+ [ ] PartyMemberToHeal.h                | PartyMemberToHeal,PartyMemberToProtect,PartyMemberToRemoveRoots
+ [ ] PartyMemberToResurrect.cpp         | IsTargetOfResurrectSpell,FindDeadPlayer
+ [ ] PartyMemberToResurrect.h           | PartyMemberToResurrect
+ [ ] PartyMemberToSoulstone.cpp         | IsTargetOfSoulstoneSpell,FindSoulstoneTarget
+ [ ] PartyMemberToSoulstone.h           | PartyMemberToSoulstone
+ [ ] PartyMemberValue.cpp               | (header/util)
+ [ ] PartyMemberValue.h                 | FindPlayerPredicate,SpellEntryPredicate,PartyMemberValue
+ [ ] PartyMemberWithoutAuraValue.cpp    | PlayerWithoutAuraPredicate,PlayerWithoutMyAuraPredicate,TankWithoutAuraPredica
+ [ ] PartyMemberWithoutAuraValue.h      | FriendlyUnitWithoutAuraValue,PartyMemberWithoutAuraValue,PartyMemberWithoutMyA
+ [ ] PartyMemberWithoutItemValue.cpp    | PlayerWithoutItemPredicate,PlayerWithoutFoodPredicate,PlayerWithoutWaterPredic
+ [ ] PartyMemberWithoutItemValue.h      | PartyMemberWithoutItemValue,PartyMemberWithoutFoodValue,PartyMemberWithoutWate
+ [ ] PetTargetValue.h                   | PetTargetValue
+ [ ] PositionValue.cpp                  | (header/util)
+ [ ] PositionValue.h                    | PositionEntry,PositionValue,SinglePositionValue,CurrentPositionValue
+ [ ] PossibleAttackTargetsValue.cpp     | (header/util)
+ [ ] PossibleAttackTargetsValue.h       | PossibleAttackTargetsValue,PossibleAddsValue
+ [ ] PossibleRpgTargetsValue.cpp        | (header/util)
+ [ ] PossibleRpgTargetsValue.h          | PossibleRpgTargetsValue
+ [ ] PossibleTargetsValue.cpp           | (header/util)
+ [ ] PossibleTargetsValue.h             | PossibleTargetsValue,AllTargetsValue
+ [ ] PvpValues.cpp                      | (header/util)
+ [ ] PvpValues.h                        | BgTypeValue,ArenaTypeValue,BgRoleValue,BgMastersValue
+ [ ] QuestValues.cpp                    | quests
+ [ ] QuestValues.h                      | GuidPosition,QuestObjectMgr,QuestRewardOptionType,EntryQuestRelationMapValue
+ [ ] RTSCValues.cpp                     | (header/util)
+ [ ] RTSCValues.h                       | SeeSpellLocationValue,RTSCSelectedValue,RTSCNextSpellActionValue,RTSCSavedLoca
+ [ ] RandomBotUpdateValue.h             | RandomBotUpdateValue
+ [ ] RangeValues.cpp                    | (header/util)
+ [ ] RangeValues.h                      | RangeValue
+ [ ] RpgValues.cpp                      | (header/util)
+ [ ] RpgValues.h                        | NextRpgActionValue
+ [ ] RtiTargetValue.h                   | RtiTargetValue,RtiCcTargetValue
+ [ ] RtiValue.cpp                       | (header/util)
+ [ ] RtiValue.h                         | RtiValue,RtiCcValue
+ [ ] RuneForgeValues.cpp                | (header/util)
+ [ ] RuneForgeValues.h                  | RuneForgeSpellsValue,BestRuneForgeSpellValue,ShouldRuneForgeValue
+ [ ] SelfTargetValue.h                  | SelfTargetValue
+ [ ] SharedValueContext.h               | SharedValueContext,SharedObjectContext,T,T
+ [ ] SkipSpellsListValue.cpp            | (header/util)
+ [ ] SkipSpellsListValue.h              | SkipSpellsListValue
+ [ ] SnareTargetValue.cpp               | (header/util)
+ [ ] SnareTargetValue.h                 | SnareTargetValue
+ [ ] SpellCastUsefulValue.cpp           | (header/util)
+ [ ] SpellCastUsefulValue.h             | SpellCastUsefulValue,SpellReadyValue
+ [ ] SpellIdValue.cpp                   | (header/util)
+ [ ] SpellIdValue.h                     | SpellIdValue,VehicleSpellIdValue
+ [ ] Stances.cpp                        | NearStance,TankStance,TurnBackStance,BehindStance
+ [ ] Stances.h                          | Stance,MoveStance,StanceValue,SetStanceAction
+ [ ] StatsValues.cpp                    | (header/util)
+ [ ] StatsValues.h                      | Unit,HealthValue,IsDeadValue,PetIsDeadValue
+ [ ] StuckValues.cpp                    | (header/util)
+ [ ] StuckValues.h                      | TimeSinceLastChangeValue,DistanceMovedSinceValue
+ [ ] SubStrategyValue.cpp               | (header/util)
+ [ ] SubStrategyValue.h                 | SubStrategyValue
+ [ ] TalentSpecValue.h                  | TalentSpecValue
+ [ ] TankTargetValue.cpp                | FindTargetForTankStrategy
+ [ ] TankTargetValue.h                  | TankTargetValue
+ [ ] TargetValue.cpp                    | (header/util)
+ [ ] TargetValue.h                      | FindTargetStrategy,FindNonCcTargetStrategy,TargetValue,RpgTargetValue
+ [ ] ThreatValues.cpp                   | (header/util)
+ [ ] ThreatValues.h                     | MyThreatValue,TankThreatValue,ThreatValue
+ [ ] TradeValues.cpp                    | (header/util)
+ [ ] TradeValues.h                      | ItemsUsefulToGiveValue,ItemsUsefulToEnchantValue
+ [ ] TrainerValues.cpp                  | (header/util)
+ [ ] TrainerValues.h                    | TrainableSpellMapValue,TrainableSpellsValue,AvailableTrainersValue,TrainCostVa
+ [ ] TravelValues.cpp                   | (header/util)
+ [ ] TravelValues.h                     | EntryGuidpsValue,EntryTravelPurposeMapValue,TravelDestinationPurpose,TravelDes
+ [ ] ValueContext.h                     | ValueContext
+ [ ] VendorValues.cpp                   | (header/util)
+ [ ] VendorValues.h                     | PlayerbotAI,VendorMapValue,ItemVendorListValue,VendorHasUsefulItemValue
+ [ ] WaitForAttackTimeValue.h           | WaitForAttackTimeValue
+ [ ] WorldBuffTravelValues.h            | WorldBuffTravelStepValue
+
+--------------------------------------------------------------------------------
+ SHARED TRIGGERS  (48 files)
+--------------------------------------------------------------------------------
+ [ ] BlackwingLairDungeonTriggers.h     | BlackwingLairEnterDungeonTrigger,BlackwingLairLeaveDungeonTrigger,SuppressionD
+ [ ] BotStateTriggers.cpp               | (header/util)
+ [ ] BotStateTriggers.h                 | CombatStartTrigger,CombatEndTrigger,DeathTrigger,ResurrectTrigger
+ [ ] ChatCommandTrigger.h               | ChatCommandTrigger
+ [ ] ChatTriggerContext.h               | ChatTriggerContext
+ [ ] CureTriggers.cpp                   | (header/util)
+ [ ] CureTriggers.h                     | SpellTrigger,NeedCureTrigger,TargetAuraDispelTrigger,PartyMemberNeedCureTrigge
+ [ ] DungeonTriggers.cpp                | (header/util)
+ [ ] DungeonTriggers.h                  | EnterDungeonTrigger,LeaveDungeonTrigger,StartBossFightTrigger,EndBossFightTrig
+ [ ] GenericTriggers.cpp                | (header/util)
+ [ ] GenericTriggers.h                  | StatAvailable,RageAvailable,LightRageAvailableTrigger,MediumRageAvailableTrigg
+ [ ] GlyphTriggers.h                    | ApplyGlyphTrigger
+ [ ] GuildMeetingTrigger.cpp            | (header/util)
+ [ ] GuildMeetingTrigger.h              | GuildMeetingTrigger
+ [ ] GuildTriggers.cpp                  | (header/util)
+ [ ] GuildTriggers.h                    | PetitionTurnInTrigger,BuyTabardTrigger,LeaveLargeGuildTrigger
+ [ ] HealthTriggers.cpp                 | (header/util)
+ [ ] HealthTriggers.h                   | ValueInRangeTrigger,HealthInRangeTrigger,LowHealthTrigger,CriticalHealthTrigge
+ [ ] KarazhanDungeonTriggers.cpp        | (header/util)
+ [ ] KarazhanDungeonTriggers.h          | KarazhanEnterDungeonTrigger,KarazhanLeaveDungeonTrigger,NetherspiteStartFightT
+ [ ] LfgTriggers.cpp                    | (header/util)
+ [ ] LfgTriggers.h                      | LfgProposalActiveTrigger,UnknownDungeonTrigger
+ [ ] LootTriggers.cpp                   | (header/util)
+ [ ] LootTriggers.h                     | LootAvailableTrigger,FarFromCurrentLootTrigger,CanLootTrigger
+ [ ] MoltenCoreDungeonTriggers.cpp      | (header/util)
+ [ ] MoltenCoreDungeonTriggers.h        | MoltenCoreEnterDungeonTrigger,MoltenCoreLeaveDungeonTrigger,MagmadarStartFight
+ [ ] NaxxramasDungeonTriggers.cpp       | (header/util)
+ [ ] NaxxramasDungeonTriggers.h         | NaxxramasEnterDungeonTrigger,NaxxramasLeaveDungeonTrigger,FourHorsemanStartFig
+ [ ] OnyxiasLairDungeonTriggers.cpp     | (header/util)
+ [ ] OnyxiasLairDungeonTriggers.h       | OnyxiasLairEnterDungeonTrigger,OnyxiasLairLeaveDungeonTrigger,OnyxiaStartFight
+ [ ] PullTriggers.cpp                   | (header/util)
+ [ ] PullTriggers.h                     | PullStartTrigger,PullEndTrigger
+ [ ] PvpTriggers.cpp                    | (header/util)
+ [ ] PvpTriggers.h                      | EnemyPlayerNear,PlayerHasNoFlag,PlayerHasFlag,EnemyFlagCarrierNear
+ [ ] RangeTriggers.h                    | EnemyTooCloseForSpellTrigger,EnemyTooCloseForShootTrigger,EnemyTooCloseForMele
+ [ ] RpgTriggers.cpp                    | (header/util)
+ [ ] RpgTriggers.h                      | NoRpgTargetTrigger,HasRpgTargetTrigger,FarFromRpgTargetTrigger,NearRpgTargetTr
+ [ ] RtiTriggers.h                      | NoRtiTrigger
+ [ ] StuckTriggers.cpp                  | (header/util)
+ [ ] StuckTriggers.h                    | MoveStuckTrigger,MoveLongStuckTrigger,CombatStuckTrigger,CombatLongStuckTrigge
+ [ ] TravelTriggers.cpp                 | (header/util)
+ [ ] TravelTriggers.h                   | HasNearbyQuestTakerTrigger,NearDarkPortalTrigger,AtDarkPortalAzerothTrigger,At
+ [ ] TriggerContext.h                   | TriggerContext
+ [ ] WithinAreaTrigger.h                | WithinAreaTrigger
+ [ ] WorldBuffTravelTriggers.cpp        | (header/util)
+ [ ] WorldBuffTravelTriggers.h          | WorldBuffTravelZoneReachedTrigger,WorldBuffTravelNeedMoveTrigger,WorldBuffTrav
+ [ ] WorldPacketTrigger.h               | WorldPacketTrigger
+ [ ] WorldPacketTriggerContext.h        | WorldPacketTriggerContext
+
+--------------------------------------------------------------------------------
+ GENERIC STRATEGIES  (113 files)
+--------------------------------------------------------------------------------
+ [ ] AttackEnemyPlayersStrategy.cpp     | (header/util)
+ [ ] AttackEnemyPlayersStrategy.h       | AttackEnemyPlayersStrategy
+ [ ] AvoidMobsStrategy.cpp              | (header/util)
+ [ ] AvoidMobsStrategy.h                | AvoidMobsStrategy
+ [ ] BattlegroundStrategy.cpp           | (header/util)
+ [ ] BattlegroundStrategy.h             | BGStrategy,BattlegroundStrategy,WarsongStrategy,AlteracStrategy
+ [ ] BlackwingLairDungeonStrategies.cpp | SuppressionRoomPassiveMultiplier
+ [ ] BlackwingLairDungeonStrategies.h   | BlackwingLairDungeonStrategy,SuppressionRoomStrategy
+ [ ] CastTimeStrategy.cpp               | (header/util)
+ [ ] CastTimeStrategy.h                 | CastTimeMultiplier,CastTimeStrategy
+ [ ] ChatCommandHandlerStrategy.cpp     | ChatCommandActionNodeFactoryInternal
+ [ ] ChatCommandHandlerStrategy.h       | ChatCommandHandlerStrategy
+ [ ] ClassStrategy.cpp                  | (header/util)
+ [ ] ClassStrategy.h                    | rotations,ClassStrategy,ClassPvpStrategy,ClassPveStrategy
+ [ ] CombatStrategy.cpp                 | (header/util)
+ [ ] CombatStrategy.h                   | when,CombatStrategy,AvoidAoeStrategy,AvoidAoeStrategyMultiplier
+ [ ] ConserveManaStrategy.cpp           | (header/util)
+ [ ] ConserveManaStrategy.h             | ConserveManaMultiplier,SaveManaMultiplier,ConserveManaStrategy
+ [ ] ConsumableStrategy.cpp             | (header/util)
+ [ ] ConsumableStrategy.h               | ConsumableStrategy
+ [ ] DeadStrategy.cpp                   | (header/util)
+ [ ] DeadStrategy.h                     | DeadStrategy
+ [ ] DebugStrategy.cpp                  | (header/util)
+ [ ] DebugStrategy.h                    | DebugStrategy,DebugActionStrategy,DebugMoveStrategy,DebugRpgStrategy
+ [ ] DpsAssistStrategy.cpp              | (header/util)
+ [ ] DpsAssistStrategy.h                | DpsAssistStrategy,DpsAoeStrategy
+ [ ] DuelStrategy.cpp                   | (header/util)
+ [ ] DuelStrategy.h                     | DuelStrategy,StartDuelStrategy
+ [ ] DungeonMultipliers.cpp             | (header/util)
+ [ ] DungeonMultipliers.h               | Action,PreventMoveAwayFromCreatureOnReachToCastMultiplier
+ [ ] DungeonStrategy.cpp                | (header/util)
+ [ ] DungeonStrategy.h                  | DungeonStrategy
+ [ ] EmoteStrategy.cpp                  | (header/util)
+ [ ] EmoteStrategy.h                    | EmoteStrategy
+ [ ] FleeStrategy.cpp                   | (header/util)
+ [ ] FleeStrategy.h                     | FleeStrategy,FleeFromAddsStrategy
+ [ ] FocusTargetStrategy.cpp            | (header/util)
+ [ ] FocusTargetStrategy.h              | FocusHealTargetsStrategy,FocusRtiTargetsStrategy
+ [ ] FollowMasterStrategy.cpp           | (header/util)
+ [ ] FollowMasterStrategy.h             | FollowMasterStrategy,FreeStrategy,FollowJumpStrategy
+ [ ] GrindingStrategy.cpp               | (header/util)
+ [ ] GrindingStrategy.h                 | GrindingStrategy
+ [ ] GroupStrategy.cpp                  | (header/util)
+ [ ] GroupStrategy.h                    | GroupStrategy
+ [ ] GuardStrategy.cpp                  | (header/util)
+ [ ] GuardStrategy.h                    | GuardStrategy
+ [ ] GuildStrategy.cpp                  | (header/util)
+ [ ] GuildStrategy.h                    | GuildStrategy
+ [ ] KarazhanDungeonStrategies.cpp      | (header/util)
+ [ ] KarazhanDungeonStrategies.h        | KarazhanDungeonStrategy,NetherspiteFightStrategy,PrinceMalchezaarFightStrategy
+ [ ] KiteStrategy.cpp                   | (header/util)
+ [ ] KiteStrategy.h                     | KiteStrategy
+ [ ] LfgStrategy.cpp                    | (header/util)
+ [ ] LfgStrategy.h                      | LfgStrategy
+ [ ] LootNonCombatStrategy.cpp          | (header/util)
+ [ ] LootNonCombatStrategy.h            | LootNonCombatStrategy,GatherStrategy,RevealStrategy,RollStrategy
+ [ ] MaintenanceStrategy.cpp            | (header/util)
+ [ ] MaintenanceStrategy.h              | MaintenanceStrategy
+ [ ] MarkRtiStrategy.cpp                | (header/util)
+ [ ] MarkRtiStrategy.h                  | MarkRtiStrategy
+ [ ] MeleeCombatStrategy.cpp            | (header/util)
+ [ ] MeleeCombatStrategy.h              | MeleeCombatStrategy,SetBehindCombatStrategy,ChaseJumpStrategy
+ [ ] MoltenCoreDungeonStrategies.cpp    | (header/util)
+ [ ] MoltenCoreDungeonStrategies.h      | MoltenCoreDungeonStrategy,MagmadarFightStrategy
+ [ ] NaxxramasDungeonStrategies.cpp     | (header/util)
+ [ ] NaxxramasDungeonStrategies.h       | NaxxramasDungeonStrategy,FourHorsemanFightStrategy
+ [ ] NonCombatStrategy.cpp              | (header/util)
+ [ ] NonCombatStrategy.h                | NonCombatStrategy,CollisionStrategy,MountStrategy,AttackTaggedStrategy
+ [ ] OnyxiasLairDungeonStrategies.cpp   | (header/util)
+ [ ] OnyxiasLairDungeonStrategies.h     | OnyxiasLairDungeonStrategy,OnyxiaFightStrategy
+ [ ] PassTroughStrategy.h               | PassTroughStrategy
+ [ ] PassiveStrategy.cpp                | (header/util)
+ [ ] PassiveStrategy.h                  | PassiveStrategy
+ [ ] PullStrategy.cpp                   | PullStrategyActionNodeFactory
+ [ ] PullStrategy.h                     | PullStrategy,PullMultiplier,PossibleAdsStrategy,PullBackStrategy
+ [ ] QuestStrategies.cpp                | (header/util)
+ [ ] QuestStrategies.h                  | QuestStrategy,DefaultQuestStrategy,AcceptAllQuestsStrategy
+ [ ] RTSCStrategy.cpp                   | (header/util)
+ [ ] RTSCStrategy.h                     | RTSCStrategy,RTSCSJumptrategy
+ [ ] RacialsStrategy.cpp                | (header/util)
+ [ ] RacialsStrategy.h                  | RacialsStrategy
+ [ ] RangedCombatStrategy.cpp           | (header/util)
+ [ ] RangedCombatStrategy.h             | RangedCombatStrategy
+ [ ] ReactionStrategy.cpp               | (header/util)
+ [ ] ReactionStrategy.h                 | ReactionStrategy
+ [ ] ReturnStrategy.cpp                 | (header/util)
+ [ ] ReturnStrategy.h                   | ReturnStrategy
+ [ ] RpgStrategy.cpp                    | (header/util)
+ [ ] RpgStrategy.h                      | RpgActionMultiplier,RpgStrategy,RpgQuestStrategy,RpgVendorStrategy
+ [ ] RunawayStrategy.cpp                | (header/util)
+ [ ] RunawayStrategy.h                  | RunawayStrategy
+ [ ] SayStrategy.cpp                    | (header/util)
+ [ ] SayStrategy.h                      | SayStrategy
+ [ ] StayStrategy.cpp                   | (header/util)
+ [ ] StayStrategy.h                     | StayStrategy,SitStrategy
+ [ ] TankAssistStrategy.cpp             | (header/util)
+ [ ] TankAssistStrategy.h               | TankAssistStrategy
+ [ ] TellTargetStrategy.cpp             | (header/util)
+ [ ] TellTargetStrategy.h               | TellTargetStrategy
+ [ ] ThreatStrategy.cpp                 | (header/util)
+ [ ] ThreatStrategy.h                   | ThreatMultiplier,ThreatStrategy
+ [ ] TravelStrategy.cpp                 | (header/util)
+ [ ] TravelStrategy.h                   | TravelActionMultiplier,TravelStrategy,TravelOnceStrategy,ExploreStrategy
+ [ ] UseFoodStrategy.cpp                | (header/util)
+ [ ] UseFoodStrategy.h                  | UseFoodStrategy
+ [ ] UsePotionsStrategy.cpp             | UsePotionsStrategyActionNodeFactory
+ [ ] UsePotionsStrategy.h               | UsePotionsStrategy
+ [ ] WanderStrategy.cpp                 | (header/util)
+ [ ] WanderStrategy.h                   | WanderStrategy
+ [ ] WorldBuffTravelStrategy.cpp        | (header/util)
+ [ ] WorldBuffTravelStrategy.h          | WorldBuffTravelStep,WorldBuffTravelMultiplier,WorldBuffTravelStrategy
+ [ ] WorldPacketHandlerStrategy.cpp     | (header/util)
+ [ ] WorldPacketHandlerStrategy.h       | WorldPacketHandlerStrategy,ReadyCheckStrategy
+
+--------------------------------------------------------------------------------
+ CLASS: DEATH KNIGHT (vertical slice first)  (20 files)
+--------------------------------------------------------------------------------
+ [ ] BloodDKStrategy.cpp                | BloodDKStrategyActionNodeFactory
+ [ ] BloodDKStrategy.h                  | BloodDKStrategy
+ [ ] DKActions.cpp                      | (header/util)
+ [ ] DKActions.h                        | CastBloodPresenceAction,CastFrostPresenceAction,CastUnholyPresenceAction,CastD
+ [ ] DKAiObjectContext.cpp              | StrategyFactoryInternal,CombatStrategyFactoryInternal,DKBuffStrategyFactoryInt
+ [ ] DKAiObjectContext.h                | DKAiObjectContext
+ [ ] DKMultipliers.cpp                  | (header/util)
+ [ ] DKMultipliers.h                    | (header/util)
+ [ ] DKReactionStrategy.cpp             | specific
+ [ ] DKReactionStrategy.h               | DKReactionStrategy
+ [ ] DKTriggers.cpp                     | (header/util)
+ [ ] DKTriggers.h                       | PlagueStrikeDebuffOnAttackerTrigger,IcyTouchDebuffOnAttackerTrigger,DKPresence
+ [ ] FrostDKStrategy.cpp                | FrostDKStrategyActionNodeFactory
+ [ ] FrostDKStrategy.h                  | FrostDKStrategy,FrostDKAoeStrategy
+ [ ] GenericDKNonCombatStrategy.cpp     | GenericDKNonCombatStrategyActionNodeFactory
+ [ ] GenericDKNonCombatStrategy.h       | GenericDKNonCombatStrategy,DKBuffDpsStrategy,DKStartQuestStrategy
+ [ ] GenericDKStrategy.cpp              | GenericDKStrategyActionNodeFactory
+ [ ] GenericDKStrategy.h                | GenericDKStrategy
+ [ ] UnholyDKStrategy.cpp               | UnholyDKStrategyActionNodeFactory
+ [ ] UnholyDKStrategy.h                 | UnholyDKStrategy,UnholyDKAoeStrategy
+
+--------------------------------------------------------------------------------
+ CLASS: WARRIOR  (16 files)
+--------------------------------------------------------------------------------
+ [ ] ArmsWarriorStrategy.cpp            | ArmsWarriorStrategyActionNodeFactory,WarriorSweepingStrikesPveMultiplier,Warri
+ [ ] ArmsWarriorStrategy.h              | ArmsWarriorPlaceholderStrategy,ArmsWarriorStrategy,ArmsWarriorPveStrategy,Arms
+ [ ] FuryWarriorStrategy.cpp            | FuryWarriorStrategyActionNodeFactory
+ [ ] FuryWarriorStrategy.h              | FuryWarriorPlaceholderStrategy,FuryWarriorStrategy,FuryWarriorPveStrategy,Fury
+ [ ] ProtectionWarriorStrategy.cpp      | ProtectionWarriorStrategyActionNodeFactory
+ [ ] ProtectionWarriorStrategy.h        | ProtectionWarriorPlaceholderStrategy,ProtectionWarriorStrategy,ProtectionWarri
+ [ ] WarriorActions.cpp                 | (header/util)
+ [ ] WarriorActions.h                   | CastBattleShoutAction,CastSunderArmorAction,UpdateWarriorPveStrategiesAction,U
+ [ ] WarriorAiObjectContext.cpp         | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,BuffSituationStrat
+ [ ] WarriorAiObjectContext.h           | WarriorAiObjectContext
+ [ ] WarriorMultipliers.cpp             | (header/util)
+ [ ] WarriorMultipliers.h               | (header/util)
+ [ ] WarriorStrategy.cpp                | WarriorStrategyActionNodeFactory
+ [ ] WarriorStrategy.h                  | WarriorStrategy,WarriorPvpStrategy,WarriorPveStrategy,WarriorRaidStrategy
+ [ ] WarriorTriggers.cpp                | (header/util)
+ [ ] WarriorTriggers.h                  | BattleShoutTrigger,BerserkerRageBuffTrigger,SweepingStrikesTrigger,Bloodthirst
+
+--------------------------------------------------------------------------------
+ CLASS: PALADIN  (16 files)
+--------------------------------------------------------------------------------
+ [ ] HolyPaladinStrategy.cpp            | (header/util)
+ [ ] HolyPaladinStrategy.h              | HolyPaladinPlaceholderStrategy,HolyPaladinStrategy,HolyPaladinPveStrategy,Holy
+ [ ] PaladinActions.cpp                 | (header/util)
+ [ ] PaladinActions.h                   | CastJudgementAction,CastDivineStormAction,CastCrusaderStrikeAction,CastSealSpe
+ [ ] PaladinAiObjectContext.cpp         | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,CureSituationStrat
+ [ ] PaladinAiObjectContext.h           | PaladinAiObjectContext
+ [ ] PaladinMultipliers.cpp             | (header/util)
+ [ ] PaladinMultipliers.h               | (header/util)
+ [ ] PaladinStrategy.cpp                | PaladinStrategyActionNodeFactory
+ [ ] PaladinStrategy.h                  | PaladinAuraPlaceholderStrategy,PaladinBlessingPlaceholderStrategy,PaladinStrat
+ [ ] PaladinTriggers.cpp                | (header/util)
+ [ ] PaladinTriggers.h                  | NoPaladinAuraTrigger,SealTrigger,ConsecrationTrigger,ExorcismTrigger
+ [ ] ProtectionPaladinStrategy.cpp      | ProtectionPaladinStrategyActionNodeFactory
+ [ ] ProtectionPaladinStrategy.h        | ProtectionPaladinPlaceholderStrategy,ProtectionPaladinStrategy,ProtectionPalad
+ [ ] RetributionPaladinStrategy.cpp     | RetributionPaladinStrategyActionNodeFactory
+ [ ] RetributionPaladinStrategy.h       | RetributionPaladinPlaceholderStrategy,RetributionPaladinStrategy,RetributionPa
+
+--------------------------------------------------------------------------------
+ CLASS: HUNTER  (16 files)
+--------------------------------------------------------------------------------
+ [ ] BeastMasteryHunterStrategy.cpp     | (header/util)
+ [ ] BeastMasteryHunterStrategy.h       | BeastMasteryHunterPlaceholderStrategy,BeastMasteryHunterStrategy,BeastMasteryH
+ [ ] HunterActions.cpp                  | (header/util)
+ [ ] HunterActions.h                    | CastAutoShotAction,HunterEquipAmmoAction,CastScatterShotOnClosestAttackerTarge
+ [ ] HunterAiObjectContext.cpp          | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,BuffSituationStrat
+ [ ] HunterAiObjectContext.h            | HunterAiObjectContext
+ [ ] HunterMultipliers.cpp              | (header/util)
+ [ ] HunterMultipliers.h                | (header/util)
+ [ ] HunterStrategy.cpp                 | HunterStrategyActionNodeFactory
+ [ ] HunterStrategy.h                   | HunterStingPlaceholderStrategy,HunterAspectPlaceholderStrategy,HunterStrategy,
+ [ ] HunterTriggers.cpp                 | (header/util)
+ [ ] HunterTriggers.h                   | AspectOfTheHawkTrigger,AspectOfTheWildTrigger,AspectOfTheViperTrigger,AspectOf
+ [ ] MarksmanshipHunterStrategy.cpp     | (header/util)
+ [ ] MarksmanshipHunterStrategy.h       | MarksmanshipHunterPlaceholderStrategy,MarksmanshipHunterStrategy,MarksmanshipH
+ [ ] SurvivalHunterStrategy.cpp         | (header/util)
+ [ ] SurvivalHunterStrategy.h           | SurvivalHunterPlaceholderStrategy,SurvivalHunterStrategy,SurvivalHunterPveStra
+
+--------------------------------------------------------------------------------
+ CLASS: ROGUE  (16 files)
+--------------------------------------------------------------------------------
+ [ ] AssassinationRogueStrategy.cpp     | AssassinationRogueStrategyActionNodeFactory
+ [ ] AssassinationRogueStrategy.h       | AssassinationRoguePlaceholderStrategy,AssassinationRogueStrategy,Assassination
+ [ ] CombatRogueStrategy.cpp            | (header/util)
+ [ ] CombatRogueStrategy.h              | CombatRoguePlaceholderStrategy,CombatRogueStrategy,CombatRoguePveStrategy,Comb
+ [ ] RogueActions.cpp                   | (header/util)
+ [ ] RogueActions.h                     | CastShadowstepAction,CastEvasionAction,CastSprintAction,CastStealthAction
+ [ ] RogueAiObjectContext.cpp           | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,BuffSituationStrat
+ [ ] RogueAiObjectContext.h             | RogueAiObjectContext
+ [ ] RogueMultipliers.cpp               | (header/util)
+ [ ] RogueMultipliers.h                 | (header/util)
+ [ ] RogueStrategy.cpp                  | RogueStrategyActionNodeFactory,RogueStealthStrategyActionNodeFactory,RogueStea
+ [ ] RogueStrategy.h                    | RoguePoisonsPlaceholderStrategy,RogueStrategy,RoguePvpStrategy,RoguePveStrateg
+ [ ] RogueTriggers.cpp                  | (header/util)
+ [ ] RogueTriggers.h                    | KickInterruptSpellTrigger,SliceAndDiceTrigger,RogueBoostBuffTrigger,RuptureTri
+ [ ] SubtletyRogueStrategy.cpp          | SubtletyRogueStrategyActionNodeFactory
+ [ ] SubtletyRogueStrategy.h            | SubtletyRoguePlaceholderStrategy,SubtletyRogueStrategy,SubtletyRoguePveStrateg
+
+--------------------------------------------------------------------------------
+ CLASS: PRIEST  (16 files)
+--------------------------------------------------------------------------------
+ [ ] DisciplinePriestStrategy.cpp       | DisciplinePriestStrategyActionNodeFactory
+ [ ] DisciplinePriestStrategy.h         | DisciplinePriestPlaceholderStrategy,DisciplinePriestStrategy,DisciplinePriestP
+ [ ] HolyPriestStrategy.cpp             | HolyPriestStrategyActionNodeFactory
+ [ ] HolyPriestStrategy.h               | HolyPriestPlaceholderStrategy,HolyPriestStrategy,HolyPriestPveStrategy,HolyPri
+ [ ] PriestActions.cpp                  | (header/util)
+ [ ] PriestActions.h                    | CastRemoveShadowformAction,CastPowerInfusionAction,CastFearWardAction,UpdatePr
+ [ ] PriestAiObjectContext.cpp          | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,CureSituationStrat
+ [ ] PriestAiObjectContext.h            | PriestAiObjectContext
+ [ ] PriestMultipliers.cpp              | (header/util)
+ [ ] PriestMultipliers.h                | (header/util)
+ [ ] PriestStrategy.cpp                 | PriestStrategyActionNodeFactory
+ [ ] PriestStrategy.h                   | PriestStrategy,PriestPvpStrategy,PriestPveStrategy,PriestRaidStrategy
+ [ ] PriestTriggers.cpp                 | (header/util)
+ [ ] PriestTriggers.h                   | PowerWordFortitudeOnPartyTrigger,PowerWordFortitudeTrigger,DivineSpiritOnParty
+ [ ] ShadowPriestStrategy.cpp           | ShadowPriestStrategyActionNodeFactory
+ [ ] ShadowPriestStrategy.h             | ShadowPriestPlaceholderStrategy,ShadowPriestStrategy,ShadowPriestPveStrategy,S
+
+--------------------------------------------------------------------------------
+ CLASS: SHAMAN  (16 files)
+--------------------------------------------------------------------------------
+ [ ] ElementalShamanStrategy.cpp        | ElementalShamanStrategyActionNodeFactory
+ [ ] ElementalShamanStrategy.h          | ElementalShamanPlaceholderStrategy,ElementalShamanStrategy,ElementalShamanPveS
+ [ ] EnhancementShamanStrategy.cpp      | EnhancementShamanStrategyActionNodeFactory
+ [ ] EnhancementShamanStrategy.h        | EnhancementShamanPlaceholderStrategy,EnhancementShamanStrategy,EnhancementSham
+ [ ] RestorationShamanStrategy.cpp      | RestorationShamanStrategyActionNodeFactory
+ [ ] RestorationShamanStrategy.h        | RestorationShamanPlaceholderStrategy,RestorationShamanStrategy,RestorationSham
+ [ ] ShamanActions.cpp                  | (header/util)
+ [ ] ShamanActions.h                    | CastLesserHealingWaveAction,CastLesserHealingWaveOnPartyAction,CastHealingWave
+ [ ] ShamanAiObjectContext.cpp          | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,CcSituationStrateg
+ [ ] ShamanAiObjectContext.h            | ShamanAiObjectContext
+ [ ] ShamanMultipliers.cpp              | (header/util)
+ [ ] ShamanMultipliers.h                | (header/util)
+ [ ] ShamanStrategy.cpp                 | ShamanStrategyActionNodeFactory
+ [ ] ShamanStrategy.h                   | ShamanTotemsPlaceholderStrategy,ShamanStrategy,ShamanPvpStrategy,ShamanPveStra
+ [ ] ShamanTriggers.cpp                 | (header/util)
+ [ ] ShamanTriggers.h                   | ShamanWeaponTrigger,ReadyToRemoveTotemsTrigger,TotemsAreNotSummonedTrigger,Tot
+
+--------------------------------------------------------------------------------
+ CLASS: MAGE  (16 files)
+--------------------------------------------------------------------------------
+ [ ] ArcaneMageStrategy.cpp             | ArcaneMageStrategyActionNodeFactory
+ [ ] ArcaneMageStrategy.h               | ArcaneMagePlaceholderStrategy,ArcaneMageStrategy,ArcaneMagePveStrategy,ArcaneM
+ [ ] FireMageStrategy.cpp               | FireMageStrategyActionNodeFactory
+ [ ] FireMageStrategy.h                 | FireMagePlaceholderStrategy,FireMageStrategy,FireMagePveStrategy,FireMagePvpSt
+ [ ] FrostMageStrategy.cpp              | (header/util)
+ [ ] FrostMageStrategy.h                | FrostMagePlaceholderStrategy,FrostMageStrategy,FrostMagePveStrategy,FrostMageP
+ [ ] MageActions.cpp                    | (header/util)
+ [ ] MageActions.h                      | CastFireballAction,CastScorchAction,CastFireBlastAction,CastArcaneBlastAction
+ [ ] MageAiObjectContext.cpp            | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,CureSituationStrat
+ [ ] MageAiObjectContext.h              | MageAiObjectContext
+ [ ] MageMultipliers.cpp                | (header/util)
+ [ ] MageMultipliers.h                  | (header/util)
+ [ ] MageStrategy.cpp                   | MageStrategyActionNodeFactory
+ [ ] MageStrategy.h                     | MageStrategy,MagePvpStrategy,MagePveStrategy,MageRaidStrategy
+ [ ] MageTriggers.cpp                   | (header/util)
+ [ ] MageTriggers.h                     | BlinkTrigger,ArcaneIntellectOnPartyTrigger,ArcaneIntellectTrigger,ArcaneBrilli
+
+--------------------------------------------------------------------------------
+ CLASS: WARLOCK  (16 files)
+--------------------------------------------------------------------------------
+ [ ] AfflictionWarlockStrategy.cpp      | (header/util)
+ [ ] AfflictionWarlockStrategy.h        | AfflictionWarlockPlaceholderStrategy,AfflictionWarlockStrategy,AfflictionWarlo
+ [ ] DemonologyWarlockStrategy.cpp      | DemonologyWarlockStrategyActionNodeFactory
+ [ ] DemonologyWarlockStrategy.h        | DemonologyWarlockPlaceholderStrategy,DemonologyWarlockStrategy,DemonologyWarlo
+ [ ] DestructionWarlockStrategy.cpp     | (header/util)
+ [ ] DestructionWarlockStrategy.h       | DestructionWarlockPlaceholderStrategy,DestructionWarlockStrategy,DestructionWa
+ [ ] WarlockActions.cpp                 | (header/util)
+ [ ] WarlockActions.h                   | CastDemonSkinAction,CastDemonArmorAction,CastFelArmorAction,CastDrainSoulActio
+ [ ] WarlockAiObjectContext.cpp         | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,BuffSituationStrat
+ [ ] WarlockAiObjectContext.h           | WarlockAiObjectContext
+ [ ] WarlockMultipliers.cpp             | (header/util)
+ [ ] WarlockMultipliers.h               | (header/util)
+ [ ] WarlockStrategy.cpp                | WarlockStrategyActionNodeFactory
+ [ ] WarlockStrategy.h                  | WarlockPetPlaceholderStrategy,WarlockCursePlaceholderStrategy,WarlockStrategy,
+ [ ] WarlockTriggers.cpp                | (header/util)
+ [ ] WarlockTriggers.h                  | DemonArmorTrigger,SpellstoneTrigger,NoCurseTrigger,NoCurseOnAttackerTrigger
+
+--------------------------------------------------------------------------------
+ CLASS: DRUID  (20 files)
+--------------------------------------------------------------------------------
+ [ ] BalanceDruidStrategy.cpp           | BalanceDruidStrategyActionNodeFactory
+ [ ] BalanceDruidStrategy.h             | BalanceDruidPlaceholderStrategy,BalanceDruidStrategy,BalanceDruidPveStrategy,B
+ [ ] DpsFeralDruidStrategy.cpp          | DpsFeralDruidStrategyActionNodeFactory,DpsFeralDruidStealthStrategyActionNodeF
+ [ ] DpsFeralDruidStrategy.h            | DpsFeralDruidPlaceholderStrategy,DpsFeralDruidStrategy,DpsFeralDruidPveStrateg
+ [ ] DruidActions.cpp                   | (header/util)
+ [ ] DruidActions.h                     | CastFaerieFireAction,CastFaerieFireFeralAction,CastRejuvenationAction,CastRegr
+ [ ] DruidAiObjectContext.cpp           | StrategyFactoryInternal,AoeSituationStrategyFactoryInternal,CureSituationStrat
+ [ ] DruidAiObjectContext.h             | DruidAiObjectContext
+ [ ] DruidMultipliers.cpp               | (header/util)
+ [ ] DruidMultipliers.h                 | (header/util)
+ [ ] DruidStrategy.cpp                  | DruidStrategyActionNodeFactory
+ [ ] DruidStrategy.h                    | DruidStrategy,DruidPvpStrategy,DruidPveStrategy,DruidRaidStrategy
+ [ ] DruidTriggers.cpp                  | (header/util)
+ [ ] DruidTriggers.h                    | MarkOfTheWildOnPartyTrigger,MarkOfTheWildTrigger,GiftOfTheWildOnPartyTrigger,T
+ [ ] DruidValues.cpp                    | TankWithoutLifebloomPredicate
+ [ ] DruidValues.h                      | PartyTankWithoutLifebloomValue
+ [ ] RestorationDruidStrategy.cpp       | BalanceDruidStrategyActionNodeFactory
+ [ ] RestorationDruidStrategy.h         | RestorationDruidPlaceholderStrategy,RestorationDruidStrategy,RestorationDruidP
+ [ ] TankFeralDruidStrategy.cpp         | TankFeralDruidStrategyActionNodeFactory
+ [ ] TankFeralDruidStrategy.h           | TankFeralDruidPlaceholderStrategy,TankFeralDruidStrategy,TankFeralDruidPveStra
+
+--------------------------------------------------------------------------------
+ TESTS - port last / mostly skip  (41 files)
+--------------------------------------------------------------------------------
+ [ ] BossFocusManager.cpp               | (header/util)
+ [ ] BossFocusManager.h                 | BossFocusManager
+ [ ] CleanupParty.cpp                   | (header/util)
+ [ ] CleanupParty.h                     | CleanupParty
+ [ ] CommandDebug.cpp                   | (header/util)
+ [ ] CommandDebug.h                     | CommandDebug,CommandRecord,CommandRead
+ [ ] CommandFlow.cpp                    | (header/util)
+ [ ] CommandFlow.h                      | CommandFlowObserve,CommandFlowPreconditions,CommandFlowMonitor,CommandFlowWait
+ [ ] CommandParty.cpp                   | (header/util)
+ [ ] CommandParty.h                     | CommandPartySpawnBot,CommandPartyDespawnBot,CommandPartyForm,CommandPartySpawn
+ [ ] CommandQuest.cpp                   | (header/util)
+ [ ] CommandQuest.h                     | CommandSetupAcceptQuest,CommandSetupForceCompleteQuest,CommandSetupRewardQuest
+ [ ] CommandRecordMessages.h            | CommandRecordMessages
+ [ ] CommandSetup.cpp                   | (header/util)
+ [ ] CommandSetup.h                     | CommandSetupTeleport,CommandSetupGM,CommandSetupGiveItem,CommandSetupEquipItem
+ [ ] MonitorCombat.cpp                  | (header/util)
+ [ ] MonitorCombat.h                    | MonitorCombatHp,MonitorCombatMob,MonitorCombatPartyWiped,MonitorCombatDeadMobs
+ [ ] MonitorMovement.cpp                | (header/util)
+ [ ] MonitorMovement.h                  | MonitorMovementDistance,MonitorNotOnMap,MonitorMovementUnderground,MonitorMove
+ [ ] MonitorQuest.cpp                   | (header/util)
+ [ ] MonitorQuest.h                     | MonitorQuestComplete,MonitorQuestRewarded,MonitorQuestActive,MonitorQuestObjec
+ [ ] MonitorState.cpp                   | (header/util)
+ [ ] MonitorState.h                     | MonitorStateTime,MonitorStateDead,MonitorStateFaction,MonitorStateGroupSize
+ [ ] RegisterInstance.cpp               | (header/util)
+ [ ] RegisterMove.cpp                   | (header/util)
+ [ ] RegisterQuestDkStart.cpp           | (header/util)
+ [ ] RegisterRpg.cpp                    | (header/util)
+ [ ] RegisterSpawn.cpp                  | (header/util)
+ [ ] RequireState.cpp                   | (header/util)
+ [ ] RequireState.h                     | RequireBotIs,RequireEquip
+ [ ] TestAction.cpp                     | (header/util)
+ [ ] TestAction.h                       | TestAction
+ [ ] TestComponent.cpp                  | (header/util)
+ [ ] TestComponent.h                    | Player,PlayerbotAI,TestContext,TextComponent
+ [ ] TestContext.cpp                    | (header/util)
+ [ ] TestContext.h                      | ObjectGuid,TestResult
+ [ ] TestRegistry.cpp                   | struct TeleLoc
+ [ ] TestRegistry.h                     | TestRegistry
+ [ ] TestStrategy.cpp                   | (header/util)
+ [ ] TestStrategy.h                     | TestStrategy
+ [ ] TestTriggers.h                     | TestReadyTrigger
+
+--------------------------------------------------------------------------------
+ AHBOT  (14 files)
+--------------------------------------------------------------------------------
+ [ ] AhBot.cpp                          | AhbotThread
+ [ ] AhBot.h                            | AhBot
+ [ ] AhBotConfig.cpp                    | T
+ [ ] AhBotConfig.h                      | AhBotConfig
+ [ ] Category.cpp                       | (header/util)
+ [ ] Category.h                         | Category,Consumable,Quest,Trade
+ [ ] ConsumableCategory.cpp             | (header/util)
+ [ ] ConsumableCategory.h               | Alchemy,Scroll,Food,Bandage
+ [ ] ItemBag.cpp                        | (header/util)
+ [ ] ItemBag.h                          | CategoryList,T,ItemBag,AvailableItemsBag
+ [ ] PricingStrategy.cpp                | (header/util)
+ [ ] PricingStrategy.h                  | Category,PricingStrategy,BuyOnlyRarePricingStrategy,PricingStrategyFactory
+ [ ] TradeCategory.cpp                  | (header/util)
+ [ ] TradeCategory.h                    | TradeSkill
+
+================================================================================
+ TOTALS:  985 reference files.
+          NEW (Monk + Demon Hunter) class folders to AUTHOR (no reference):
+          [ ] classes/monk/*        | Brewmaster/Mistweaver/Windwalker
+          [ ] classes/demonhunter/* | Havoc/Vengeance
+================================================================================
+
+
+================================================================================
+ PROGRESS SUMMARY (update as you go)
+================================================================================
+ Reference files total .......... 985
+ Done [x] ...................... 169  (... DK..Shaman + S14 Mage)
+ In progress [~] ............... 0
+ Remaining [ ] ................. 816
+ NEW (no reference) to author ... Monk (3 specs) + Demon Hunter (2 specs)
+
+ STEP -> CHECKLIST SECTION MAP (see playerbots_docs/06_FAT_PORT_STEPS.txt):
+   S1-S3  ENGINE CORE (strategy/, 33)          [x] ~22/33 (core path complete; help/perf-monitor/packet-event extras deferred)
+   S4     SHARED VALUES (subset of 197) + TRIGGERS (subset of 48)  [x] 11 values + 14 triggers (consolidated CoreValues/CoreTriggers)
+   S5     SHARED ACTIONS keystone (subset of 301)                  [x] CastSpell family (7) + movement/attack (5)
+   S6     GENERIC STRATEGIES (subset of 113) + rewire PsychobotAI  [x] 5 generic strategies + AiFactory + full rewire  [MILESTONE REACHED]
+   S7     DEATH KNIGHT (20)  [x] DONE - DKTriggers/DKStrategies/DKAiObjectContext (blood/frost/unholy + nc)  [MILESTONE REACHED]
+   S8-S16 WARRIOR/PALADIN/HUNTER/ROGUE/PRIEST/SHAMAN/MAGE/WARLOCK/DRUID (16/20 ea)
+   S17    MONK (NEW - author)        S18  DEMON HUNTER (NEW - author)  [MILESTONE]
+   S19-S27 PET/GROUP/HEAL/NONCOMBAT/TRAVEL/PVP/DUNGEON/AHBOT(14)/DBStore+ChatFilter
+   S28    PHASE A core edits (socketless login)   S29  hardening + final audit
+
+================================================================================
+ S2-S6 CREATED EQUIVALENTS (Phase B - shared libs + rewire)  [2026-06-08]
+================================================================================
+ -- S2 (Value/Action/NextAction/ActionNode) --
+ [x] strategy/Value.h                 => modules/mod-psychobot/src/engine/Value.h
+     (UntypedValue, Value<T>, Calculated/Single/MemoryCalculatedValue)
+ [x] strategy/Action.{h,cpp}          => engine/Action.h + engine/Action.cpp
+ [x] strategy/NextAction.{h,cpp}      => engine/NextAction.h + engine/NextAction.cpp
+     (Size/Clone/Merge/Array/Destroy raw NULL-terminated array helpers)
+ [x] strategy/ActionNode.{h,cpp}      => engine/ActionNode.h (+ ACTION_NODE_P/A/C macros)
+ -- S3 (Trigger/Multiplier/Strategy/Queue/Context/Engine/ServerFacade) --
+ [x] strategy/Trigger.{h,cpp}         => engine/Trigger.h (Trigger + TriggerNode)
+ [x] strategy/Multiplier.h            => engine/Multiplier.h (Multiplier + PassiveMultiplier)
+ [x] strategy/Strategy.{h,cpp}        => engine/Strategy.h + engine/Strategy.cpp (+ BotState, StrategyType)
+ [x] strategy/Queue.{h,cpp}           => engine/Queue.h + engine/Queue.cpp
+ [x] strategy/AiObjectContext.{h,cpp} => engine/AiObjectContext.h
+ [x] strategy/Engine.{h,cpp}          => engine/Engine.h + engine/Engine.cpp (DoNextAction loop)
+ [x] ServerFacade.{h,cpp}             => engine/ServerFacade.h + engine/ServerFacade.cpp (TC 8.3 seam)
+ -- S4 (core values + triggers, consolidated) --
+ [x] values/CurrentTargetValue, SelfTarget, MasterTarget, Health, Power(pct),
+     DistanceToTarget, InCombat, HasAura, TargetHasAura, SpellReady,
+     PartyMemberToHeal      => values/CoreValues.{h,cpp}  (RegisterCoreValues)
+ [x] triggers/ low/medium/critical health, has/no target, enemy in/out of melee,
+     target casting, has aura, no aura, target has no aura, spell ready,
+     party member low health => triggers/CoreTriggers.{h,cpp} (RegisterCoreTriggers)
+ -- S5 (CastSpellAction family + movement/attack = KEYSTONE) --
+ [x] actions/GenericSpellActions: CastSpellAction, CastMeleeSpellAction,
+     CastAuraSpellAction, CastBuffSpellAction, CastMeleeAoeSpellAction,
+     CastRangedDebuffSpellAction, CastPetSpellAction
+                            => actions/GenericSpellActions.{h,cpp}
+ [x] actions/Movement: ReachTargetAction(reach melee/reach spell),
+     FollowMasterAction, StopMovingAction, AttackAction
+                            => actions/MovementActions.{h,cpp}
+ -- S6 (generic strategies + rewire) --
+ [x] strategies/ follow, melee, ranged, tank, heal
+                            => strategies/GenericStrategies.{h,cpp}
+ [x] AiFactory (context assembly + per-state engine wiring)
+                            => ai/PsychobotAiFactory.{h,cpp}
+ [x] spec->role table (extracted from old data-driven ClassAI)
+                            => ai/PsychobotSpecRoles.{h,cpp}
+ [x] PsychobotAI REWIRED to AiObjectContext + 3 per-state Engines + bridge seam
+                            => ai/PsychobotAI.{h,cpp} (rewritten)
+ [DELETED - thin engine replaced] ai/PsychobotEngine.{h,cpp},
+     ai/PsychobotClassAI.{h,cpp}, ai/PsychobotClassRegistry.cpp,
+     ai/PsychobotStrategies.{h,cpp}
+
+================================================================================
+ S7 CREATED EQUIVALENTS (Phase C - Death Knight)  [2026-06-08]
+================================================================================
+ [x] deathknight/DKAiObjectContext.{h,cpp} => classes/deathknight/DKAiObjectContext.{h,cpp}
+ [x] deathknight/DKTriggers.{h,cpp}        => classes/deathknight/DKTriggers.{h,cpp}
+     (runic power high/enough, frost/blood/virulent plague absent, killing
+      machine, rime, sudden doom, bone shield low)
+ [x] deathknight/DKMultipliers.{h,cpp}     => (folded in; CastSpell IsPossible
+      already gates runes/CD; no separate multiplier needed yet)
+ [x] deathknight/GenericDKStrategy.{h,cpp} => classes/deathknight/DKStrategies (GenericDKStrategy)
+ [x] deathknight/BloodDKStrategy.{h,cpp}   => classes/deathknight/DKStrategies (BloodDKStrategy)
+ [x] deathknight/FrostDKStrategy.{h,cpp}   => classes/deathknight/DKStrategies (FrostDKStrategy)
+ [x] deathknight/UnholyDKStrategy.{h,cpp}  => classes/deathknight/DKStrategies (UnholyDKStrategy)
+ [x] deathknight/GenericDKNonCombatStrategy.{h,cpp} => classes/deathknight/DKStrategies (GenericDKNonCombatStrategy)
+ [x] deathknight/DKActions.{h,cpp}         => NOT NEEDED: replaced by the S5
+      CastSpell family + cast::<name> action nodes (the keystone payoff).
+ [~] deathknight/DKReactionStrategy.{h,cpp}=> reaction-engine deferred (proc
+      reactions handled via triggers for now; full reaction engine = later step)
+ ENGINE ADDITIONS for S7:
+ [x] actions: CastSelfSpellAction ("cast self") => actions/GenericSpellActions
+ [x] values:  aura/spell-ready qualifiers now accept spell NAME or id
+
+================================================================================
+ S8 CREATED EQUIVALENTS (Phase C - Warrior)  [2026-06-08]
+================================================================================
+ [x] warrior/WarriorAiObjectContext.{h,cpp} => classes/warrior/WarriorAiObjectContext.{h,cpp}
+ [x] warrior/WarriorTriggers.{h,cpp}        => classes/warrior/WarriorTriggers.{h,cpp}
+ [x] warrior/WarriorStrategy.{h,cpp}        => classes/warrior/WarriorStrategies (GenericWarriorStrategy)
+ [x] warrior/ArmsWarriorStrategy.{h,cpp}    => classes/warrior/WarriorStrategies (ArmsWarriorStrategy)
+ [x] warrior/FuryWarriorStrategy.{h,cpp}    => classes/warrior/WarriorStrategies (FuryWarriorStrategy)
+ [x] warrior/ProtectionWarriorStrategy.{h,cpp} => classes/warrior/WarriorStrategies (ProtectionWarriorStrategy)
+ [x] warrior/(non-combat stance upkeep)     => classes/warrior/WarriorStrategies (GenericWarriorNonCombatStrategy)
+ [x] warrior/WarriorActions.{h,cpp}         => NOT NEEDED: S5 CastSpell family + cast::<name> nodes
+ [x] warrior/WarriorMultipliers.{h,cpp}     => NOT NEEDED yet (CastSpell IsPossible gates rage/CD)
+
+================================================================================
+ S9 CREATED EQUIVALENTS (Phase C - Paladin)  [2026-06-08]
+================================================================================
+ [x] paladin/PaladinAiObjectContext.{h,cpp}  => classes/paladin/PaladinAiObjectContext.{h,cpp}
+ [x] paladin/PaladinTriggers.{h,cpp}         => classes/paladin/PaladinTriggers.{h,cpp}
+ [x] paladin/PaladinStrategy.{h,cpp}         => classes/paladin/PaladinStrategies (GenericPaladinStrategy)
+ [x] paladin/HolyPaladinStrategy.{h,cpp}     => classes/paladin/PaladinStrategies (HolyPaladinStrategy)
+ [x] paladin/ProtectionPaladinStrategy       => classes/paladin/PaladinStrategies (ProtectionPaladinStrategy)
+ [x] paladin/RetributionPaladinStrategy      => classes/paladin/PaladinStrategies (RetributionPaladinStrategy)
+ [x] paladin/(non-combat aura/blessing upkeep) => classes/paladin/PaladinStrategies (GenericPaladinNonCombatStrategy)
+ [x] paladin/PaladinActions.{h,cpp}          => NOT NEEDED: S5 CastSpell family + cast heal
+ [x] paladin/PaladinMultipliers.{h,cpp}      => NOT NEEDED yet (CastSpell IsPossible gates HP/mana/CD)
+ ENGINE ADDITION for S9:
+ [x] actions: CastHealSpellAction ("cast heal") => actions/GenericSpellActions (heals the party member to heal)
+
+================================================================================
+ S10 CREATED EQUIVALENTS (Phase C - Hunter)  [2026-06-08]
+================================================================================
+ [x] hunter/HunterAiObjectContext.{h,cpp}    => classes/hunter/HunterAiObjectContext.{h,cpp}
+ [x] hunter/HunterTriggers.{h,cpp}           => classes/hunter/HunterTriggers.{h,cpp}
+ [x] hunter/HunterStrategy.{h,cpp}           => classes/hunter/HunterStrategies (GenericHunterStrategy)
+ [x] hunter/BeastMasteryHunterStrategy       => classes/hunter/HunterStrategies (BeastMasteryHunterStrategy)
+ [x] hunter/MarksmanshipHunterStrategy       => classes/hunter/HunterStrategies (MarksmanshipHunterStrategy)
+ [x] hunter/SurvivalHunterStrategy           => classes/hunter/HunterStrategies (SurvivalHunterStrategy)
+ [x] hunter/(non-combat pet upkeep)          => classes/hunter/HunterStrategies (GenericHunterNonCombatStrategy)
+ [x] hunter/HunterActions / HunterMultipliers => NOT NEEDED: S5 CastSpell family + cast self/pet helpers
+ ENGINE ADDITION for S10:
+ [x] ServerFacade: GetPet / HasLivingPet / GetPetHealthPct (pet seam) => engine/ServerFacade.*
+ NOTE: cmangos ref clone has NO hunter/ folder; authored from wowhead BfA 8.3 +
+       the per-class pattern (same as Monk/DH will be later).
+
+================================================================================
+ S11 CREATED EQUIVALENTS (Phase C - Rogue)  [2026-06-08]
+================================================================================
+ [x] rogue/RogueAiObjectContext.{h,cpp} => classes/rogue/RogueAiObjectContext.{h,cpp}
+ [x] rogue/RogueTriggers.{h,cpp}        => classes/rogue/RogueTriggers.{h,cpp}
+ [x] rogue/RogueStrategy.{h,cpp}        => classes/rogue/RogueStrategies (GenericRogueStrategy)
+ [x] rogue/AssassinationRogueStrategy   => classes/rogue/RogueStrategies (AssassinationRogueStrategy)
+ [x] rogue/OutlawRogueStrategy          => classes/rogue/RogueStrategies (OutlawRogueStrategy)
+ [x] rogue/SubtletyRogueStrategy        => classes/rogue/RogueStrategies (SubtletyRogueStrategy)
+ [x] rogue/(non-combat stealth upkeep)  => classes/rogue/RogueStrategies (GenericRogueNonCombatStrategy)
+ [x] rogue/RogueActions / RogueMultipliers => NOT NEEDED: S5 CastSpell family + combo-point triggers
+ NOTE: combo points use a RAW count (ServerFacade::GetPower, max 5); finishers
+       gated by "combo points full". cmangos ref has no rogue/ folder.
+
+================================================================================
+ S12 CREATED EQUIVALENTS (Phase C - Priest)  [2026-06-08]
+================================================================================
+ [x] priest/PriestAiObjectContext.{h,cpp} => classes/priest/PriestAiObjectContext.{h,cpp}
+ [x] priest/PriestTriggers.{h,cpp}        => classes/priest/PriestTriggers.{h,cpp}
+ [x] priest/PriestStrategy.{h,cpp}        => classes/priest/PriestStrategies (GenericPriestStrategy)
+ [x] priest/DisciplinePriestStrategy      => classes/priest/PriestStrategies (DisciplinePriestStrategy)
+ [x] priest/HolyPriestStrategy            => classes/priest/PriestStrategies (HolyPriestStrategy)
+ [x] priest/ShadowPriestStrategy          => classes/priest/PriestStrategies (ShadowPriestStrategy)
+ [x] priest/(non-combat form/buff upkeep) => classes/priest/PriestStrategies (GenericPriestNonCombatStrategy)
+ [x] priest/PriestActions / PriestMultipliers => NOT NEEDED: S5 family + cast heal
+ NOTE: Discipline is the atonement healer (damage->heal); both Disc & Holy use
+       cast heal:: on the party-member-to-heal. cmangos ref has no priest/ folder.
+
+================================================================================
+ S13 CREATED EQUIVALENTS (Phase C - Shaman)  [2026-06-08]
+================================================================================
+ [x] shaman/ShamanAiObjectContext.{h,cpp} => classes/shaman/ShamanAiObjectContext.{h,cpp}
+ [x] shaman/ShamanTriggers.{h,cpp}        => classes/shaman/ShamanTriggers.{h,cpp}
+ [x] shaman/ShamanStrategy.{h,cpp}        => classes/shaman/ShamanStrategies (GenericShamanStrategy)
+ [x] shaman/ElementalShamanStrategy       => classes/shaman/ShamanStrategies (ElementalShamanStrategy)
+ [x] shaman/EnhancementShamanStrategy     => classes/shaman/ShamanStrategies (EnhancementShamanStrategy)
+ [x] shaman/RestorationShamanStrategy     => classes/shaman/ShamanStrategies (RestorationShamanStrategy)
+ [x] shaman/(non-combat imbues/shield)    => classes/shaman/ShamanStrategies (GenericShamanNonCombatStrategy)
+ [x] shaman/ShamanActions / ShamanMultipliers => NOT NEEDED: S5 family + cast heal
+ NOTE: Maelstrom (Ele) = percent power::11; Maelstrom Weapon (Enh) = stacking
+       aura. Weapon imbues (Windfury/Flametongue) are non-combat upkeep.
+       cmangos ref has no shaman/ folder -> authored from research.
+
+================================================================================
+ S14 CREATED EQUIVALENTS (Phase C - Mage)  [2026-06-08]
+================================================================================
+ [x] mage/MageAiObjectContext.{h,cpp} => classes/mage/MageAiObjectContext.{h,cpp}
+ [x] mage/MageTriggers.{h,cpp}        => classes/mage/MageTriggers.{h,cpp}
+ [x] mage/MageStrategy.{h,cpp}        => classes/mage/MageStrategies (GenericMageStrategy)
+ [x] mage/ArcaneMageStrategy          => classes/mage/MageStrategies (ArcaneMageStrategy)
+ [x] mage/FireMageStrategy            => classes/mage/MageStrategies (FireMageStrategy)
+ [x] mage/FrostMageStrategy           => classes/mage/MageStrategies (FrostMageStrategy)
+ [x] mage/(non-combat intellect/conjure) => classes/mage/MageStrategies (GenericMageNonCombatStrategy)
+ [x] mage/MageActions / MageMultipliers => NOT NEEDED: S5 family + proc triggers
+ NOTE: proc-driven (Clearcasting/Hot Streak/Brain Freeze/Fingers of Frost) read
+       as named auras; Arcane Charges = percent power::16. cmangos ref has no
+       mage/ folder -> authored from research.
