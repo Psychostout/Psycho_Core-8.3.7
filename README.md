@@ -166,7 +166,7 @@ cmake -S . -B build -DMODULES=static && cmake --build build -j
 - Install modules: [`docs/HOW_TO_INSTALL_MODULES.md`](docs/HOW_TO_INSTALL_MODULES.md)
 - Module folder docs: [`modules/README.md`](modules/README.md)
 
-> ⚠️ This is a **BfA 8.3.x** core — modules written for other cores/expansions
+> ⚠️ This is a **BfA 8.3.7** core — modules written for other cores/expansions
 > (e.g. AzerothCore WotLK 3.3.5) won't compile unmodified. Start from `mod-skeleton`.
 
 ---
