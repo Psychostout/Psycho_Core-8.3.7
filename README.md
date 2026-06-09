@@ -12,7 +12,7 @@
 ![Boost](https://img.shields.io/badge/Boost-1.83-orange)
 ![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0%20LTS-orange)
 ![MariaDB](https://img.shields.io/badge/MariaDB-10.6.3-orange)
-![Client](https://img.shields.io/badge/BfA-8.3.0%20%2834769%29-purple)
+![Client](https://img.shields.io/badge/BfA-8.3.7%20%2835662%29-purple)
 
 A modernized TrinityCore-based emulator for **World of Warcraft: Battle for Azeroth**,
 descended from [TrinityCore](https://github.com/TrinityCore/TrinityCore), with a
