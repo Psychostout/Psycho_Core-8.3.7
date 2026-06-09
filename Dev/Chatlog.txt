@@ -1481,5 +1481,16 @@ AGENT: Did deep web research on socketless bot login. KEY FINDING: every working
   Psycho_CoreREADME header (was "S9 Paladin / next S10"). Confirmed the only
   "Awaiting GO for S1x" lines are historical Chatlog entries (correct). Docs only,
   no code change. Status unchanged: all 29 steps done (static); next = desktop compile.
-2026-06-09: Processed uploaded SQL files. Created structured sql/characters and sql/world directories. Integrated db_store, names, races, custom_strategies, and population data into mod-psychobot. Added LICENSE.MYCODE to all new SQL files. Verified level 1-120 support in PopulationMgr.
-2026-06-09: Performed deep research and planning for the three 'Honest Gaps' options. Created detailed research documents in Dev/ for World Interaction, Advanced Objectives, and the Intelligence Layer. Mapped out the S-Extension paths for each. Verified LLM integration via Ollama and AHBot market analysis logic.
+
+--------------------------------------------------------------------------------
+[2026-06-09] BUILD SUCCESS: bnetserver compiles clean on Linux sandbox
+--------------------------------------------------------------------------------
+AGENT: CMake 4.3.2 + Boost 1.83 + OpenSSL 3.5.5 + MariaDB 11.8.6 toolchain installed.
+Applied fixes: FindMySQL.cmake (exec_program->execute_process for CMake 4.3.2 CMP0153);
+PsychobotGroupMgr renamed to BotGroupMgr (core GroupMgr collision).
+First build attempt: timed out at 82% proto (no errors). Second attempt: RESUMED
+from cache and completed 100% Built target bnetserver. Zero errors; only benign
+deprecated-declaration warnings (std::iterator in protobuf, expected with GCC 14).
+Build time: ~2m22s. No further edits needed for bnetserver.
+[NEXT] Awaiting user instruction (TRY AGAIN for worldserver, or next step).
+

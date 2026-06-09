@@ -173,7 +173,7 @@ namespace psychobot
         if (!bot || !IsBot(bot->GetGUID()))
             return "'" + charName + "' is not an active Psychobot.";
 
-        if (GroupMgr::InviteToGroup(master, bot))
+        if (BotGroupMgr::InviteToGroup(master, bot))
             return "Added '" + bot->GetName() + "' to your party (role assigned).";
         return "Could not add '" + bot->GetName() + "' to your party (full / already grouped?).";
     }

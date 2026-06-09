@@ -103,7 +103,7 @@ namespace psychobot
         Player* bot = GetBot();
         if (!bot)
             return nullptr;
-        return GroupMgr::GetGroupHealTarget(bot, 80.0f);
+        return BotGroupMgr::GetGroupHealTarget(bot, 80.0f);
     }
 
     Unit* PartyMemberToDispelValue::Calculate()
@@ -114,7 +114,7 @@ namespace psychobot
         // DISPEL_ALL_MASK = magic|curse|disease|poison. The specific cure spell
         // only succeeds against the type it can remove; the game ignores the rest.
         uint32 const allMask = (1u << 1) | (1u << 2) | (1u << 3) | (1u << 4);
-        return GroupMgr::GetGroupDispelTarget(bot, allMask);
+        return BotGroupMgr::GetGroupDispelTarget(bot, allMask);
     }
 
     // ----------------------------------------------------------------------

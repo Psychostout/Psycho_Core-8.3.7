@@ -75,10 +75,6 @@
      PExecute/PQuery; was a stub); wired Psychobot.FollowDistance (was dead
      config); corrected the module README (it had listed phantom files); archived
      8 research docs to Dev/_archive_research/.
-   - SQL Integration (2026-06-09): fully populated modules/mod-psychobot/sql/
-     with characters (db_store, custom_strategy, random_bots, strategies)
-     and world (names, races, texts, cache, indexes) tables.
-
 
  NEXT (all on the USER'S DESKTOP - needs toolchain + 8.3.7 client data):
    1. FIRST REAL COMPILE. Fix errors as they surface (paste output -> fix).

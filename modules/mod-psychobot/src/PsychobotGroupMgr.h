@@ -27,7 +27,7 @@ namespace psychobot
 {
     enum class SpecRole : uint8;  // defined in ai/PsychobotSpecRoles.h
 
-    namespace GroupMgr
+    namespace BotGroupMgr
     {
         // Invite + accept the bot into the master's group (creating one if
         // needed). Returns a status string.

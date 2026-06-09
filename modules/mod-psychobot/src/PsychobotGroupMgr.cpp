@@ -22,7 +22,7 @@
 
 namespace psychobot
 {
-    namespace GroupMgr
+    namespace BotGroupMgr
     {
         bool InviteToGroup(Player* master, Player* bot)
         {

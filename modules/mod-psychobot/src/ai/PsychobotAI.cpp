@@ -200,9 +200,9 @@ namespace psychobot
         // S20 group coordination (cheap, every tick):
         //  - bots auto-accept ready checks (always ready)
         //  - tank/leader bots mark their target with Skull so the group focuses
-        GroupMgr::AnswerReadyCheck(_bot);
+        BotGroupMgr::AnswerReadyCheck(_bot);
         if (_bot->IsInCombat())
-            GroupMgr::MarkSkullTarget(_bot);
+            BotGroupMgr::MarkSkullTarget(_bot);
 
         // S25: react to the current boss encounter's mechanics (move out of
         // fire, etc.). No-op outside instances / when no script is registered.
@@ -230,7 +230,7 @@ namespace psychobot
         if (Unit* victim = _bot->GetVictim())
             return victim;
 
-        if (Unit* assist = GroupMgr::GetGroupAssistTarget(_bot))
+        if (Unit* assist = BotGroupMgr::GetGroupAssistTarget(_bot))
             return assist;
 
         // S24: in an active battleground/arena, hunt the nearest enemy player.
@@ -322,7 +322,7 @@ namespace psychobot
             return true;
 
         // Same map + within leash: normal follow with the S20 formation angle.
-        float angle = GroupMgr::GetFollowFormationAngle(_bot);
+        float angle = BotGroupMgr::GetFollowFormationAngle(_bot);
         _bot->GetMotionMaster()->MoveFollow(master, followDist, angle);
         return true;
     }

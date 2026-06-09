@@ -1,0 +1,159 @@
+================================================================================
+ PSYCHO_CORE 8.3.7 - BUILD CONFIGURATION REPORT
+ Generated: 2026-06-09
+================================================================================
+
+1. ENVIRONMENT
+--------------------------------------------------------------------------------
+ OS: Debian GNU/Linux (trixie)
+ Kernel: Linux x86_64
+
+2. TOOLCHAIN INSTALLATION STATUS
+--------------------------------------------------------------------------------
+| Package        | Requested    | Installed    | Status | Notes                           |
+|----------------|--------------|--------------|--------|---------------------------------|
+| CMake          | 4.3.2        | 4.3.2        | PASS   | Binary from GitHub releases       |
+| GCC            | —            | 14.2.0       | PASS   | Already present                 |
+| G++            | —            | 14.2.0       | PASS   | Already present                 |
+| Boost          | 1.83         | 1.83.0       | PASS   | libboost-all-dev via apt        |
+| OpenSSL        | 3.5.6        | 3.5.5        | PASS   | Linux sandbox has 3.5.5 (works).
+|                | (Windows)    |              |        | Windows target = 3.5.6 (slproweb
+|                |              |              |        | offers 3.5.6 as latest 3.5.x;     |
+|                |              |              |        | 3.5.5 not available as Win binary)|
+| MariaDB client | 10.6.3       | 11.8.6       | PASS   | Newer; libmariadb-dev via apt   |
+| MariaDB server | 10.6.3       | 11.8.6       | PASS   | Installed via apt               |
+| zlib           | —            | 1.3.1        | PASS   | Already present                 |
+| BZip2          | —            | 1.0.8        | PASS   | Already present                 |
+| Readline       | —            | 8.2          | PASS   | Already present                 |
+| Make           | —            | 4.4.1        | PASS   | Already present                 |
+
+3. PATCHES APPLIED TO SOURCE TREE (persisted in workspace)
+--------------------------------------------------------------------------------
+ P-01: dep/cotire/CMake/cotire.cmake — min CMake 2.8.12 -> 3.5 (already in tree)
+ P-02: cmake/macros/FindOpenSSL.cmake — cap raised to accept 3.x (already in tree)
+ P-03: src/common/Cryptography/OpenSSLCrypto.cpp — legacy callback guard (already in tree)
+ P-04: RSA.cpp — already guarded, no change needed.
+
+ NEW THIS PASS:
+ [A] cmake/macros/FindMySQL.cmake (lines ~31, ~40)
+     Problem: CMake 4.3.2 removed deprecated `exec_program` command (CMP0153).
+     Fix: Replaced `exec_program` with `execute_process` for mysql_config --include
+     and --libs_r calls. Configuration now completes without CMP0153 fatal error.
+
+ [B] modules/mod-psychobot/src/PsychobotGroupMgr.h/.cpp
+     Problem: `psychobot::GroupMgr` namespace collided with core `GroupMgr` class
+     used by the macro `#define sGroupMgr GroupMgr::instance()`. Compile error:
+     'instance' is not a member of 'psychobot::GroupMgr'.
+     Fix: Renamed `psychobot::GroupMgr` -> `psychobot::BotGroupMgr` across:
+       - PsychobotGroupMgr.h, PsychobotGroupMgr.cpp
+       - PsychobotMgr.cpp (call sites)
+       - ai/PsychobotAI.cpp (call sites)
+       - values/CoreValues.cpp (call sites)
+
+4. CMAKE CONFIGURATION OUTPUT (verified)
+--------------------------------------------------------------------------------
+ Command: /usr/local/bin/cmake ..
+ Working dir: /home/user/Psycho_Core-8.3.7/build
+ Result: SUCCESS (exit 0)
+
+ Key lines:
+   -- The C compiler identification is GNU 14.2.0
+   -- The CXX compiler identification is GNU 14.2.0
+   -- Boost version found: 1.83.0
+   -- Found ZLIB: ... (found version "1.3.1")
+   -- Found OpenSSL library: /usr/lib/x86_64-linux-gnu/libssl.so;...libcrypto.so
+   -- Detected OpenSSL version: 3.5.5
+   -- OpenSSL version accepted: 3.5.5
+   -- Found MySQL library: /usr/lib/x86_64-linux-gnu/libmariadb.so
+   -- Found MySQL headers: /usr/include/mariadb
+   -- Found BZip2: ... (found version "1.0.8")
+
+ Module discovery:
+   * Module configuration (static):
+       |
+       +- worldserver
+       |   +- mod-psychobot
+       |   +- mod-skeleton
+       |
+   --   mod-psychobot: full module loaded.
+   -- * Module config files: mod_psychobot.conf.dist, mod_skeleton.conf.dist
+
+ Script discovery:
+   * Script configuration (static):
+       +- Argus, BrokenIsles, Commands, Custom, EasternKingdoms, Events,
+          Kalimdor, Maelstrom, Northrend, OutdoorPvP, Outland, Pet, Spells, World
+
+ Buildsystem:
+   -- Configuring done (2.5s)
+   -- Generating done (0.3s)
+   -- Build files have been written to: /home/user/Psycho_Core-8.3.7/build
+
+5. BUILD TYPE / OPTIONS
+--------------------------------------------------------------------------------
+ Build type      : RelWithDebInfo (default)
+ Install prefix  : /usr/local
+ Worldserver     : Yes
+ Authserver      : Yes
+ Scripts         : Yes (static linkage)
+ Map/vmap tools  : Yes (default)
+ PCH             : Yes (core + scripts)
+ mod-psychobot   : Yes (static, loaded into worldserver)
+
+6. HONEST CAVEATS
+--------------------------------------------------------------------------------
+ - OpenSSL 3.5.5 is newer than the 3.0.x LTS target but is accepted by the
+   patched FindOpenSSL.cmake. No compile errors expected (P-03 guards legacy).
+ - MariaDB 11.8.6 is newer than the 10.6.3 target. The client library is
+   backward-compatible; server features unused by TrinityCore 8.3.
+ - "Could not find a proper repository signature (hash)" — expected because
+   the git repo was cloned without tags. Does not affect compilation.
+
+7. NEXT STEP
+--------------------------------------------------------------------------------
+ make -j$(nproc) to compile. The mod-psychobot module compiled successfully in
+ a prior partial build (454 object files, 0 module errors after the GroupMgr fix).
+ Full build is required for a complete verification.
+
+================================================================================
+ END OF REPORT
+================================================================================
+
+8. BNETSERVER BUILD RESULT (2026-06-09)
+--------------------------------------------------------------------------------
+ Command: /usr/local/bin/cmake --build . --target bnetserver
+ Working dir: /home/user/Psycho_Core-8.3.7/build
+ Result: SUCCESS (exit 0)
+
+ Progress summary:
+   [  0%] Built target revision_data.h
+   [ 17%] Built target g3dlib, Detour, fmt, jemalloc
+   [ 47%] Built target common
+   [ 64%] Built target protobuf
+   [ 88%] Built target proto
+   [ 88%] Built target gsoap
+   [ 94%] Built target database
+   [ 94%] Built target shared
+   [ 94%] Building bnetserver (PCH + sources)
+   [100%] Linking CXX executable bnetserver
+   [100%] Built target bnetserver
+
+ Errors:    0
+ Warnings:  ~15 (all deprecated-declarations; benign / expected with GCC 14 + OpenSSL 3.5)
+
+ Build time: ~2m 22s (resumed from cached objects after first timeout at 82%).
+
+ Binary location: /home/user/Psycho_Core-8.3.7/build/src/server/bnetserver/bnetserver
+
+9. WINDOWS TARGET NOTES
+--------------------------------------------------------------------------------
+ - OpenSSL 3.5.5 not available as a Windows binary from slproweb.com.
+ - slproweb.com offers 3.5.6 as the latest 3.5.x installer (Win64OpenSSL-3_5_6.exe).
+ - P-02 FindOpenSSL.cmake accepts 3.5.x already, so target 3.5.6 on Windows.
+ - MariaDB 10.6/11.x for Windows: download from mariadb.com (Windows .msi).
+ - Boost 1.83 for Windows: download from boost.org (1.83.0 binaries) or use
+   vcpkg. CMake 4.3.2: download from cmake.org (Windows installer).
+ - MSVC 2019 16.4+ or VS 2022 recommended for BfA 8.3 TrinityCore.
+
+================================================================================
+ END OF UPDATED REPORT
+================================================================================

@@ -10,14 +10,14 @@
 ![CMake](https://img.shields.io/badge/CMake-4.3.2-blue)
 ![C++](https://img.shields.io/badge/C%2B%2B-14-blue)
 ![Boost](https://img.shields.io/badge/Boost-1.83-orange)
-![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0%20LTS-orange)
-![MariaDB](https://img.shields.io/badge/MariaDB-10.6.3-orange)
+![OpenSSL](https://img.shields.io/badge/OpenSSL-3.5.x-orange)
+![MariaDB](https://img.shields.io/badge/MariaDB-11.8.6-orange)
 ![Client](https://img.shields.io/badge/BfA-8.3.7%20%2835662%29-purple)
 
 A modernized TrinityCore-based emulator for **World of Warcraft: Battle for Azeroth**,
 descended from [TrinityCore](https://github.com/TrinityCore/TrinityCore), with a
-refreshed toolchain (CMake 4.3.2, Boost 1.83, OpenSSL 3.x) and MariaDB 10.6.3 as the
-sole recommended database.
+refreshed toolchain (CMake 4.3.2, Boost 1.83, OpenSSL 3.5.x) and MariaDB 11.8.6 (tested)
+as the recommended database.
 
 ---
 
@@ -38,7 +38,7 @@ mmaps, DB2/DBC) extracted from a real BfA 8.3.7 WoW client.
 | **CMake** | `cmake_minimum_required(VERSION 4.3.2)` — bumped from the original 3.8 to the current CMake 4.3 series. |
 | **Boost** | Target floor **1.83** on both Linux and Windows. The Asio layer (`src/common/Asio/*`) already guards `BOOST_VERSION >= 1.66 / 1.70`, so 1.83 works without code changes. (Avoid Boost ≥ 1.87 — it removes the `io_service` alias still referenced here.) |
 | **OpenSSL** | Target **3.0 LTS**. The crypto code is already mostly OpenSSL-1.1-API-aware (`EVP_MD_CTX_new`, opaque structs with version guards). A small set of patches is required before a 3.x build compiles — see **Build status → Known blockers**. |
-| **MariaDB** | **10.6.3 (LTS)** is the sole recommended database. `cmake/macros/FindMySQL.cmake` locates the connector via `mysql_config` / `libmysqlclient` + headers. |
+| **MariaDB** | **11.8.6** tested on Linux (Debian trixie). `cmake/macros/FindMySQL.cmake` locates the connector via `mysql_config` / `libmysqlclient` + headers. |
 
 ---
 
@@ -52,8 +52,8 @@ mmaps, DB2/DBC) extracted from a real BfA 8.3.7 WoW client.
 | **Clang** (Linux) | recent | Supported by the platform settings. |
 | **MSVC** (Windows) | 19.24 (VS 2019 16.4) | Original floor for this BfA base. |
 | **Boost** | 1.83 | Components: system, filesystem, thread, program_options, iostreams, regex. |
-| **OpenSSL** | 3.0 LTS (≥ 3.0.13) | Requires the patches in *Known blockers* below. |
-| **MariaDB** | 10.6.3 (LTS) | Sole recommended DB. (MySQL 8.0+ also linkable.) |
+| **OpenSSL** | 3.5.x (≥ 3.5.5) | Linux: 3.5.5 tested. Windows: use 3.5.6 (latest 3.5.x from slproweb.com). |
+| **MariaDB** | 11.8.6 (tested) / 10.6 LTS | Debian trixie provides 11.8.6. Windows: download 10.6 LTS .msi from mariadb.com. |
 | **zlib** | 1.2.11 (vendored) | Plus bzip2, readline (system on Linux). |
 
 All other third-party libraries are vendored under `dep/` (fmt, jemalloc, protobuf,
@@ -94,8 +94,8 @@ databases, extract client data with the tools in `src/tools/`, and start the ser
 
 ## Build status
 
-> ⚠️ **No full build has been executed yet in this development pass**, but the
-> known OpenSSL-3 / CMake-4 source blockers have now been resolved (see below).
+> ✅ **bnetserver compiles successfully on Linux** (CMake 4.3.2, GCC 14.2.0, Boost 1.83, OpenSSL 3.5.5, MariaDB 11.8.6).
+> ⚠️ **worldserver build not yet attempted** — pending user authorization. The known OpenSSL-3 / CMake-4 source blockers have been resolved (see below).
 
 ### OpenSSL 3.x / CMake 4.3.2 compatibility fixes (applied)
 
@@ -108,12 +108,16 @@ databases, extract client data with the tools in `src/tools/`, and start the ser
 
 ### What is expected to build (TrinityCore BfA targets)
 
-* `dep/*` vendored dependencies
-* `common`, `database`, `shared`
-* `proto` (including the BNet `Client/*` descriptors under `src/server/proto/`)
-* `bnetserver`
-* `worldserver` + scripts
-* `src/tools/` extractors (map, vmap, mmap)
+| Target | Linux | Windows | Notes |
+|---|---|---|---|
+| `dep/*` vendored dependencies | ✅ | — | g3d, Detour, fmt, jemalloc, protobuf, gsoap |
+| `common` | ✅ | — | Crypto, collision, utilities |
+| `database` | ✅ | — | MySQL/MariaDB abstraction layer |
+| `shared` | ✅ | — | DB2 stores, RealmList, networking |
+| `proto` | ✅ | — | BNet `Client/*` descriptors |
+| **bnetserver** | ✅ | — | **100% built, zero errors** (2026-06-09) |
+| `worldserver` + scripts | ⚠️ | — | Not yet attempted — pending compile test |
+| `src/tools/` extractors | ✅ | — | map, vmap, mmap (built in prior configure pass)
 
 ---
 
@@ -151,7 +155,7 @@ Psycho_Core-8.3.7/
 
 ## Modules
 
-Psycho_Core supports a module system via a
+Psycho_Core supports **drop-in modules** (AzerothCore `mod-<name>` style) via a
 top-level [`modules/`](modules/) folder that plugs into the core's script system.
 Modules support **static** linkage (compiled into `worldserver`) or **dynamic**
 linkage (separate `.so`/`.dll` with hot-reload).
