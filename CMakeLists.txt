@@ -87,6 +87,19 @@ include(cmake/genrev.cmake)
 # print out the results before continuing
 include(cmake/showoptions.cmake)
 
+# --- START BOOST 1.83 COMPATIBILITY FIX ---
+# Forces CMake to find the local Boost and explicitly sets the version macro
+find_package(Boost 1.83 REQUIRED)
+if(Boost_FOUND)
+    message(STATUS "Boost version found: ${Boost_VERSION}")
+    # Defines the macro globally so your code sees 108300 instead of an old version
+    add_definitions(-DBOOST_VERSION=${Boost_VERSION})
+    include_directories(${Boost_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "Boost 1.83+ is required but was not found.")
+endif()
+# --- END BOOST 1.83 COMPATIBILITY FIX ---
+
 # add dependencies
 add_subdirectory(dep)
 
