@@ -1,0 +1,46 @@
+/*
+ * ===========================================================================
+ *  Copyright (c) 2026 Psychostout. All rights reserved.
+ *  Original work authored 100% from scratch for Psycho_Core.
+ *  Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ *  NOT covered by the base GPL framework license. Development/evaluation only.
+ * ===========================================================================
+ */
+
+# RESEARCH & PLANNING: OPTION 2 - ADVANCED OBJECTIVES & TACTICS
+# Goal: Move from "Rotations" to "Game-Aware Strategy"
+
+## 1. BATTLEGROUND (BG) OBJECTIVE LOGIC
+### A. Objective Identification
+- The bot needs to identify BG-specific targets:
+    - Flag Carriers (for Capture the Flag).
+    - Capture Points (for Domination).
+    - Payloads (for escort BGs).
+- Integration: `PsychobotPvpMgr` should provide `GetCurrentBGObjective()`.
+
+### B. Tactical Triggers
+- Trigger: "ObjectiveVulnerable" (e.g., flag carrier is low health or alone).
+- Action: `InterceptObjective`.
+- Logic:
+    - If `Role == DPS`, priority shifts to the objective over random enemies.
+    - If `Role == Tank`, priority shifts to protecting the carrier/point.
+
+## 2. DUNGEON MECHANIC AVOIDANCE
+### A. The "Event" Framework
+- Currently, bots just fight. We need a "Reaction" layer.
+- Hook: `WorldSession::OnSpellCast` or a timed check for area-of-effect (AoE) spells.
+- Logic:
+    1. Detect a "Danger Spell" (e.g., Void Zone, Fire Breath) centered at `BotPosition`.
+    2. Trigger: "AvoidArea".
+    3. Action: `MoveTo(BotPosition + RandomOffset)`.
+    4. Resume combat once the "Danger" flag is cleared.
+
+### B. Boss-Specific Behaviors
+- Implement `BossEncounterReactions` map: `SpellID -> ReactionAction`.
+- Example: `SpellID_BossScream` $\rightarrow$ `Action: MoveTo(SafeZone)`.
+
+## 3. IMPLEMENTATION PATH (S-EXTENSIONS)
+- S-Ext5: `TacticalTriggers` (ObjectiveVulnerable, AreaDanger).
+- S-Ext6: `TacticalActions` (InterceptObjective, AvoidArea).
+- S-Ext7: `BattleGroundStrategy` (Overrides default PvP strategies).
+- S-Ext8: `DungeonAwarenessStrategy` (Injects avoidance into combat rotations).

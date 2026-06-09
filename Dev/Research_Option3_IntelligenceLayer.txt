@@ -1,0 +1,45 @@
+/*
+ * ===========================================================================
+ *  Copyright (c) 2026 Psychostout. All rights reserved.
+ *  Original work authored 100% from scratch for Psycho_Core.
+ *  Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ *  NOT covered by the base GPL framework license. Development/evaluation only.
+ * ===========================================================================
+ */
+
+# RESEARCH & PLANNING: OPTION 3 - THE INTELLIGENCE LAYER
+# Goal: Transform bots from "Scripts" to "AI Entities"
+
+## 1. LLM INTEGRATION (OLLAMA / CUSTOM AI)
+### A. The AI Bridge
+- Based on reference: `mod-ollama-bot-buddy` and `MangosThree-Modules`.
+- Architecture:
+    - **Asynchronous Request:** The bot should NOT block the main server thread. Use a worker thread or `std::async`.
+    - **Context Window:** Send a prompt containing:
+        - Bot Persona: `[Class], [Spec], [Race], [Level]`.
+        - World State: `[Current Target], [HP%], [Current Location], [Nearby Players]`.
+        - Input: `[User Message]`.
+    - **API Call:** POST request to `http://localhost:11434/api/generate` (Ollama).
+
+### B. Dynamic Interaction
+- Instead of `psychobot_texts.sql`, the bot uses the LLM to:
+    - Respond to player whispers.
+    - Complain about loot/gear.
+    - Coordinate tactics in group chat.
+
+## 2. ADVANCED AHBOT (MARKET ANALYZER)
+### A. Market Analysis Loop
+- The AHBot should not just post at fixed prices.
+- Logic:
+    1. **Scan Phase:** Read `auction_temp` for all listings of `ItemX`.
+    2. **Analyze:** Calculate `MinPrice`, `MaxPrice`, and `MedianPrice`.
+    3. **Price Setting:**
+        - If `DemandIsHigh` (items sell fast), set `Price = Median + 10%`.
+        - If `SupplyIsHigh`, set `Price = Min + 1%` to undercut.
+    4. **Update:** Periodically re-list items based on the new analysis.
+
+## 3. IMPLEMENTATION PATH (S-EXTENSIONS)
+- S-Ext9: `AIApiClient` (Async HTTP wrapper for Ollama).
+- S-Ext10: `AIPromptBuilder` (Translates game state to text).
+- S-Ext11: `AIBotChatHandler` (Wires LLM output to the chat system).
+- S-Ext12: `MarketAnalyzer` (The logic for the Advanced AHBot).

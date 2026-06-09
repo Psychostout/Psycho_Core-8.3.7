@@ -151,7 +151,7 @@ Psycho_Core-8.3.7/
 
 ## Modules
 
-Psycho_Core supports **drop-in modules** (AzerothCore `mod-<name>` style) via a
+Psycho_Core supports a module system via a
 top-level [`modules/`](modules/) folder that plugs into the core's script system.
 Modules support **static** linkage (compiled into `worldserver`) or **dynamic**
 linkage (separate `.so`/`.dll` with hot-reload).

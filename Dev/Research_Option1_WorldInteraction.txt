@@ -1,0 +1,55 @@
+/*
+ * ===========================================================================
+ *  Copyright (c) 2026 Psychostout. All rights reserved.
+ *  Original work authored 100% from scratch for Psycho_Core.
+ *  Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ *  NOT covered by the base GPL framework license. Development/evaluation only.
+ * ===========================================================================
+ */
+
+# RESEARCH & PLANNING: OPTION 1 - WORLD INTERACTION LAYER
+# Goal: Move bots from "Combat Drones" to "Living Residents of Azeroth"
+
+## 1. LOOT & INTERACTION
+### A. Looting Logic
+- Trigger: "LootableNearby" (Scans for nearby corpses/objects with loot).
+- Action: `LootAllAction`. 
+- Logic:
+    1. When combat ends, check for `LootableNearby`.
+    2. Move to the closest lootable object.
+    3. Execute `LootAll` (simulated client packet/server-side loot roll).
+    4. Repeat until no lootables remain.
+
+### B. Vendor & Inventory Management
+- Trigger: "InventoryFull" or "InCity".
+- Action: `VendorSellAction`.
+- Logic:
+    1. Identify the nearest NPC with `NPC_FLAG_VENDOR`.
+    2. Path to vendor.
+    3. Iterate through inventory; identify items with `quality == ITEM_QUALITY_POOR` (Greys).
+    4. Execute `SellItem` for all greys.
+    5. (Optional) Purchase basic consumables (food/water) if gold permits.
+
+### C. Questing Basics
+- Logic: "Mirroring" the Master.
+- Integration:
+    1. Hook into `PlayerScript::OnQuestAccept` and `OnQuestTurnIn`.
+    2. When the Master accepts a quest, the bot checks if it can accept it and does so.
+    3. When the Master turns in a quest, the bot does the same.
+    4. Non-mirroring logic: If the bot is "RPG mode", it can autonomously accept quests from NPCs it interacts with.
+
+## 2. SURVIVAL INSTINCTS (FLEE/RETREAT)
+### A. The "Panic" Trigger
+- Trigger: "CriticalHealth" (HP < 20% or specific threshold).
+- Logic:
+    1. Break current combat rotation.
+    2. Cast "Panic" spells (e.g., Ice Block, invisibility, or haste).
+    3. Calculate retreat vector: `(MasterPosition - BotPosition).normalized() * distance`.
+    4. Execute `MoveTo` retreat vector.
+    5. If Master is too far, retreat to the nearest "SafePoint" (Inn or Guard).
+
+### 3. IMPLEMENTATION PATH (S-EXTENSIONS)
+- S-Ext1: `WorldInteractionActions` (Loot, Vendor, Quest).
+- S-Ext2: `WorldInteractionTriggers` (LootNearby, InventoryFull, CriticalHealth).
+- S-Ext3: `GenericWorldStrategy` (The glue that connects these to the Engine).
+- S-Ext4: Wiring into `PsychobotAI` and `PsychobotMgr`.

@@ -1581,3 +1581,12 @@ the prompt) state exactly what to read and where we are. Done:
    only in Chatlog.txt as HISTORICAL per-step entries (correct - that's the log);
    current status lives at the tail. No stale current-status markers elsewhere.
  NOTE: no code changed in this pass - documentation only.
+2026-06-09  SQL Integration: Processed uploaded SQL data into mod-psychobot/sql/.
+             - Created sql/world/ (names, races, texts, cache, indexes).
+             - Created sql/characters/ (db_store, custom_strategy, random_bots).
+             - Applied LICENSE.MYCODE headers to all.
+             - Verified PopulationMgr handles range 1-120.
+2026-06-09  Research Phase: Created comprehensive planning documents for project expansion.
+             - Dev/Research_Option1_WorldInteraction.txt (Loot, Vendor, Quests, Flee).
+             - Dev/Research_Option2_AdvancedObjectives.txt (BG Tactics, Dungeon Avoidance).
+             - Dev/Research_Option3_IntelligenceLayer.txt (Ollama LLM Integration, Market AHBot).
