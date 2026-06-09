@@ -23,10 +23,7 @@ sole recommended database.
 
 ## What this is
 
-A **World of Warcraft: Battle for Azeroth (build 34769)** private-server emulator,
-based on **TrinityCore**. In `src/server/game/Miscellaneous/SharedDefines.h` the
-default `CURRENT_EXPANSION` is **`EXPANSION_BATTLE_FOR_AZEROTH`** (value 7), and the
-DB2 data version targets patch **8.3.0 (client build 34769)**.
+A **World of Warcraft: Battle for Azeroth 8.3.7 (build 35662)** private-server emulator,
 
 This is *not* a binary release — you compile it yourself from this repository
 against your own MariaDB and (eventually) feed it the data files (maps, vmaps,
@@ -176,7 +173,7 @@ cmake -S . -B build -DMODULES=static && cmake --build build -j
 
 ## World database (TDB)
 
-This core targets BfA **8.3.x**, so it uses the TrinityCore **TDB 837** database
+This core targets BfA **8.3.7**, so it uses the TrinityCore **TDB 837** database
 line. `sql/base/` only ships the **auth** and **characters** base SQL — the
 **world** and **hotfixes** data come from the TDB download.
 
