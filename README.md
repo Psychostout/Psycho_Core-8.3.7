@@ -12,7 +12,7 @@
 ![Boost](https://img.shields.io/badge/Boost-1.83-orange)
 ![OpenSSL](https://img.shields.io/badge/OpenSSL-3.0%20LTS-orange)
 ![MariaDB](https://img.shields.io/badge/MariaDB-10.6.3-orange)
-![Client](https://img.shields.io/badge/BfA-8.3.0%20%2834769%29-purple)
+![Client](https://img.shields.io/badge/BfA-8.3.7%20%2835662%29-purple)
 
 A modernized TrinityCore-based emulator for **World of Warcraft: Battle for Azeroth**,
 descended from [TrinityCore](https://github.com/TrinityCore/TrinityCore), with a
@@ -23,14 +23,11 @@ sole recommended database.
 
 ## What this is
 
-A **World of Warcraft: Battle for Azeroth (build 34769)** private-server emulator,
-based on **TrinityCore**. In `src/server/game/Miscellaneous/SharedDefines.h` the
-default `CURRENT_EXPANSION` is **`EXPANSION_BATTLE_FOR_AZEROTH`** (value 7), and the
-DB2 data version targets patch **8.3.0 (client build 34769)**.
+A **World of Warcraft: Battle for Azeroth 8.3.7 (build 35662)** private-server emulator,
 
 This is *not* a binary release — you compile it yourself from this repository
 against your own MariaDB and (eventually) feed it the data files (maps, vmaps,
-mmaps, DB2/DBC) extracted from a real BfA 8.3.x WoW client.
+mmaps, DB2/DBC) extracted from a real BfA 8.3.7 WoW client.
 
 ---
 
@@ -169,14 +166,14 @@ cmake -S . -B build -DMODULES=static && cmake --build build -j
 - Install modules: [`docs/HOW_TO_INSTALL_MODULES.md`](docs/HOW_TO_INSTALL_MODULES.md)
 - Module folder docs: [`modules/README.md`](modules/README.md)
 
-> ⚠️ This is a **BfA 8.3.x** core — modules written for other cores/expansions
+> ⚠️ This is a **BfA 8.3.7** core — modules written for other cores/expansions
 > (e.g. AzerothCore WotLK 3.3.5) won't compile unmodified. Start from `mod-skeleton`.
 
 ---
 
 ## World database (TDB)
 
-This core targets BfA **8.3.x**, so it uses the TrinityCore **TDB 837** database
+This core targets BfA **8.3.7**, so it uses the TrinityCore **TDB 837** database
 line. `sql/base/` only ships the **auth** and **characters** base SQL — the
 **world** and **hotfixes** data come from the TDB download.
 
