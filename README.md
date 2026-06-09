@@ -27,7 +27,7 @@ A **World of Warcraft: Battle for Azeroth 8.3.7 (build 35662)** private-server e
 
 This is *not* a binary release — you compile it yourself from this repository
 against your own MariaDB and (eventually) feed it the data files (maps, vmaps,
-mmaps, DB2/DBC) extracted from a real BfA 8.3.x WoW client.
+mmaps, DB2/DBC) extracted from a real BfA 8.3.7 WoW client.
 
 ---
 
