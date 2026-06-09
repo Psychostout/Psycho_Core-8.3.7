@@ -1097,7 +1097,7 @@
    S8-S16 WARRIOR/PALADIN/HUNTER/ROGUE/PRIEST/SHAMAN/MAGE/WARLOCK/DRUID (16/20 ea)
    S17    MONK (NEW - author)        S18  DEMON HUNTER (NEW - author)  [MILESTONE]
    S19-S27 PET/GROUP/HEAL/NONCOMBAT/TRAVEL/PVP/DUNGEON/AHBOT(14)/DBStore+ChatFilter
-   S28    PHASE A core edits (socketless login)   S29  hardening + final audit
+   S28    PHASE A core edits (socketless login)  [x] DONE - 7 core edits + LoginMgr + auto-attach   S29  hardening + final audit
 
 ================================================================================
  S2-S6 CREATED EQUIVALENTS (Phase B - shared libs + rewire)  [2026-06-08]
@@ -1431,3 +1431,81 @@
  [x] help text                              => .psychobot help (lists full grammar)
  [~] ChatFilter/ChatHelper LINK parsing     => spell/item hyperlink parse = later refinement (cast-by-name works now)
  [~] cross-relog persistence                => DbStore Save/Load DB hooks (need characters-DB table; on-server)
+
+================================================================================
+ S28 CREATED EQUIVALENTS (Phase A - socketless bot login)  [2026-06-08]
+ ** THE ONLY STEP THAT EDITS CORE TrinityCore FILES (no MyCode header on those) **
+================================================================================
+ CORE EDITS (7) - edited TrinityCore files, NO MyCode header:
+ [x] WorldSession.h  : + bool m_isBot / m_botRemove + IsBot/SetBot/SetBotRemove/
+                       IsBotRemoving + BotLogin(ObjectGuid) decl; IsConnectionIdle()
+                       returns false for bots (avoids CloseSocket null-deref).
+ [x] WorldSession.cpp: SendPacket null-socket guard suppresses ERROR log for bots
+                       (already returned safely - kills log spam).
+ [x] WorldSession.cpp: Update() IsConnectionIdle CloseSocket -> null-guarded.
+ [x] WorldSession.cpp: Update() keep socketless bot ALIVE (return true) unless
+                       SetBotRemove() flagged -> then return false once so
+                       World::UpdateSessions erases+deletes it.
+ [x] WorldSession.cpp: KickPlayer() no-op for bots (idle/GM/anti-cheat safe).
+ [x] World.cpp       : AddSession_ bypasses login queue for bots (IsBot()).
+ [x] CharacterHandler.cpp: + WorldSession::BotLogin(guid) - builds the file-local
+                       LoginQueryHolder + assigns _charLoginCallback so the EXISTING
+                       ProcessQueryCallbacks() drives HandlePlayerLogin (reuses
+                       core's own tested async login path; account-init checked first).
+ MODULE (from-scratch, MyCode header):
+ [x] PsychobotLoginMgr.{h,cpp} => LoginBot/LoginBotByName (offline char -> socketless
+                       WorldSession(sock=nullptr) -> SetBot -> AddSession -> BotLogin),
+                       LogoutBot (LogoutPlayer(true)+SetBotRemove), HasBotSession,
+                       FindBotSession.
+ [x] PsychobotMgr     => AddBot now logs OFFLINE chars in socketlessly + records
+                       _pendingMasters; OnPlayerLogin attaches AI when the bot
+                       finishes loading; RemoveBot logs socketless bots back out.
+ [x] mod_psychobot.cpp => PlayerScript::OnLogin hook -> OnPlayerLogin (auto-attach).
+ NOTES / CAVEATS (honest):
+ [~] Account-init vs char-login race: both async callbacks are serviced in the same
+     ProcessQueryCallbacks() pass (account-init checked BEFORE HandlePlayerLogin), so
+     normally account data loads first; if char-login's future readies a tick earlier,
+     collections/account-data may be momentarily empty (no crash). Matches fork behaviour.
+ [~] Double-login guard uses sWorld->FindSession(accountId); AddSession is queued, so
+     two logins on the SAME account within one tick is a theoretical edge (bot logins
+     are throttled). One session per account otherwise enforced by AddSession_.
+ [~] Bnet account id passed as 0 (bots use no Battle.net account); expansion =
+     CURRENT_EXPANSION (BfA = 7). Warden never inits for bots (InitWarden is only
+     called from the auth socket path). GetRemoteAddress returns stored m_Address
+     (empty for bots) - no socket deref, so no extra edit needed.
+ [x] First real compile + crash test = user's desktop (no toolchain/client here).
+
+================================================================================
+ S29 HARDENING + FINAL AUDIT  [2026-06-09]  -- whole-module static audit, 12 axes
+================================================================================
+ [x] 1 RELEVANCE CONSTANTS   monotonic IDLE=1..PASSTHROUGH=100 (engine/AiObject.h); OK.
+ [x] 2 BRIDGE decl==def      13/13 funcs match (PsychobotAIFwd.h vs PsychobotAI.cpp
+                             namespace PsychobotAIBridge block); all null-safe (ai? / ai&&).
+ [x] 3 AIFACTORY 12 classes  RegisterContext + base + nc + spec install wired for ALL 12
+                             (switch + if-chain); getClass() (lowercase) matches core.
+ [x] 4 PER-CLASS files       all 12 have RegisterContext + CombatStrategyForSpec (2 files ea).
+ [x] 5 STRATEGY resolution   61 used strategy names (factory literals + spec returns) ALL
+                             resolve to 63 registered creators. 0 unresolved.
+ [x] 6 ACTION resolution     14 used action-base names ALL resolve to 19 registered
+                             (cast family + movement/world/pet). 0 unresolved. "::" split OK.
+ [x] 7 TRIGGER resolution    80 used trigger-base names ALL resolve to 92 registered
+                             (incl pets "pet idle"). 0 unresolved.
+ [x] 8 SPEC->ROLE mapping    all 12 classes, BfA-accurate spec counts (Druid 4, DH 2, rest 3)
+                             + roles (Blood/Brewmaster/Guardian/Vengeance/Prot = Tank;
+                             Disc/Holy/Mistweaver/Resto = Heal). Matches spec strategy names.
+ [x] 9 MEMORY/OWNERSHIP      Engine ~dtor frees _triggers(TriggerNode) + _ownedNodes(ActionNode);
+                             NextAction::Destroy frees arrays (Engine.cpp:176/249);
+                             NamedObjectContext ~dtor deletes cached objects; ContextList ~dtor
+                             deletes contexts. _multipliers/_strategies = non-owning refs (OK).
+                             REL_* are file-local static const (internal linkage). No leak/double-free.
+ [x] 10 HOT PATH            DoNextAction recursion guard (depth>kMaxDepth); UpdateAI throttled
+                             250ms + IsInWorld guard; objects cached (no per-tick alloc churn);
+                             PsychobotMgr::UpdateAI erase-during-iteration done correctly.
+ [x] 11 HEADERS/SINGLETONS  75/75 headers have include guards; 3 managers use Meyers singleton
+                             + s* macros consistently.
+ [x] 12 S28 INTEGRATION     _pendingMasters add/find/erase coherent; LoginMgr API decl==use;
+                             OnPlayerLogin decl/def/script-hook wired; bot teardown -> IsInWorld
+                             false -> AI auto-dropped by the manager tick. End-to-end consistent.
+ MINOR (non-blocking): LoginMgr::LoginBotByName declared+defined but currently uncalled
+   (AddBot uses LoginBot directly) - kept as a public convenience API. No action needed.
+ RESULT: STATIC AUDIT PASS. Remaining truth-check = first desktop compile + in-world test.

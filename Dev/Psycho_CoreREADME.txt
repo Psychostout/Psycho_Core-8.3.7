@@ -9,10 +9,10 @@
  PSYCHO_CORE 8.3.7  -  BUILD / PLAN / REFERENCE
 ================================================================================
  Maintained by: Arena.ai Agent + User
-  Last updated  : 2026-06-08 (FAT PORT S9 Paladin done; classes: DK/Warrior/
-                 Paladin. First healer. Next: S10 Hunter. Static-verified only.)
-                 MILESTONE - bot follows/chases/auto-attacks via the real engine.
-                 Per-class spell rotations begin at S7 - Death Knight.)
+  Last updated  : 2026-06-09 (ALL 29 STEPS DONE, static. Engine + 12 classes +
+                 Phase-D + S28 socketless login + S29 hardening + SQL/DbStore
+                 persistence complete. NOT compiled yet - first real compile is on
+                 the user's desktop. See Dev/remember_prompt.txt for full status.)
  Repo path     : /home/user/Psycho_Core-8.3.7
  Upstream      : https://github.com/Psychostout/Psycho_Core-8.3.7
 ================================================================================

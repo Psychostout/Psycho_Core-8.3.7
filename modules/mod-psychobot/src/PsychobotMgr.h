@@ -50,6 +50,11 @@ namespace psychobot
         // or when a master logs out (cleanup).
         void OnPlayerLogout(Player* player);
 
+        // S28: called from the module OnLogin hook for EVERY player. If the
+        // freshly-loaded character is a pending socketless bot (queued by a
+        // master via AddBot), this attaches its AI and clears the pending entry.
+        void OnPlayerLogin(Player* player);
+
         // World tick entry point (from the module WorldScript::OnUpdate).
         void UpdateAI(uint32 diff);
 
@@ -64,6 +69,11 @@ namespace psychobot
         void DetachAI(ObjectGuid botGuid);
 
         std::unordered_map<ObjectGuid, std::unique_ptr<PsychobotAI>> _bots;
+
+        // S28: socketless bots requested by a master but not yet in world.
+        // Maps the pending bot's GUID -> the master's GUID, so OnPlayerLogin
+        // can attach the AI the moment the character finishes loading.
+        std::unordered_map<ObjectGuid, ObjectGuid> _pendingMasters;
     };
 }
 

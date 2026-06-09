@@ -66,6 +66,12 @@ public:
     {
         sPsychobotMgr->OnPlayerLogout(player);
     }
+
+    // S28: when a socketless bot finishes loading into the world, attach its AI.
+    void OnLogin(Player* player, bool /*firstLogin*/) override
+    {
+        sPsychobotMgr->OnPlayerLogin(player);
+    }
 };
 
 // ---------------------------------------------------------------------------

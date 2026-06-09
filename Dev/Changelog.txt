@@ -1380,3 +1380,204 @@
            ChatHelper item/spell-LINK parsing (parse a [Spell]/[Item] hyperlink
            in chat) is a later refinement; "cast <name>" by spell name works now.
 [DOC]    Checklist: persistence + commands marked; progress 337 -> 351.
+
+================================================================================
+ 2026-06-08  PHASE D - S28  PHASE A CORE EDITS (socketless login) - DEFERRED
+================================================================================
+[S28]    RESEARCHED but DEFERRED by user decision (riskiest step: edits CORE
+           files, cannot be compile-tested here). Findings recorded for the
+           on-desktop pass:
+         - WorldSession ctor takes std::shared_ptr<WorldSocket> sock -> a bot
+           passes nullptr (socketless). World::AddSession registers it;
+           WorldSession::HandlePlayerLogin(LoginQueryHolder*) loads the char.
+         - The login/update path is ALREADY almost null-safe: SendPacket() guards
+           `if (!m_Socket[conIdx]) return;` (logs an error then no-ops), and every
+           other m_Socket[...] deref in WorldSession.cpp is null-guarded.
+         - THE ONE REAL CRASH: WorldSession::Update (WorldSession.cpp ~line 332)
+             if (IsConnectionIdle()) m_Socket[CONNECTION_TYPE_REALM]->CloseSocket();
+           IsConnectionIdle() = (m_timeOutTime <= 0 && !m_inQueue) -> a socketless
+           bot eventually trips this and dereferences a null socket -> crash.
+         READY-TO-APPLY core patch (1 line, NO MyCode header - edited core file):
+             if (IsConnectionIdle() && m_Socket[CONNECTION_TYPE_REALM])
+                 m_Socket[CONNECTION_TYPE_REALM]->CloseSocket();
+         (Optional log-spam fix: skip the SendPacket "non existent socket" error
+           log when the session is flagged as a bot.)
+         Module side (to build on-desktop): PsychobotLoginMgr - construct a bot
+           WorldSession(nullptr socket) for an offline bot-account char, AddSession,
+           run HandlePlayerLogin via a LoginQueryHolder; then PsychobotPopulationMgr
+           tops up toward minRandomBots. NOT built here (no compile/runtime).
+[DECISION] User chose "defer" - leave core untouched; do S29 hardening next; S28
+           becomes the final on-desktop task with compile-testing available.
+
+================================================================================
+ 2026-06-08  S29  HARDENING + FINAL AUDIT  (done out of order, after S28 deferral)
+================================================================================
+[S29]    Full static end-to-end audit of mod-psychobot (141 files, ~13724 LOC):
+          1. brace/paren balance whole module ............. ALL BALANCED
+          2. include guards ............................... ALL UNIQUE
+          3. bridge decl==def ............................. MATCH
+          4. all 12 classes wired in AiFactory ............ 12/12
+          5. every TriggerNode name resolves (classes+pet)  ALL RESOLVE
+          6. every NextAction name resolves to a registered
+             action (cast family/movement/pet/world) ...... ALL RESOLVE (19 actions)
+          7. every CombatStrategyForSpec return is a
+             registered strategy (12 classes/36 specs) ..... ALL VALID
+          8. MyCode header on every from-scratch file ...... ALL HEADERED
+          9. managers are instance() singletons ............ 4/4
+         10. hot-path safety: AI tick guards (in-world/250ms
+             throttle/ShouldBotBeActive); Engine kMaxDepth=5
+             recursion guard + null-context guards;
+             ServerFacade null-guards ..................... PRESENT
+         11. memory: engine raw new (ActionBasket/ActionNode/
+             NextAction) all owned by Queue/_ownedNodes/
+             Destroy chains ............................... OK (verified S2/S3)
+[STILL]  NOT compile-tested (no toolchain / no 8.3.7 client data) - first real
+           compile is the desktop truth check. Remaining for on-desktop:
+           S28 socketless login (1-line core patch documented) + the documented
+           framework hooks (mount/vendor/loot/quest/gather; per-BG objectives;
+           per-encounter reactions; ahbot AddAuction; DbStore DB persist;
+           chat link parsing).
+[DOC]    Final audit recorded. Project static-complete pending compile.
+
+================================================================================
+ 2026-06-08  S28 DEEP RESEARCH (web) - socketless bot login  [pre-implementation]
+================================================================================
+[RESEARCH] User clarified: DO NOT skip S28 - deep-research it first (web + a
+  second-AI prompt) before implementing. Findings:
+  - EVERY working ike3-lineage playerbot (ZhengPeiRu21, liyunfan1223/mod-playerbots)
+    REQUIRES A CUSTOM CORE BRANCH ("requires custom changes to AzerothCore" - they
+    ship a forked azerothcore-wotlk/tree/Playerbot). => socketless login is NOT a
+    clean module-only feature; core edits are expected/normal here. Confirms my
+    earlier finding and means the scope is bigger than a 1-line patch.
+  - Canonical login pattern (ike3/mangos PlayerbotMgr::AddPlayerBot, TC-adapted):
+      WorldSession* s = new WorldSession(accountId, "", bnetAcc, /*sock*/nullptr,
+                          SEC_PLAYER, expansion, mute, locale, recruiter, isARecruiter);
+      LoginQueryHolder* holder = new LoginQueryHolder(accountId, guid);
+      holder->Initialize();              // queue the character SELECTs
+      // run holder (sync or via CharacterDatabase.DelayQueryHolder + callback)
+      s->HandlePlayerLogin(holder);      // builds the Player
+      sWorld->AddSession(s);             // register (order/threading core-specific)
+  - TC 8.3 WorldSession ctor (verified in our tree, WorldSession.h:910):
+      WorldSession(uint32 id, std::string&& name, uint32 battlenetAccountId,
+        std::shared_ptr<WorldSocket> sock, AccountTypes sec, uint8 expansion,
+        time_t mute_time, ...)
+  - Our tree's login path is already mostly null-socket-safe EXCEPT
+    WorldSession::Update ~line332: m_Socket[REALM]->CloseSocket() under
+    IsConnectionIdle() (= m_timeOutTime<=0 && !m_inQueue) -> null deref crash.
+  - OPEN QUESTIONS for the 2nd AI (in the prompt): exact TC-3.3.5/8.x ctor arg
+    list + how to run LoginQueryHolder sync vs async on TC; whether to add an
+    isBot flag to WorldSession (vs leave null-socket); how AddSession + the
+    World::UpdateSessions map interacts with a socketless session each tick; how
+    real forks suppress the SendPacket "non existent socket" log spam; KickPlayer/
+    timeout handling for bots; and the safest set of CORE edits for TC BfA 8.3.
+[NEXT] Awaiting the user's relay of a second-AI answer to this prompt, then
+  implement S28 against the agreed core-edit set (edited core files = NO MyCode
+  header per the license rule).
+
+================================================================================
+ S28 IMPLEMENTED - SOCKETLESS BOT LOGIN (the only core-editing step)  [2026-06-08]
+================================================================================
+User confirmed THIS workspace is the true source (disregard the earlier
+"test build" error report - those files do not exist here). Applied the agreed
+core-edit set, adapted to THIS core's REAL signatures (verified each in source,
+not assumed). Notable adaptations vs the generic second-AI advice:
+  * EXPANSION_BATTLE_FOR_AZEROTH = 7 here (used CURRENT_EXPANSION, not literal 8).
+  * KickPlayer() takes NO args in this core (not KickPlayer(string)).
+  * GetRemoteAddress() returns a stored m_Address string -> NO socket deref ->
+    Claude's "Edit 6" unnecessary, skipped.
+  * Reused the core's OWN async login: BotLogin assigns _charLoginCallback and
+    lets the existing ProcessQueryCallbacks() fire HandlePlayerLogin (cleaner &
+    lower-risk than a hand-rolled DelayQueryHolder lambda).
+  * Removal: World::RemoveSession relies on Update() returning false on socket
+    close; bots have no socket, so added m_botRemove + SetBotRemove() and made
+    Update() return false ONCE when flagged (avoids a session leak; the no-op
+    KickPlayer for bots meant RemoveSession alone would never erase them).
+
+CORE EDITS (NO MyCode header):
+  WorldSession.h, WorldSession.cpp, World.cpp, CharacterHandler.cpp  (see checklist S28).
+MODULE (MyCode header on new files):
+  + src/PsychobotLoginMgr.{h,cpp}; edits to PsychobotMgr.{h,cpp}, mod_psychobot.cpp.
+
+VERIFICATION (static): all core symbols/signatures cross-checked against source
+(WorldSession ctor, m_playerLoading type, DelayQueryHolder(holder), _charLoginCallback
++ ProcessQueryCallbacks order, CharacterCacheEntry fields, AccountMgr GetName/GetSecurity,
+ObjectAccessor::FindConnectedPlayer, World AddSession/FindSession). WorldSession ctor
+already guards `if (sock)` -> nullptr socket is safe at construction.
+CANNOT COMPILE here (no toolchain/client) - first real build + crash test = desktop.
+[NEXT] S29 - hardening + final audit (awaiting user authorization).
+
+================================================================================
+ S29 COMPLETE - HARDENING + FINAL AUDIT  [2026-06-09]
+================================================================================
+Ran a 12-axis whole-module STATIC audit (see checklist S29 for the matrix):
+relevance constants, bridge decl==def (13/13), AiFactory 12-class wiring, per-class
+files, and the full NAME-RESOLUTION proof: 61/61 strategies, 14/14 action bases,
+80/80 trigger bases ALL resolve to registered creators (0 unresolved). Spec->role
+mapping BfA-accurate for all 12 classes. Memory/ownership verified (engine + context
+caches free everything; multipliers/strategies are non-owning refs; no leak/double-free).
+Hot path safe (recursion guard, 250ms throttle, cached objects, safe erase-in-loop).
+75/75 headers guarded; singletons consistent. S28 integration end-to-end consistent.
+One non-blocking note: LoginMgr::LoginBotByName is a defined-but-uncalled public API.
+RESULT: static audit PASS. The module is feature-complete across S1-S29 (static).
+[REMAINING - all on the user's desktop, needs toolchain + 8.3.7 client data]:
+  1. First real COMPILE (the truth check) - fix any errors as they surface.
+  2. In-world test: .psychobot add <offline char> -> socketless login -> follow/fight.
+  3. Tune spell NAMES vs the live client DB2 (a mismatch no-ops one ability).
+  4. Fill documented framework hooks (mount/vendor/loot/quest/gather; per-BG objectives;
+     per-encounter reactions; ahbot AddAuction; DbStore DB persist; chat link parsing).
+
+================================================================================
+ POST-S29 CLEANUP / VERIFICATION PASS  [2026-06-09]
+================================================================================
+User asked to: (1) re-verify checklist files exist+coded, (2) confirm 1:1 build,
+(3) tidy Dev docs/remove redundant, (4) recreate needed SQL, (5) deep-dive all
+systems, (6) report.
+
+DONE:
+ * SQL (Task 4): added modules/mod-psychobot/sql/characters/psychobot_strategies.sql
+   (CREATE TABLE IF NOT EXISTS, characters DB) + sql/README.txt explaining what to
+   apply and why the reference's other tables (random_bots/ahbot/names/texts/cache)
+   are NOT needed in our consolidated design. Wired PsychobotDbStore::Save/Load to
+   REAL queries (CharacterDatabase PExecute/PQuery, fmt::sprintf printf-style,
+   EscapeString on names) - persistence now round-trips (Load on AI attach, Save
+   on strategy toggle). Previously these were documented no-op stubs.
+ * Dead config fixed: Psychobot.FollowDistance was in conf.dist but unread - now
+   wired into PsychobotAI::FollowMaster (config-driven trail distance). Config audit:
+   every key read is documented; no dead keys remain.
+ * README (module) corrected: command table was stale (missing S27/S28 cmds) and the
+   Layout section referenced PHANTOM files (PsychobotEngine/PsychobotStrategies - the
+   same wrong names from the original bogus "test build"); replaced with the real tree,
+   added SQL section + honest-limitations section.
+ * Dev docs tidy (Task 3): moved 8 early research/decision artifacts (Research_*.txt,
+   ModuleSupport_Research*.txt) to Dev/_archive_research/ with a README. Active Dev/
+   now holds only living docs (Changelog, Chatlog, Checklist, Mod-Psychobots-Ref,
+   ModuleAPI_Reference, Psycho_CoreREADME, remember_prompt) + playerbots_docs/.
+ * cmake message updated (full module + SQL reminder).
+
+VERIFICATION (Tasks 1,2,5 - static):
+ * 146 module files; 0 stub/empty; ~14k LoC; 0 brace/namespace mismatches across 143
+   src files; every Strategy class declared==defined; all manager funcs defined;
+   75/75 headers guarded; loader chain single AddSC.
+ * 1:1 coverage map built (reference playerbot/ + strategy/ + ahbot/ -> ours). All
+   core subsystems present. Genuine GAPS recorded honestly: flee/FleeManager (none);
+   vendor/loot/quest/gather/AddAuction/per-BG-objective/per-encounter/chat-link = hooks;
+   PerformanceMonitor/MemoryMonitor/CommandServer/BroadcastHelper/LLM = deferred/N-A.
+
+================================================================================
+ DEV-DOCS REFRESH PASS  [2026-06-09]
+================================================================================
+User flagged the chat is getting bloated/buggy and asked to make the docs (esp.
+the prompt) state exactly what to read and where we are. Done:
+ * REWROTE Dev/remember_prompt.txt end-to-end (was 342 lines, internally
+   contradictory - some parts still said "build S28 / next S10"). New version is
+   tight + consistent: a TL;DR box, an explicit ORDERED read-list (sec 0), the
+   authoritative ALL-S1..S29-DONE status (sec 1), the per-class pattern, engine
+   tick, file map, verification method, MyCode header, verified core facts, the
+   REPO-vs-WORKSPACE warning (do not pull - we're strictly ahead), and a one-line
+   resume status. It now tells a fresh session EXACTLY which files to open.
+ * Fixed Dev/Psycho_CoreREADME.txt header (was "FAT PORT S9 Paladin done; Next:
+   S10 Hunter") -> now "ALL 29 steps done, static; first compile on desktop".
+ * Verified the other living docs: the "Awaiting GO for S10/S11..." lines are
+   only in Chatlog.txt as HISTORICAL per-step entries (correct - that's the log);
+   current status lives at the tail. No stale current-status markers elsewhere.
+ NOTE: no code changed in this pass - documentation only.

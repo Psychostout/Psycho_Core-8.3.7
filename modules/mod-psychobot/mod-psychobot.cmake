@@ -8,4 +8,5 @@
 # Add extra find_package()/target_link_libraries(modules ...) here if a future
 # stage needs an external dependency.
 
-message(STATUS "  mod-psychobot: Stage 1 (foundation + main AI) loaded.")
+message(STATUS "  mod-psychobot: full module (engine + 12 classes + Phase D + socketless login) loaded.")
+message(STATUS "  mod-psychobot: remember to apply sql/characters/psychobot_strategies.sql to the characters DB.")

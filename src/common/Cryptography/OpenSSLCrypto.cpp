@@ -17,7 +17,6 @@
 
 #include <OpenSSLCrypto.h>
 #include <openssl/crypto.h>
-#include <openssl/opensslv.h>
 #include <vector>
 #include <thread>
 #include <mutex>
@@ -26,7 +25,7 @@
 // manual locking API (CRYPTO_num_locks / CRYPTO_set_locking_callback /
 // CRYPTO_THREADID_*). These symbols do not exist in OpenSSL 1.1+/3.x, so the
 // legacy callback setup below is compiled only for OpenSSL < 1.1.0.
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x10100000L
+#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
 
 std::vector<std::mutex*> cryptoLocks;
 void ValgrindRandomSetup();
@@ -39,7 +38,7 @@ static void lockingCallback(int mode, int type, char const* /*file*/, int /*line
         cryptoLocks[type]->unlock();
 }
 
-static void threadIdCallback(CRYPTO_THREADID* id)
+static void threadIdCallback(CRYPTO_THREADID * id)
 {
     (void)id;
     CRYPTO_THREADID_set_numeric(id, std::hash<std::thread::id>()(std::this_thread::get_id()));
@@ -52,8 +51,10 @@ void OpenSSLCrypto::threadsSetup()
 #endif
 
     cryptoLocks.resize(CRYPTO_num_locks());
-    for (int i = 0; i < CRYPTO_num_locks(); ++i)
+    for(int i = 0 ; i < CRYPTO_num_locks(); ++i)
+    {
         cryptoLocks[i] = new std::mutex();
+    }
 
     (void)&threadIdCallback;
     CRYPTO_THREADID_set_callback(threadIdCallback);
@@ -66,10 +67,10 @@ void OpenSSLCrypto::threadsCleanup()
 {
     CRYPTO_set_locking_callback(nullptr);
     CRYPTO_THREADID_set_callback(nullptr);
-
-    for (int i = 0; i < CRYPTO_num_locks(); ++i)
+    for(int i = 0 ; i < CRYPTO_num_locks(); ++i)
+    {
         delete cryptoLocks[i];
-
+    }
     cryptoLocks.resize(0);
 }
 

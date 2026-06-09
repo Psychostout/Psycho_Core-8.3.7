@@ -10,10 +10,12 @@
 #include "PsychobotMgr.h"
 #include "PsychobotPopulationMgr.h"
 #include "PsychobotGroupMgr.h"
+#include "PsychobotLoginMgr.h"
 #include "ai/PsychobotAI.h"
 #include "ai/PsychobotTalentMgr.h"
 #include "Player.h"
 #include "ObjectAccessor.h"
+#include "CharacterCache.h"
 #include "Config.h"
 #include "Log.h"
 #include <cstdlib>
@@ -57,12 +59,33 @@ namespace psychobot
         if (charName.empty())
             return "Usage: .psychobot add <charactername>";
 
-        // Stage 1 (V1 = alts-as-bots): the target character must already be
-        // connected/in-world. Socketless auto-login arrives in a later stage.
+        // S28: if the target character is offline, log it in socketlessly as a
+        // bot first. The character loads on a later world tick, so AttachAI then
+        // happens when its OnLogin fires (handled by the module login hook), or
+        // the master can re-issue .psychobot add once it's in world. We report
+        // the in-progress login here.
         Player* bot = ObjectAccessor::FindConnectedPlayerByName(charName);
         if (!bot)
-            return "Character '" + charName + "' is not online. (Stage 1 manages "
-                   "already-logged-in characters; auto-login is a later stage.)";
+        {
+            // Resolve the offline character so we can remember its master and
+            // attach AI automatically when it finishes loading (OnPlayerLogin).
+            CharacterCacheEntry const* entry = sCharacterCache->GetCharacterCacheByName(charName);
+            if (!entry)
+                return "No character named '" + charName + "' exists.";
+            if (entry->Guid == master->GetGUID())
+                return "You cannot add yourself as a bot.";
+            if (IsBot(entry->Guid))
+                return "'" + charName + "' is already a Psychobot.";
+
+            std::string reason;
+            if (LoginMgr::LoginBot(entry->Guid, entry->AccountId, reason))
+            {
+                _pendingMasters[entry->Guid] = master->GetGUID();
+                return "Logging in '" + charName + "' as a Psychobot... " + reason
+                     + " (it will start following once loaded).";
+            }
+            return "Could not bring '" + charName + "' online: " + reason;
+        }
 
         if (bot->GetGUID() == master->GetGUID())
             return "You cannot add yourself as a bot.";
@@ -87,8 +110,14 @@ namespace psychobot
         Player* bot = ObjectAccessor::FindConnectedPlayerByName(charName);
         if (bot && IsBot(bot->GetGUID()))
         {
-            DetachAI(bot->GetGUID());
-            return "Removed Psychobot: " + bot->GetName() + ".";
+            ObjectGuid guid = bot->GetGUID();
+            std::string name = bot->GetName();
+            DetachAI(guid);
+            // S28: if this bot was brought online socketlessly, log it back out
+            // of the world (real players we manage as bots are left connected).
+            if (LoginMgr::HasBotSession(guid))
+                LoginMgr::LogoutBot(guid);
+            return "Removed Psychobot: " + name + ".";
         }
         return "'" + charName + "' is not an active Psychobot.";
     }
@@ -234,6 +263,24 @@ namespace psychobot
             else
                 ++it;
         }
+    }
+
+    void PsychobotMgr::OnPlayerLogin(Player* player)
+    {
+        if (!player)
+            return;
+
+        // Is this the freshly-loaded socketless bot a master just requested?
+        auto it = _pendingMasters.find(player->GetGUID());
+        if (it == _pendingMasters.end())
+            return;
+
+        ObjectGuid masterGuid = it->second;
+        _pendingMasters.erase(it);
+
+        if (AttachAI(player, masterGuid))
+            TC_LOG_INFO("module.psychobot", "[Psychobot] %s finished socketless login; AI attached.",
+                player->GetName().c_str());
     }
 
     void PsychobotMgr::UpdateAI(uint32 diff)

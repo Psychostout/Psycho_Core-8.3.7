@@ -23,6 +23,7 @@
 #include "../engine/ServerFacade.h"
 #include "Player.h"
 #include "Unit.h"
+#include "Config.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "SpellMgr.h"
@@ -45,6 +46,12 @@ namespace psychobot
     {
         // Build the bot's context (generic + class vocabulary/behaviour).
         _context.reset(AiFactory::CreateContext(this));
+
+        // S27/persistence: load this bot's saved (master-toggled) strategies
+        // from the characters DB (table psychobot_strategies) so InitCombatEngine
+        // below can re-apply them via DbStore::GetStrategies.
+        if (_bot)
+            sPsychobotDbStore->Load(_bot->GetGUID());
 
         // One engine per state, sharing the single context.
         _nonCombatEngine = std::make_unique<Engine>(this, _context.get(), BotState::NonCombat);
@@ -101,6 +108,9 @@ namespace psychobot
             _combatEngine->AddStrategy(name);
         else
             _combatEngine->RemoveStrategy(name);
+        // S27/persistence: write the updated set to the characters DB
+        // (table psychobot_strategies) so it survives a relog.
+        sPsychobotDbStore->Save(_bot->GetGUID());
         return nowOn;
     }
 
@@ -303,14 +313,17 @@ namespace psychobot
         if (!_bot || !master || !master->IsInWorld())
             return false;
 
+        // Configurable trail distance (Psychobot.FollowDistance, default 2.0y).
+        float const followDist = sConfigMgr->GetFloatDefault("Psychobot.FollowDistance", 2.0f);
+
         // S23: travel catch-up first. If the master is on another map or beyond
         // the leash, this teleports us in and returns true (we're done this tick).
-        if (TravelMgr::FollowMasterTravel(_bot, master, 2.0f))
+        if (TravelMgr::FollowMasterTravel(_bot, master, followDist))
             return true;
 
         // Same map + within leash: normal follow with the S20 formation angle.
         float angle = GroupMgr::GetFollowFormationAngle(_bot);
-        _bot->GetMotionMaster()->MoveFollow(master, 2.0f, angle);
+        _bot->GetMotionMaster()->MoveFollow(master, followDist, angle);
         return true;
     }
 

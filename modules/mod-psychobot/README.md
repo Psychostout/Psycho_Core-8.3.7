@@ -46,24 +46,54 @@ Strategy/Action/Value/Trigger engine.
 ## Commands
 | Command | Description |
 |---|---|
-| `.psychobot add <charname>` | Take control of an online character as your bot (it follows + fights). |
-| `.psychobot remove <charname>` | Release a bot. |
+| `.psychobot add <charname>` | Take control of a character as your bot. If it's **offline**, it is logged in **socketlessly** (S28) and starts following once loaded. |
+| `.psychobot remove <charname>` | Release a bot (socketless bots are logged back out). |
 | `.psychobot list` | List your active bots. |
 | `.psychobot spec <charname> <0-3>` | Set the bot's specialization + talents. |
-| `.psychobot group <charname>` | Add the bot to your party (role auto-assigned). |
+| `.psychobot group <charname>` | Add the bot to your party (LFG role auto-assigned from spec). |
+| `.psychobot follow` / `stay` / `attack` | Order all your bots (follow you / hold position / attack your target). |
+| `.psychobot cast <spell name>` | All your bots cast a spell (by name) on your target. |
+| `.psychobot strategy <name>` | Toggle an extra combat strategy on a bot (persisted in the characters DB). |
+| `.psychobot help` | Print the full command grammar. |
+
+## SQL
+Apply once to the **characters** database (see `sql/README.txt`):
+```
+mysql -u <user> -p <characters_db> < sql/characters/psychobot_strategies.sql
+```
+This creates `psychobot_strategies` (used by `PsychobotDbStore` to persist each
+bot's master-toggled combat strategies across relogs). No other tables are needed.
 
 ## Layout
 ```
 mod-psychobot/
 ├── conf/mod_psychobot.conf.dist
 ├── mod-psychobot.cmake
-├── src/
-│   ├── mod_psychobot.cpp          WorldScript + PlayerScript + CommandScript
-│   ├── mod_psychobot_loader.cpp   Addmod_psychobotScripts()
-│   ├── PsychobotMgr.{h,cpp}       global bot registry, ticked each world update
-│   └── ai/
-│       ├── PsychobotEngine.{h,cpp}     Strategy/Action/Trigger engine
-│       ├── PsychobotAI.{h,cpp}         per-bot brain + TC-8.3 ServerFacade seam
-│       └── PsychobotStrategies.{h,cpp} Stage-1 follow + basic combat
-└── README.md
+├── sql/
+│   ├── README.txt
+│   └── characters/psychobot_strategies.sql
+└── src/
+    ├── mod_psychobot.cpp          WorldScript + PlayerScript + CommandScript
+    ├── mod_psychobot_loader.cpp   Addmod_psychobotScripts()
+    ├── PsychobotMgr.{h,cpp}       global bot registry, ticked each world update
+    ├── PsychobotLoginMgr.{h,cpp}  socketless bot login/logout (S28)
+    ├── PsychobotPopulationMgr.{h,cpp}  population/scaling (active-alone, smart-scale)
+    ├── PsychobotGroupMgr.{h,cpp}  party invite + role + group assist/heal/dispel target
+    ├── PsychobotAhBot.{h,cpp}     auction-house seller (config-driven)
+    ├── PsychobotAIFwd.h           engine<->AI bridge declarations
+    ├── engine/                    Strategy/Action/Trigger/Value/Engine/Queue/Context
+    ├── ai/                        PsychobotAI, AiFactory, Gear/Talent/SpecRoles
+    ├── actions/                   GenericSpell + Movement + World actions
+    ├── triggers/  values/  strategies/   shared trigger/value/generic-strategy kits
+    ├── classes/<class>/           12 classes x (Triggers + Strategies + Context)
+    ├── pets/                      pet actions + pet strategy
+    ├── pvp/  dungeon/  travel/  world/   Phase-D systems
+    └── ...
 ```
+
+## Honest limitations (framework hooks, not yet live)
+The following are present as documented hooks (real entry points, gated until a
+live server / client DB2 pass): vendor-sell, loot pickup, quest accept/turn-in,
+gathering, AH `AddAuction` (live posting), per-BG objectives, per-encounter
+boss reactions, chat hyperlink (spell/item LINK) parsing. There is **no** flee/
+retreat behaviour yet. First real compile + in-world test happen on the desktop.

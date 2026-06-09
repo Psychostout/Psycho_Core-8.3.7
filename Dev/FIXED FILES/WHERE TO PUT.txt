@@ -1,5 +1,0 @@
-Psycho_Core-8.3.7\cmake\modules\FindOpenSSL.cmake
-Psycho_Core-8.3.7\cmake\macros\FindOpenSSL.cmake
-Psycho_Core-8.3.7\src\common\Cryptography\OpenSSLCrypto.cpp
-Psycho_Core-8.3.7\src\server\database\Updater\UpdateFetcher.cpp"
-Psycho_Core-8.3.7\src\server\shared\Realm\RealmList.h"

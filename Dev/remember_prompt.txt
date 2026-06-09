@@ -1,286 +1,207 @@
 ================================================================================
- REMEMBER PROMPT  -  Psycho_Core / mod-psychobot  (chat-loss recovery brief)
- Last updated: 2026-06-08  (after S27 persistence+commands)
+ REMEMBER PROMPT  -  Psycho_Core / mod-psychobot   (chat-loss recovery brief)
+ Last updated: 2026-06-09
 ================================================================================
- PASTE THIS WHOLE FILE INTO A NEW CHAT IF THIS CONVERSATION IS LOST.
- It tells the agent exactly what we're building, the rules, where we are, the
- repeatable pattern, and which documents to read first.
+ PASTE THIS WHOLE FILE INTO A NEW CHAT IF THIS CONVERSATION IS LOST OR BUGGY.
+ It is the single source of truth for "where we are" and "what to read".
 ================================================================================
 
 
-0) WHO/WHAT
+==== TL;DR (read this box first) ==============================================
+ * Project: /home/user/Psycho_Core-8.3.7  = TrinityCore-based WoW *Battle for
+   Azeroth 8.3.0* server (client build 34769; CURRENT_EXPANSION =
+   EXPANSION_BATTLE_FOR_AZEROTH = 7). NOTE the server folder is "8.3.7".
+ * We built modules/mod-psychobot/ = a clean-room playerbot AI (ike3/cmangos
+   lineage), as a 29-step "fat port" S1..S29.
+ * STATUS: **ALL 29 STEPS DONE (static).** Engine + 12 classes + Phase-D systems
+   + S28 socketless login + S29 hardening are complete and statically verified.
+ * NOT YET COMPILED. There is NO build toolchain and NO 8.3.7 client data in this
+   sandbox, so the FIRST REAL COMPILE happens on the USER'S DESKTOP. That compile
+   is the only remaining truth-check. When the user pastes compiler output, fix
+   real errors then.
+ * The GitHub repo (github.com/Psychostout/Psycho_Core-8.3.7) is an OLDER, broken
+   mid-refactor snapshot (it carries 7 dead duplicate ai/ files and lacks S28/
+   S29/SQL). DO NOT pull from it - this workspace is strictly ahead. (See the
+   "REPO vs WORKSPACE" note below.)
+===============================================================================
+
+
+0) READ THESE DOCS FIRST, IN THIS ORDER, WHEN YOU RESUME
 --------------------------------------------------------------------------------
- - Project root: /home/user/Psycho_Core-8.3.7
-   A TrinityCore-based World of Warcraft *Battle for Azeroth 8.3.0* server
-   (client build 34769, CURRENT_EXPANSION = EXPANSION_BATTLE_FOR_AZEROTH = 7).
- - We are building a full-featured playerbot module: modules/mod-psychobot/
-   It is a CLEAN-ROOM re-implementation of the cmangos/playerbots (ike3 lineage)
-   AI, ported to TrinityCore 8.3. Reference clone (study only, NOT committed):
-   /home/user/playerbots  (cmangos/playerbots, GPL-2.0).
- - The whole job = a 29-step "fat port" (S1..S29). Each class is its own folder
-   of real strategy/trigger classes (the FULL fat port, "Path A" - chosen by the
-   user over a thin model).
+ 1. Dev/remember_prompt.txt           <- THIS FILE (orientation + where we are)
+ 2. Dev/Changelog.txt   (read the TAIL) - exactly what changed, newest at bottom;
+       the most recent entries are the S28/S29/post-S29 cleanup + the repo-compare.
+ 3. Dev/Chatlog.txt     (read the TAIL) - running conversation log, newest at end.
+ 4. Dev/Mod-Psychobots-Checklist.txt  - master checklist; the bottom holds the
+       per-step "CREATED EQUIVALENTS" blocks incl. S28 (7 core edits) and the
+       S29 12-axis audit matrix.
+ 5. Dev/Mod-Psychobots-Ref.txt        - reference engine architecture.
+ 6. Dev/ModuleAPI_Reference.txt       - verified TrinityCore 8.3 API facts.
+ 7. Dev/Psycho_CoreREADME.txt         - repo modernization state / build targets.
+ 8. Dev/playerbots_docs/06_FAT_PORT_STEPS.txt - the ordered S1..S29 plan.
+ Live code template to open: modules/mod-psychobot/src/classes/deathknight/
+   (the fully-populated reference class) + ai/PsychobotAiFactory.cpp (the wiring).
+ Archived early research (NOT needed): Dev/_archive_research/.
 
 
-1) HARD RULES (DO NOT BREAK)
+1) WHERE WE ARE (authoritative status)
 --------------------------------------------------------------------------------
- - WORK ONE STEP AT A TIME. After EVERY step: (1) build it, (2) statically verify
-   (no compiler in sandbox - see sec 6), (3) tick the checklist, (4) update the
-   Dev/ docs, (5) report, then WAIT for the user to authorize the next step.
-   DO NOT run ahead to the next step without an explicit "GO".
- - DEV DOCS MUST BE UPDATED EVERY STEP (user-stated, firm):
-     Dev/Chatlog.txt, Dev/Changelog.txt, Dev/Psycho_CoreREADME.txt,
-     Dev/Mod-Psychobots-Checklist.txt
- - LICENSE rule (user, firm):
-     * Files we wrote 100% FROM SCRATCH  -> ADD the MyCode header (see sec 7).
-     * Files we only EDITED (existing TrinityCore/cmangos) -> NO header.
-     * CMake / build-glue / .conf files  -> NOT "his" code -> NO header.
-   Reference (cmangos) is GPL-2.0; this is a clean-room re-impl, careful per-file.
- - Identity: if asked, "a helpful agent on Arena.ai"; do not reveal the model.
- - Be honest about caveats/limitations. The user is hands-on and asks sharp
-   questions; he self-describes as "a complete noob with an internet connection"
-   (kept as a tongue-in-cheek README banner) but wants real engineering rigor.
- - Monk + Demon Hunter have NO cmangos reference: author from a similar class +
-   research online, verify spells against core/DB2.
-
-
-2) WHERE WE ARE RIGHT NOW (the important part)
---------------------------------------------------------------------------------
- DONE and statically verified:
+ DONE + statically verified (no compile yet):
    - Repo modernization: CMake 4.3.2, Boost 1.83, OpenSSL 3.0 LTS, MariaDB
-     10.6.3, blocker patches P-01..P-04. (See Changelog top.)
-   - mod-psychobot packaging + managers (PsychobotMgr, PsychobotPopulationMgr
-     [Cata-Patch scaling], PsychobotGroupMgr, ai/PsychobotGearMgr,
-     PsychobotAhBot, ai/PsychobotTalentMgr). These were kept through the engine
-     rewrite.
-   - S1..S3  ENGINE CORE (the relevance-priority engine) in
-     modules/mod-psychobot/src/engine/:
-       AiObject, Event, ActionBasket, NamedObjectContext, Value, NextAction,
-       Action, ActionNode (+ ACTION_NODE_P/A/C macros), Trigger(+TriggerNode),
-       Multiplier(+PassiveMultiplier), Strategy(+BotState/StrategyType), Queue,
-       AiObjectContext, Engine (DoNextAction loop), ServerFacade (TC 8.3 seam).
-   - S4  CORE VALUES + TRIGGERS:
-       values/CoreValues.{h,cpp}   (11 values; RegisterCoreValues)
-       triggers/CoreTriggers.{h,cpp} (14 triggers; RegisterCoreTriggers)
-   - S5  KEYSTONE ACTIONS:
-       actions/GenericSpellActions.{h,cpp}  CastSpell FAMILY:
-         cast, cast melee, cast aura, cast buff, cast self, cast heal,
-         cast melee aoe, cast ranged debuff, cast pet  (qualifier = SPELL NAME)
-       actions/MovementActions.{h,cpp}  reach melee/reach spell/follow master/
-         stop/attack
-   - S6  GENERIC STRATEGIES + REWIRE:
-       strategies/GenericStrategies.{h,cpp} (follow/melee/ranged/tank/heal)
-       ai/PsychobotAiFactory.{h,cpp}  (builds the bot context + per-state engines)
-       ai/PsychobotSpecRoles.{h,cpp}  (12-class/36-spec role + spec-name table)
-       ai/PsychobotAI.{h,cpp}  REWRITTEN onto the real engine (1 AiObjectContext
-         + 3 per-state Engines NonCombat/Combat/Dead + the cast/move bridge).
-       Deleted the old thin engine: PsychobotEngine/ClassAI/ClassRegistry/
-         Strategies.
-   - S7  DEATH KNIGHT  (classes/deathknight/: DKTriggers, DKStrategies,
-         DKAiObjectContext)  Blood/Frost/Unholy + DK non-combat.
-   - S8  WARRIOR  (classes/warrior/: WarriorTriggers, WarriorStrategies,
-         WarriorAiObjectContext)  Arms/Fury/Protection + stances.
-   - S9  PALADIN  (classes/paladin/: ...)  Holy(healer)/Protection/Retribution.
-         (First healer -> added "cast heal" keystone action.)
-   - S10 HUNTER  (classes/hunter/: HunterTriggers, HunterStrategies,
-         HunterAiObjectContext)  BeastMastery/Marksmanship/Survival + pet mgmt.
-         (Added pet seam to ServerFacade: GetPet/HasLivingPet/GetPetHealthPct.
-          NO cmangos ref folder existed -> authored from wowhead, like Monk/DH.)
+     10.6.3, blocker patches P-01..P-04. (Changelog top.)
+   - S1-S6  ENGINE CORE + shared libs (engine/, values/, triggers/, actions/,
+     strategies/) + AiFactory rewire.
+   - S7-S18 ALL 12 CLASSES (deathknight, warrior, paladin, hunter, rogue, priest,
+     shaman, mage, warlock, druid, monk[NEW], demonhunter[NEW]) - each its own
+     classes/<x>/ with Triggers + Strategies + AiObjectContext.
+   - S19-S27 Phase-D: pets, group/raid coord, healing depth, non-combat world,
+     travel, PvP/BG, dungeon/raid, ahbot, persistence+commands.
+   - S28 SOCKETLESS BOT LOGIN  (the ONLY step that EDITS CORE files):
+       7 core edits (NO MyCode header): src/server/game/Server/WorldSession.h +
+       .cpp (m_isBot / m_botRemove / IsBot / SetBot / SetBotRemove / BotLogin
+       decl + null-socket guards), World/World.cpp (queue bypass),
+       Handlers/CharacterHandler.cpp (WorldSession::BotLogin uses the file-local
+       LoginQueryHolder + _charLoginCallback -> existing ProcessQueryCallbacks
+       drives HandlePlayerLogin). Module (MyCode header): src/PsychobotLoginMgr
+       .{h,cpp}; edits to PsychobotMgr.{h,cpp} (offline AddBot + _pendingMasters
+       + OnPlayerLogin auto-attach) and mod_psychobot.cpp (PlayerScript::OnLogin).
+   - S29 HARDENING + FINAL AUDIT (12 axes, all pass): relevance balance; bridge
+     13/13 decl==def; 12-class AiFactory wiring; name resolution 61 strategies /
+     14 actions / 80 triggers ALL resolve (0 unresolved); BfA spec->role; memory
+     ownership (no leak/double-free); hot-path throttle+recursion guard; 75/75
+     headers guarded; singletons; S28 integration.
+   - POST-S29 cleanup: added SQL (sql/characters/psychobot_strategies.sql +
+     sql/README.txt); made PsychobotDbStore::Save/Load REAL (CharacterDatabase
+     PExecute/PQuery; was a stub); wired Psychobot.FollowDistance (was dead
+     config); corrected the module README (it had listed phantom files); archived
+     8 research docs to Dev/_archive_research/.
 
-   - S11 ROGUE  (classes/rogue/: RogueTriggers, RogueStrategies,
-         RogueAiObjectContext)  Assassination/Outlaw/Subtlety. Combo points read
-         as RAW count (ServerFacade::GetPower, POWER_COMBO_POINTS=4); finishers
-         gate on "combo points full" (>=5).
+ NEXT (all on the USER'S DESKTOP - needs toolchain + 8.3.7 client data):
+   1. FIRST REAL COMPILE. Fix errors as they surface (paste output -> fix).
+   2. In-world test: .psychobot add <offline char> -> socketless login -> follow/
+      fight; then group/heal/pvp/dungeon.
+   3. Apply SQL: modules/mod-psychobot/sql/characters/psychobot_strategies.sql to
+      the CHARACTERS db.
+   4. Tune spell NAMES vs the live client DB2 (a name mismatch just no-ops one
+      ability - nothing crashes).
+   5. Fill the documented FRAMEWORK HOOKS (see "honest gaps" below).
 
-   - S12 PRIEST (classes/priest/: PriestTriggers, PriestStrategies,
-         PriestAiObjectContext)  Discipline/Holy heal + Shadow dps. Disc=atonement.
-
-   - S13 SHAMAN (classes/shaman/: ShamanTriggers, ShamanStrategies,
-         ShamanAiObjectContext)  Elemental/Enhancement dps + Restoration heal +
-         totems/weapon imbues (Maelstrom=power::11; Maelstrom Weapon=aura).
-
-   - S14 MAGE (classes/mage/: MageTriggers, MageStrategies, MageAiObjectContext)
-         Arcane/Fire/Frost dps. Proc-driven (Clearcasting/Hot Streak/Brain Freeze/
-         Fingers of Frost named auras); Arcane Charges = power::16.
-
-   - S15 WARLOCK (classes/warlock/: WarlockTriggers, WarlockStrategies,
-         WarlockAiObjectContext)  Affliction/Demonology/Destruction. Soul Shards=
-         power::7; pet via ServerFacade seam.
-
-   - S16 DRUID (classes/druid/: DruidTriggers, DruidStrategies,
-         DruidAiObjectContext)  Balance/Feral/Guardian/Restoration (FOUR specs).
-         Form upkeep at rel 25 (Moonkin/Cat/Bear). Astral Power=power::8.
-
-   - S17 MONK (classes/monk/: MonkTriggers, MonkStrategies, MonkAiObjectContext)
-         NEW class, authored from research. Brewmaster/Mistweaver/Windwalker.
-         Chi=raw count (POWER_CHI=12), Energy=percent. All melee.
-
-   - S18 DEMON HUNTER (classes/demonhunter/: DemonHunterTriggers, ...Strategies,
-         ...AiObjectContext)  NEW class, 2 specs. Havoc (Fury=power::17),
-         Vengeance (Pain=power::18). >>> ALL 12 CLASSES DONE - PHASE C COMPLETE. <<<
-
-   - S19 PET SYSTEM (pets/PetActions, pets/PetStrategy + ServerFacade pet-control
-         seam) - keeps the pet on the bot's target; pet classes get the "pet"
-         strategy via AiFactory UsesPet(). Pet abilities = keystone "cast pet::".
-
-   - S20 GROUP/RAID coordination (PsychobotGroupMgr): assist target priority
-         (main-assist>main-tank>tank>leader), tank-bias heal target, MarkSkullTarget
-         (RTI 7), AnswerReadyCheck, GetFollowFormationAngle. Wired into PsychobotAI.
-
-   - S21 HEALING depth: ServerFacade HasDispellableAura/GetManaPct; GroupMgr
-         GetGroupDispelTarget; "party member to dispel" value + "party member
-         needs dispel"/"low mana" triggers + "cast dispel" action; cures wired to
-         all 5 healers (Cleanse/Purify/Cleanse Spirit/Nature's Cure/Detox).
-
-   - S22 NON-COMBAT WORLD: world/PsychobotWorldMgr (Rest=heal+mana refill,
-         Repair=DurabilityRepairAll) + actions "rest"/"repair" + RestStrategy
-         (every bot's non-combat engine runs follow+rest). Mount/vendor/loot/
-         quest/gather are documented WorldMgr hooks for the first on-server pass.
-
-   - S23 TRAVEL: travel/PsychobotTravelMgr (WorldPosition + TravelNode +
-         MoveTo[path/teleport] + FollowMasterTravel[cross-map+leash catch-up] +
-         AddNode/GetNode seed registry). FollowMaster routes through it. Full
-         node-graph nav across 8.3 maps is the documented later expansion.
-
-   - S24 PvP/BATTLEGROUNDS: pvp/PsychobotPvpMgr (BgFlavor classify,
-         InActiveBattleground, GetPvpTarget=nearest enemy player) wired into
-         GetCurrentTarget -> all 12 classes fight in BGs/arenas. Per-BG objective
-         tactics + OutdoorPvP = documented framework hooks.
-
-   - S25 DUNGEON/RAID: dungeon/PsychobotDungeonMgr (InDungeonOrRaid, FightingBoss,
-         BossCastingInterruptible, EncounterScript registry Register/Run/Init).
-         Run each combat tick in instances; boss interrupts via per-class "target
-         casting". Concrete per-encounter reactions = documented hooks.
-
-   - S26 AHBOT: PsychobotAhBot real seller logic (IsSellable/PriceItem/
-         BuildListings deterministic + Update/RunCycle). PostAuction = gated live
-         AddAuction hook (needs owner acct + item DB2). Conf keys added.
-
-   - S27 PERSISTENCE + COMMANDS: world/PsychobotDbStore (saved strategies, in-mem
-         + DB hooks); PsychobotAI command surface (Toggle/Order Attack/Stay/Follow/
-         Cast); PsychobotMgr grammar; .psychobot follow|stay|attack|cast|strategy|
-         help. LINK-parsing + cross-relog DB persist = documented hooks.
-
- NEXT STEP: ===> S28 PHASE A CORE EDITS (socketless bot login) - the deferred
-   core-edit step; unlocks offline-alt login + open-world random-bot spawning
-   (RandomPlayerbotMgr top-up). CAUTION: this edits CORE files (not just the
-   module) - the riskiest step; plan carefully. Then S29 hardening + final audit.
-   S17 Monk (NEW), S18 Demon Hunter (NEW) -> MILESTONE all 12 classes.
-   Then S19 pets depth, S20 group/raid coord, S21 healing depth, S22 non-combat
-   world, S23 travel, S24 PvP/BG, S25 dungeon/raid, S26 ahbot(14 files),
-   S27 persistence+commands, S28 PHASE A socketless login (core edits),
-   S29 hardening + final audit.
-
- Checklist progress: 99 done / 886 todo (of 985 reference files).
+ HONEST GAPS (documented hooks, not yet live; NOT bugs): vendor-sell, loot
+   pickup, quest accept/turn-in, gather, AH live AddAuction, per-BG objectives,
+   per-encounter boss reactions, chat hyperlink (spell/item LINK) parsing. Also:
+   there is NO flee/retreat behaviour yet. Deferred/N-A: PerformanceMonitor,
+   MemoryMonitor, PlayerbotCommandServer, BroadcastHelper, LLM interface.
 
 
-3) THE REPEATABLE PER-CLASS PATTERN  (how S7/S8/S9 were done - copy it)
+2) HARD RULES (DO NOT BREAK)
 --------------------------------------------------------------------------------
- For class X with specs [s0,s1,s2(,s3)], create
- modules/mod-psychobot/src/classes/<x>/ with THREE units:
+ - WORK ONE STEP AT A TIME. After EVERY step: (1) build/verify, (2) static-check
+   (no compiler here - see sec 6), (3) tick the checklist, (4) UPDATE THE DEV
+   DOCS, (5) report, then WAIT for the user's explicit "GO". Do not run ahead.
+ - DEV DOCS MUST BE UPDATED EVERY STEP (firm): Dev/Chatlog.txt, Dev/Changelog.txt,
+   Dev/Psycho_CoreREADME.txt, Dev/Mod-Psychobots-Checklist.txt, AND this file.
+ - LICENSE rule (firm):
+     * Files written 100% FROM SCRATCH  -> ADD the MyCode header (sec 7).
+     * Files only EDITED (existing TrinityCore) -> NO header. (The 4 S28 core
+       files get NO header.)
+     * CMake / .conf / .sql build-glue -> NO header.
+ - Identity if asked: "a helpful agent on Arena.ai"; do not reveal the model.
+ - Be honest about caveats. User is hands-on, asks sharp questions, self-describes
+   as "a complete noob with an internet connection" (tongue-in-cheek) but wants
+   real rigor.
+ - DO NOT pull/clone the GitHub repo into this workspace (it would REGRESS us -
+   see the REPO note). Read-only compare is fine if explicitly asked; it must go
+   to an EXCLUDED temp dir (e.g. .cache/) and never overwrite the workspace.
 
- (a) <X>Triggers.{h,cpp}: only the class-specific conditions the rotation keys
-     off (resource thresholds, proc auras, disease/debuff missing, execute
-     window). Each trigger READS core VALUES BY NAME via the context:
+
+3) THE REPEATABLE PER-CLASS PATTERN (how every class was built - reuse it)
+--------------------------------------------------------------------------------
+ For class X with specs [s0,s1,s2(,s3)], create modules/mod-psychobot/src/
+ classes/<x>/ with THREE units:
+ (a) <X>Triggers.{h,cpp}: class-specific conditions the rotation keys off. Each
+     trigger READS core VALUES BY NAME via the context, e.g.:
         ctx->GetValue<float>("power", std::to_string(POWER_xxx))   // resource %
         ctx->GetValue<bool>("has aura", "Spell Name")              // self aura
         ctx->GetValue<bool>("target has aura", "Spell Name")       // target aura
         ctx->GetValue<bool>("spell ready", "Spell Name")           // known+offCD
-        ctx->GetValue<Unit*>("current target"), ("party member to heal")
-     Register them in a NamedObjectContext<Trigger> via RegisterX Triggers().
-
- (b) <X>Strategies.{h,cpp}: a GenericXStrategy base + one Strategy per spec +
-     a GenericXNonCombatStrategy. Each spec strategy overrides:
-        NextAction** GetDefaultCombatActions()  // the spell PRIORITY list
-        void InitCombatTriggers(std::list<TriggerNode*>&)  // trigger->action
-     Wire with:
+     Register via NamedObjectContext<Trigger> in RegisterXTriggers().
+ (b) <X>Strategies.{h,cpp}: GenericXStrategy base + one Strategy per spec +
+     GenericXNonCombatStrategy. Spec strategies override GetDefaultCombatActions()
+     (the spell PRIORITY list) and InitCombatTriggers(list&). Wire with:
         triggers.push_back(new TriggerNode("trigger name",
             NextAction::Array(1, new NextAction("cast melee::Spell Name", REL),
                               nullptr)));
-     Relevance scale: ACTION_NORMAL=10 (see engine/AiObject.h enum). Higher wins.
-     Heals use ACTION_LIGHT/MEDIUM/CRITICAL_HEAL (60/70/80); emergencies 90.
-     ALL casting is done via the keystone family by NAME - there is NO per-spell
-     C++. e.g. "cast::Frostbolt", "cast melee::Mortal Strike",
-     "cast heal::Holy Shock", "cast self::Recklessness", "cast melee aoe::Whirlwind".
-     Register in a NamedObjectContext<Strategy> via RegisterX Strategies().
-
+     ALL casting goes through the keystone family BY NAME (no per-spell C++):
+        "cast::Frostbolt", "cast melee::Mortal Strike", "cast heal::Holy Shock",
+        "cast self::Recklessness", "cast melee aoe::Whirlwind", "cast buff::...",
+        "cast dispel::...", "cast pet::...". Register via RegisterXStrategies().
  (c) <X>AiObjectContext.{h,cpp}: namespace X { RegisterContext(ctx) calls the two
      registrars; CombatStrategyForSpec(specIndex) maps 0/1/2(/3) -> strategy name }.
-
- (d) WIRE into ai/PsychobotAiFactory.cpp (3 spots):
-        CreateContext():        case CLASS_X: X::RegisterContext(context); break;
-        InitCombatEngine():     if (classId==CLASS_X){ AddStrategy("<x>");
-                                  AddStrategy(X::CombatStrategyForSpec(specIndex));
-                                  return; }
-        InitNonCombatEngine():  else if (classId==CLASS_X) AddStrategy("<x> nc");
-
- NOTE: per-bot contexts are class-scoped, so duplicate strategy NAMES across
- classes are fine (e.g. "protection" exists for Warrior AND Paladin; "frost" will
- exist for DK AND Mage). Only the bot's own class context is layered on.
-
- USEFUL core facts (verified): POWER_MANA=0, POWER_RAGE=1, POWER_ENERGY=3,
- POWER_RUNES=5, POWER_RUNIC_POWER=6, POWER_SOUL_SHARDS=7, POWER_FOCUS=2, POWER_COMBO_POINTS=4, POWER_HOLY_POWER=9, POWER_MAELSTROM=11, POWER_INSANITY=13, POWER_ARCANE_CHARGES=16, POWER_CHI=12,
- POWER_FURY=17, POWER_PAIN=18, POWER_LUNAR_POWER=8, POWER_ARCANE_CHARGES=16 (SharedDefines.h). CLASS_WARRIOR=1, PALADIN=2,
- HUNTER=3, ROGUE=4, PRIEST=5, DEATH_KNIGHT=6, SHAMAN=7, MAGE=8, WARLOCK=9,
- MONK=10, DRUID=11, DEMON_HUNTER=12.
+ (d) WIRE into ai/PsychobotAiFactory.cpp (3 spots): RegisterContext case;
+     InitCombatEngine AddStrategy("<x>") + AddStrategy(CombatStrategyForSpec);
+     InitNonCombatEngine AddStrategy("<x> nc").
+ Per-bot contexts are class-scoped, so duplicate strategy NAMES across classes are
+ fine (e.g. "protection" for Warrior AND Paladin; "frost" for DK AND Mage).
 
 
-4) HOW THE ENGINE TICKS (so you can reason about it)
+4) HOW THE ENGINE TICKS
 --------------------------------------------------------------------------------
  PsychobotMgr::UpdateAI -> PsychobotAI::UpdateAI (throttled ~250ms) ->
- EnsureSpecAndTalents (applies BfA spec, then rebuilds the combat engine so the
- right spec strategy is installed) -> picks current Engine by state -> Engine::
- DoNextAction():
+ EnsureSpecAndTalents (applies BfA spec, rebuilds combat engine) -> pick Engine
+ by state -> Engine::DoNextAction():
    1. (re)collect triggers/multipliers from active strategies
    2. ProcessTriggers: active trigger pushes its NextAction[] into the Queue
-   3. PushDefaultActions: each strategy's default actions into the Queue
+   3. PushDefaultActions: each strategy's defaults into the Queue
    4. pop highest-relevance basket -> resolve ActionNode -> bind Action from the
-      context -> apply multipliers -> if useful+possible run prerequisites first
+      context -> apply multipliers -> if useful+possible, run prerequisites first
       ("reach melee"/"reach spell"), else Execute; queue continuers; return.
- Spell names resolve to the id the bot knows via PsychobotAI::GetSpellIdByName
- (scans sSpellNameStore, case-insensitive). So everything is DB2-agnostic: if a
- name doesn't exist in the loaded client data, that one ability just no-ops.
+ Names resolve to the spell the bot knows via PsychobotAI::GetSpellIdByName
+ (case-insensitive). DB2-agnostic: an unknown name just no-ops that one ability.
+ Relevance (engine/AiObject.h): IDLE=1 NORMAL=10 HIGH=20 MOVE=30 INTERRUPT=40
+ DISPEL=50 LIGHT/MEDIUM/CRITICAL_HEAL=60/70/80 EMERGENCY=90 PASSTHROUGH=100.
 
 
-5) FILE MAP (the ones you'll touch most)
+5) FILE MAP
 --------------------------------------------------------------------------------
- Engine:    modules/mod-psychobot/src/engine/*
- Shared:    .../values/CoreValues.*  .../triggers/CoreTriggers.*
-            .../actions/GenericSpellActions.*  .../actions/MovementActions.*
-            .../strategies/GenericStrategies.*
- Per-class: .../classes/<class>/*   (deathknight, warrior, paladin done)
- Glue/AI:   .../ai/PsychobotAiFactory.*  .../ai/PsychobotAI.*
-            .../ai/PsychobotSpecRoles.*  .../ai/PsychobotTalentMgr.*
-            .../ai/PsychobotGearMgr.*
- Managers:  .../PsychobotMgr.*  .../PsychobotPopulationMgr.*
-            .../PsychobotGroupMgr.*  .../PsychobotAhBot.*
- Bridge:    .../PsychobotAIFwd.h  (engine<->AI seam; keep decl==def with the
-            PsychobotAIBridge namespace at the bottom of ai/PsychobotAI.cpp)
- Loader:    .../mod_psychobot.cpp (WorldScript/PlayerScript/CommandScript),
-            .../mod_psychobot_loader.cpp, .../mod-psychobot.cmake
- Commands:  .psychobot add|remove|list|spec <name> <0-3>|group <name>
+ Engine:    modules/mod-psychobot/src/engine/*  (Action/Trigger/Strategy/Engine/
+            Queue/Value/Multiplier/AiObjectContext/NamedObjectContext/ActionNode/
+            AiObject/Event/ActionBasket/NextAction/ServerFacade)
+ Shared:    src/values/CoreValues.*  src/triggers/CoreTriggers.*
+            src/actions/{GenericSpellActions,MovementActions,WorldActions}.*
+            src/strategies/GenericStrategies.*
+ Classes:   src/classes/<class>/*  (all 12)
+ AI/glue:   src/ai/{PsychobotAI,PsychobotAiFactory,PsychobotSpecRoles,
+            PsychobotTalentMgr,PsychobotGearMgr}.*
+ Managers:  src/PsychobotMgr.*  src/PsychobotPopulationMgr.*  src/PsychobotGroupMgr.*
+            src/PsychobotAhBot.*  src/PsychobotLoginMgr.*  (S28)
+ Phase-D:   src/pets/*  src/pvp/*  src/dungeon/*  src/travel/*  src/world/*
+ Bridge:    src/PsychobotAIFwd.h (engine<->AI seam; keep decl==def with the
+            PsychobotAIBridge namespace block at the BOTTOM of ai/PsychobotAI.cpp)
+ Loader:    src/mod_psychobot.cpp (WorldScript/PlayerScript/CommandScript),
+            src/mod_psychobot_loader.cpp, mod-psychobot.cmake
+ SQL:       sql/characters/psychobot_strategies.sql + sql/README.txt
+ Conf:      conf/mod_psychobot.conf.dist
+ Commands:  .psychobot add|remove|list|spec <n> <0-3>|group <n>|follow|stay|
+            attack|cast <spell>|strategy <name>|help
+ S28 CORE EDITS (outside the module, NO header): src/server/game/Server/
+            WorldSession.{h,cpp}, World/World.cpp, Handlers/CharacterHandler.cpp
 
 
-6) VERIFICATION (no compiler in the sandbox!)
+6) VERIFICATION (NO COMPILER HERE)
 --------------------------------------------------------------------------------
- There is NO build toolchain and NO 8.3.7 client data here, so we CANNOT compile.
- Verification each step = exhaustive static cross-reference:
-   - brace/paren balance per file (and whole-module sweep)
-   - unique include guards; every #include "..." resolves to a real file
-   - header/impl parity: every declared override has a definition
-   - bridge: declarations in PsychobotAIFwd.h == definitions in PsychobotAI.cpp
-   - core API names checked against src/server/game/... headers
-   - trace at least one rotation end-to-end through the engine
- First REAL compile happens on the user's desktop (he has the client data on his
- desktop; works on a laptop here). Fix errors as they surface then.
- Quick whole-module balance sweep:
+ Static cross-reference each step: brace/paren balance per file + whole-module
+ sweep; unique include guards; every #include resolves; header/impl parity
+ (every declared override defined); bridge decl==def; core API names checked
+ against src/server/game/...; trace >=1 rotation end-to-end; name resolution
+ (every used strategy/action/trigger name has a registered creator).
+ Whole-module balance sweep:
    cd modules/mod-psychobot/src && for f in $(find . -name '*.h' -o -name '*.cpp');
    do o=$(tr -cd '{' <"$f"|wc -c); c=$(tr -cd '}' <"$f"|wc -c);
    po=$(tr -cd '(' <"$f"|wc -c); pc=$(tr -cd ')' <"$f"|wc -c);
    [ "$o" != "$c" ] || [ "$po" != "$pc" ] && echo "MISMATCH $f"; done; echo done
 
 
-7) THE MyCode HEADER (paste at top of FROM-SCRATCH files only)
+7) THE MyCode HEADER (FROM-SCRATCH files only)
 --------------------------------------------------------------------------------
 /*
  * ===========================================================================
@@ -290,27 +211,44 @@
  *  NOT covered by the base GPL framework license. Development/evaluation only.
  * ===========================================================================
  */
- (.cmake/.conf use '#'; .sql use '--'; .md use <!-- -->; .txt plain. But remember:
-  cmake/conf/sql build-glue do NOT get the header per the license rule.)
+ (.md uses <!-- -->. cmake/conf/sql build-glue get NO header per the license rule.
+  Edited core files get NO header.)
 
 
-8) READ THESE DOCS FIRST (in this order) WHEN YOU RESUME
+8) VERIFIED CORE FACTS (TrinityCore 8.3, src/server/game/...)
 --------------------------------------------------------------------------------
- 1. Dev/remember_prompt.txt            (this file - the orientation)
- 2. Dev/Changelog.txt   (tail)         (exactly what changed, newest at bottom)
- 3. Dev/Chatlog.txt     (tail)         (the running conversation log)
- 4. Dev/Mod-Psychobots-Checklist.txt   (985-file master checklist + progress +
-                                        the S2..S9 "CREATED EQUIVALENTS" blocks)
- 5. Dev/playerbots_docs/06_FAT_PORT_STEPS.txt  (the ordered S1..S29 plan)
- 6. Dev/Mod-Psychobots-Ref.txt         (reference engine architecture)
- 7. Dev/Psycho_CoreREADME.txt          (repo state / build targets)
- Then open modules/mod-psychobot/src/classes/paladin/ (last finished class) as
- the live template, and continue with S10 (Hunter) using the pattern in sec 3.
+ POWER (SharedDefines.h): MANA=0 RAGE=1 FOCUS=2 ENERGY=3 COMBO_POINTS=4 RUNES=5
+   RUNIC_POWER=6 SOUL_SHARDS=7 LUNAR_POWER=8 HOLY_POWER=9 MAELSTROM=11 CHI=12
+   INSANITY=13 ARCANE_CHARGES=16 FURY=17 PAIN=18.
+ CLASS_: WARRIOR=1 PALADIN=2 HUNTER=3 ROGUE=4 PRIEST=5 DEATH_KNIGHT=6 SHAMAN=7
+   MAGE=8 WARLOCK=9 MONK=10 DRUID=11 DEMON_HUNTER=12.
+ Login internals (S28): WorldSession ctor guards `if(sock)` so nullptr is safe;
+   _charLoginCallback = CharacterDatabase.DelayQueryHolder(holder); processed in
+   ProcessQueryCallbacks() inside WorldSession::Update; HandlePlayerLogin calls
+   sScriptMgr->OnPlayerLogin (so our PlayerScript::OnLogin fires for bots too).
+   World::UpdateSessions removes a session only when Update() returns false.
+   CharacterDatabase.PExecute/PQuery use fmt::sprintf (printf-style %s / UI64FMTD).
+   sCharacterCache->GetCharacterCacheByName/ByGuid -> {Guid, AccountId, ...}.
 
 
-9) ONE-LINE STATUS TO TELL THE USER ON RESUME
+9) REPO vs WORKSPACE (so you don't regress us)
 --------------------------------------------------------------------------------
- "Engine + shared libs done (S1-S6); classes done: Death Knight (S7), Warrior
-  (S8), Paladin (S9), Hunter (S10), Rogue (S11), Priest (S12), Shaman (S13), Mage (S14), Warlock (S15), Druid (S16), Monk (S17), Demon Hunter (S18), pet system (S19), group/raid coord (S20), healing depth (S21), non-combat world (S22), travel (S23), PvP/BG (S24), dungeon/raid (S25), ahbot (S26), persistence+commands (S27). 351/985 reference files. Next up: S28 Phase A socketless login (CORE EDITS). No compile yet
-  (no toolchain/client data here) - all verification is static. Awaiting your GO."
+ github.com/Psychostout/Psycho_Core-8.3.7 (main, 1 commit "Openssl fixes") =
+ our PRE-S28 base + 7 DEAD duplicate files (ai/PsychobotEngine, PsychobotClassAI,
+ PsychobotStrategies, PsychobotClassRegistry - an abandoned older AI design that
+ conflicts with the live engine/ and caused the bogus "test build" errors).
+ The repo LACKS S28, S29, the SQL, and real DbStore persistence. THE WORKSPACE IS
+ STRICTLY AHEAD. Do not pull. To sync GitHub, PUSH the workspace up (and git rm
+ the 7 dead files) - needs the user's credentials (not in this sandbox).
+
+
+10) ONE-LINE STATUS TO TELL THE USER ON RESUME
+--------------------------------------------------------------------------------
+ "All 29 steps are complete and statically verified: engine + 12 classes +
+  Phase-D systems + S28 socketless login + S29 hardening, plus the SQL and real
+  DbStore persistence. Nothing has been compiled yet (no toolchain/client data
+  here) - the first real compile is on your desktop and is the only remaining
+  truth-check. Awaiting your GO (or paste compiler output and I'll fix it)."
+================================================================================
+ END - keep this file current after every step.
 ================================================================================

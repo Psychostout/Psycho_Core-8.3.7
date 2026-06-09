@@ -243,7 +243,11 @@ void WorldSession::SendPacket(WorldPacket const* packet, bool forced /*= false*/
 
     if (!m_Socket[conIdx])
     {
-        TC_LOG_ERROR("network.opcode", "Prevented sending of %s to non existent socket %u to %s", GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())).c_str(), uint32(conIdx), GetPlayerInfo().c_str());
+        // [Psychobot S28] Bot sessions legitimately have no socket; silently
+        // drop outbound packets without flooding the log (HandlePlayerLogin and
+        // the AI generate thousands of SMSG_* sends that have nowhere to go).
+        if (!m_isBot)
+            TC_LOG_ERROR("network.opcode", "Prevented sending of %s to non existent socket %u to %s", GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())).c_str(), uint32(conIdx), GetPlayerInfo().c_str());
         return;
     }
 
@@ -329,7 +333,10 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     ///- Before we process anything:
     /// If necessary, kick the player because the client didn't send anything for too long
     /// (or they've been idling in character select)
-    if (IsConnectionIdle())
+    // [Psychobot S28] Guard the socket deref: IsConnectionIdle() already
+    // returns false for bots, but the explicit null-check also hardens the
+    // real-player path against a transient null realm socket.
+    if (IsConnectionIdle() && m_Socket[CONNECTION_TYPE_REALM])
         m_Socket[CONNECTION_TYPE_REALM]->CloseSocket();
 
     ///- Retrieve packets from the receive queue and call the appropriate handlers
@@ -485,6 +492,17 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     m_Socket[CONNECTION_TYPE_INSTANCE].reset();
                 }
             }
+        }
+
+        // [Psychobot S28] A bot session has no realm socket by design; returning
+        // false here would erase it from the world session map every tick. Keep
+        // bot sessions alive UNLESS they have been flagged for removal (then we
+        // return false once so World::UpdateSessions erases + deletes them).
+        if (m_isBot)
+        {
+            if (m_botRemove)
+                return false;                                   //Bot logout requested: allow removal
+            return true;                                        //Keep the socketless bot session alive
         }
 
         if (!m_Socket[CONNECTION_TYPE_REALM])
@@ -647,6 +665,12 @@ void WorldSession::LogoutPlayer(bool save)
 /// Kick a player out of the World
 void WorldSession::KickPlayer()
 {
+    // [Psychobot S28] Bots have no socket to close and must not be kicked by
+    // idle/GM/anti-cheat paths; removal goes through the module's teardown
+    // (LogoutPlayer + RemoveSession) instead.
+    if (m_isBot)
+        return;
+
     for (uint8 i = 0; i < 2; ++i)
     {
         if (m_Socket[i])

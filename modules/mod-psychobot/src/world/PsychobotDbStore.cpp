@@ -8,6 +8,8 @@
  */
 
 #include "PsychobotDbStore.h"
+#include "DatabaseEnv.h"
+#include "Log.h"
 
 namespace psychobot
 {
@@ -54,19 +56,48 @@ namespace psychobot
         _saved.erase(bot);
     }
 
-    // --- persistence hooks (on-server pass) -------------------------------
-    void PsychobotDbStore::Save(ObjectGuid /*bot*/)
+    // --- persistence (characters DB: table psychobot_strategies) ----------
+    // Requires: modules/mod-psychobot/sql/characters/psychobot_strategies.sql
+    // applied to the characters database. Uses direct (auto-escaped) queries so
+    // the module needs no registered prepared statements.
+    void PsychobotDbStore::Save(ObjectGuid bot)
     {
-        // On-server: DELETE then INSERT the bot's saved strategy rows into a
-        // characters-DB table (e.g. psychobot_strategies(guid, name)) via a
-        // CharacterDatabase prepared statement. The in-memory set above already
-        // holds them for the running session, so this is a documented no-op
-        // until the table + statements are added on a live server.
+        uint64 const guid = bot.GetCounter();
+
+        // Replace the bot's whole set: clear, then re-insert the enabled names.
+        CharacterDatabase.PExecute("DELETE FROM psychobot_strategies WHERE guid = " UI64FMTD, guid);
+
+        auto it = _saved.find(bot);
+        if (it == _saved.end())
+            return;
+
+        for (std::string const& name : it->second)
+        {
+            std::string escaped = name;
+            CharacterDatabase.EscapeString(escaped);
+            CharacterDatabase.PExecute(
+                "INSERT INTO psychobot_strategies (guid, name) VALUES (" UI64FMTD ", '%s')",
+                guid, escaped.c_str());
+        }
     }
 
-    void PsychobotDbStore::Load(ObjectGuid /*bot*/)
+    void PsychobotDbStore::Load(ObjectGuid bot)
     {
-        // On-server: SELECT the bot's saved strategy rows and populate _saved
-        // (called on bot login). No-op until the DB table exists.
+        uint64 const guid = bot.GetCounter();
+
+        QueryResult result = CharacterDatabase.PQuery(
+            "SELECT name FROM psychobot_strategies WHERE guid = " UI64FMTD, guid);
+
+        std::set<std::string>& set = _saved[bot];
+        set.clear();
+        if (!result)
+            return;
+
+        do
+        {
+            Field* fields = result->Fetch();
+            set.insert(fields[0].GetString());
+        }
+        while (result->NextRow());
     }
 }
