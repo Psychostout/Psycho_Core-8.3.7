@@ -95,7 +95,7 @@ databases, extract client data with the tools in `src/tools/`, and start the ser
 ## Build status
 
 > ✅ **bnetserver compiles successfully on Linux** (CMake 4.3.2, GCC 14.2.0, Boost 1.83, OpenSSL 3.5.5, MariaDB 11.8.6).
-> ⚠️ **worldserver build not yet attempted** — pending user authorization. The known OpenSSL-3 / CMake-4 source blockers have been resolved (see below).
+> ⚠️ **worldserver build not yet attempted** — The known OpenSSL-3 / CMake-4 source blockers have been resolved (see below).
 
 ### OpenSSL 3.x / CMake 4.3.2 compatibility fixes (applied)
 
