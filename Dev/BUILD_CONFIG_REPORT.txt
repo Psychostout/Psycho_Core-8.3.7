@@ -157,3 +157,24 @@
 ================================================================================
  END OF UPDATED REPORT
 ================================================================================
+
+10. WORLDSERVER BUILD STATUS (2026-06-09)
+--------------------------------------------------------------------------------
+ Target: worldserver (bld/ directory, inside repo, not excluded by snapshot)
+ Result: ~75% compiled, ZERO errors, 30-minute timeout reached before completion.
+
+ Progress verified:
+   [ 73%] Built target modules (libmodules.a) — mod-psychobot + mod-skeleton
+       ALL compiled and linked successfully. Zero module errors.
+   [ 75%] Building src/server/game/ (core game library) — in progress, zero errors.
+
+ Remaining ~25%: rest of game/ + scripts/ (EasternKingdoms, Kalimdor, Northrend,
+   Outland, Argus, BrokenIsles, Spells, World, etc.) + final worldserver link.
+
+ Confidence assessment: HIGH. The hardest part (module compilation + link against
+ core headers) is proven. The remaining work is mostly existing core content.
+ Final link step (potential symbol conflicts) is the only unproven piece.
+
+ Sandbox limitation: CMake binary + Boost packages reset between turns, making
+ multi-turn long builds unreliable. Real validation = user's Windows desktop compile.
+

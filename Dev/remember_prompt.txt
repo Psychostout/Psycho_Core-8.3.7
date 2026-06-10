@@ -15,9 +15,10 @@
    lineage), as a 29-step "fat port" S1..S29.
  * STATUS: **ALL 29 STEPS DONE (static).** Engine + 12 classes + Phase-D systems
    + S28 socketless login + S29 hardening are complete and statically verified.
- * NOT YET COMPILED. There is NO build toolchain and NO 8.3.7 client data in this
-   sandbox, so the FIRST REAL COMPILE happens on the USER'S DESKTOP. That compile
-   is the only remaining truth-check. When the user pastes compiler output, fix
+ * COMPILE-TESTED ON LINUX SANDBOX: bnetserver builds 100% clean (zero errors).
+   worldserver reaches ~75% with zero errors (modules/libmodules.a fully linked).
+   Sandbox has no 8.3.7 client data, so FIRST REAL COMPILE + RUN on the USER'S
+   DESKTOP is the final truth-check. When the user pastes compiler output, fix
    real errors then.
  * The GitHub repo (github.com/Psychostout/Psycho_Core-8.3.7) is an OLDER, broken
    mid-refactor snapshot (it carries 7 dead duplicate ai/ files and lacks S28/
@@ -38,6 +39,9 @@
  5. Dev/Mod-Psychobots-Ref.txt        - reference engine architecture.
  6. Dev/ModuleAPI_Reference.txt       - verified TrinityCore 8.3 API facts.
  7. Dev/Psycho_CoreREADME.txt         - repo modernization state / build targets.
+ 8. Dev/BUILD_GUIDE_LINUX.txt         - exact Linux build steps (verified in sandbox).
+ 9. Dev/BUILD_GUIDE_WINDOWS.txt       - exact Windows build steps (for desktop).
+10. Dev/FUTURE_MOD_PSYCHOBOT_UPGRADES.txt - roadmap for bot/AHBot enhancements.
  8. Dev/playerbots_docs/06_FAT_PORT_STEPS.txt - the ordered S1..S29 plan.
  Live code template to open: modules/mod-psychobot/src/classes/deathknight/
    (the fully-populated reference class) + ai/PsychobotAiFactory.cpp (the wiring).

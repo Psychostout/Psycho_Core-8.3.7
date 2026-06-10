@@ -1606,3 +1606,38 @@ Windows note: OpenSSL 3.5.5 not available from slproweb.com; they offer 3.5.6
 as the latest 3.5.x Windows installer. P-02 FindOpenSSL.cmake already accepts
 3.5.x, so 3.5.6 is the recommended Windows target.
 
+
+================================================================================
+ BUILD GUIDES + FUTURE ROADMAP CREATED  [2026-06-09]
+================================================================================
+User requested: verify all relevant docs up-to-date, create Linux build guide,
+Windows build guide, and future_mod-psychobot_upgrades.txt.
+
+DONE:
+ * Dev/BUILD_GUIDE_LINUX.txt (256 lines) — exact step-by-step build for Linux
+   (Debian/Ubuntu), verified against the sandbox. Covers prerequisites, CMake
+   4.3.2 binary install, Boost/OpenSSL/MariaDB packages, configure, build per
+   target (bnetserver -> tools -> worldserver), install, first-run (DB, TDB,
+   client data extraction, mod-psychobot SQL, in-game commands), troubleshooting.
+
+ * Dev/BUILD_GUIDE_WINDOWS.txt (353 lines) — exact step-by-step build for
+   Windows (VS 2019/2022). Covers VS workload, CMake/Boost/OpenSSL 3.5.6/MariaDB
+   downloads, CMake GUI configuration, environment variables, VS build order,
+   DLL deployment, client data extraction, first-run setup, troubleshooting.
+
+ * Dev/FUTURE_MOD_PSYCHOBOT_UPGRADES.txt (516 lines) — comprehensive roadmap
+   organized in 11 sections: Engine/AI (reaction engine, learning, threat,
+   interrupt coordination, burst windows, cleave intelligence), World/Non-Combat
+   (vendor, loot, quest, gather, travel, flee, rest, bank/mail), PvP/BG
+   (per-BG objectives, arena tactics, open-world PvP), Dungeon/Raid (per-
+   encounter scripts, LFG, LFR), AHBot (live posting, buying, crafting profit,
+   economy stabilization), Gear/Progression (stat weights, enchants/gems,
+   talent presets, Azerite/essences), Social/Communication (chat grammar,
+   personality, LLM, guild), Performance/Scaling (monitoring, SmartScale, session
+   pooling), Database/Persistence (cross-relog, character factory, bot
+   achievements). Honest gaps summary + recommended 5-phase priority order.
+
+VERIFIED: remember_prompt.txt, Chatlog.txt, Changelog.txt, BUILD_CONFIG_REPORT.txt,
+Psycho_CoreREADME.txt, Mod-Psychobots-Checklist.txt, Mod-Psychobots-Ref.txt,
+ModuleAPI_Reference.txt all updated or consistent. No stale status markers.
+

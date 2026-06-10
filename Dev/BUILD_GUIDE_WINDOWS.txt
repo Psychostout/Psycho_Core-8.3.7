@@ -1,0 +1,353 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ PSYCHO_CORE 8.3.7 - WINDOWS BUILD GUIDE (Visual Studio 2019/2022)
+================================================================================
+ Based on: TrinityCore BfA 8.3.7 build practices, verified API signatures
+ Date: 2026-06-09
+ Target: Windows 10/11, x64, Visual Studio 2019 16.4+ or VS 2022
+================================================================================
+
+
+0. PREREQUISITES (what you need before you start)
+--------------------------------------------------------------------------------
+ - Windows 10 or 11 (64-bit)
+ - Visual Studio 2019 (16.4+) or Visual Studio 2022 with C++ workload
+ - ~15 GB free disk space (source + build + deps)
+ - Git for Windows (or GitHub Desktop)
+ - A cloned copy of the Psycho_Core-8.3.7 repository
+
+
+1. INSTALL VISUAL STUDIO
+--------------------------------------------------------------------------------
+
+1. Download from https://visualstudio.microsoft.com/downloads/
+2. Install "Visual Studio Community" (free) or higher.
+3. During setup, select these workloads:
+   - "Desktop development with C++" (includes MSVC, Windows SDK, CMake)
+
+4. Verify: Open a "Developer Command Prompt for VS 2022" and run:
+   cl.exe
+   # Should show "Microsoft (R) C/C++ Optimizing Compiler"
+
+
+2. INSTALL DEPENDENCIES (download + install each)
+--------------------------------------------------------------------------------
+
+2a. CMAKE 4.3.2
+   - Download: https://cmake.org/download/
+   - Get: cmake-4.3.2-windows-x86_64.msi
+   - Install to default: C:\Program Files\CMake\ or C:\Program Files (x86)\CMake\
+   - Add to PATH during installation (tick the box)
+   - Verify: cmake --version  ->  cmake version 4.3.2
+
+2b. BOOST 1.83
+   - Download: https://www.boost.org/users/history/version_1_83_0.html
+   - Get: boost_1_83_0.zip or boost_1_83_0.7z
+   - Extract to: C:\local\boost_1_83_0\  (or C:\boost_1_83_0\)
+   - Alternative: use vcpkg:
+       vcpkg install boost:x64-windows
+   - Note: TrinityCore needs these Boost components:
+       system, filesystem, thread, program_options, iostreams, regex
+   - Set environment variable: BOOST_ROOT = C:\local\boost_1_83_0
+
+2c. OPENSSL 3.5.6 (Windows binary)
+   - Download from: https://slproweb.com/products/Win32OpenSSL.html
+   - Get: Win64OpenSSL-3_5_6.exe (FULL version, NOT Light, for development)
+   - Install to: C:\Program Files\OpenSSL-Win64\  (or C:\OpenSSL-Win64\)
+   - Add to PATH: C:\Program Files\OpenSSL-Win64\bin
+   - Note: OpenSSL 3.5.5 is NOT available as a Windows binary. 3.5.6 is the
+     latest 3.5.x release from slproweb.com and is accepted by our patched
+     FindOpenSSL.cmake (P-02). If you need 3.0.x LTS, use the older slproweb
+     archive or build from source, but 3.5.6 is tested-equivalent.
+   - Set environment variable: OPENSSL_ROOT_DIR = C:\Program Files\OpenSSL-Win64
+
+2d. MARIADB 10.6 LTS (or 11.x)
+   - Download from: https://mariadb.com/downloads/
+   - Get: MariaDB 10.6.x (or 11.x) Windows x64 .msi installer
+   - Install to: C:\Program Files\MariaDB 10.6\
+   - Include the "Development Components" (headers + libmariadb client library)
+   - Set environment variable: MYSQL_ROOT = C:\Program Files\MariaDB 10.6
+
+2e. ZLIB (optional — vendored in dep/, but system zlib is preferred)
+   - Download: https://www.zlib.net/
+   - Build or get pre-built x64 binaries
+   - Set: ZLIB_ROOT if using external zlib
+
+
+3. CONFIGURE WITH CMAKE
+--------------------------------------------------------------------------------
+
+3a. Open CMake GUI (cmake-gui.exe)
+
+3b. Set paths:
+   - "Where is the source code":  C:\path\to\Psycho_Core-8.3.7
+   - "Where to build the binaries": C:\path\to\Psycho_Core-8.3.7\bld
+   (Note: use "bld" not "build" to avoid any snapshot/tooling issues)
+
+3c. Click "Configure". Select generator:
+   - "Visual Studio 17 2022" (or "Visual Studio 16 2019")
+   - Platform: x64
+
+3d. If CMake cannot find Boost/OpenSSL/MySQL, manually set these in the
+    red-highlighted fields:
+
+   BOOST_ROOT            = C:/local/boost_1_83_0
+   BOOST_LIBRARYDIR      = C:/local/boost_1_83_0/lib64-msvc-14.3
+   (adjust for your MSVC version: 14.2=VS2019, 14.3=VS2022)
+
+   OPENSSL_ROOT_DIR      = C:/Program Files/OpenSSL-Win64
+   OPENSSL_INCLUDE_DIR   = C:/Program Files/OpenSSL-Win64/include
+   OPENSSL_LIBRARIES     = C:/Program Files/OpenSSL-Win64/lib/VC/static
+
+   MYSQL_INCLUDE_DIR     = C:/Program Files/MariaDB 10.6/include
+   MYSQL_LIBRARY         = C:/Program Files/MariaDB 10.6/lib/libmariadb.lib
+   (or libmysql.lib if using MySQL instead of MariaDB)
+
+3e. Set optional build flags (check boxes in CMake GUI):
+   - TOOLS = ON  (builds map/vmap/mmap extractors)
+   - WITH_WARNINGS = ON (or OFF if you want cleaner output)
+   - SCRIPTS = static (or dynamic)
+   - MODULES = static (default; includes mod-psychobot)
+
+3f. Click "Configure" again, then "Generate".
+
+3g. If you see warnings about "deprecated-declarations" (std::iterator, RSA_size),
+    these are EXPECTED and SAFE. See section 6 "Known benign warnings".
+
+3h. If Configure fails, see section 7 "Troubleshooting".
+
+
+4. BUILD IN VISUAL STUDIO
+--------------------------------------------------------------------------------
+
+4a. Open the generated solution:
+   C:\path\to\Psycho_Core-8.3.7\bld\Psycho_Core.sln
+
+4b. In Visual Studio, set the configuration to:
+   - Release (or RelWithDebInfo for debugging)
+   - Platform: x64
+
+4c. Build the solution (Ctrl+Shift+B) or build individual targets:
+
+   Step 1: Build "bnetserver" first (fastest, ~5-10 minutes)
+     Right-click bnetserver in Solution Explorer -> Build
+
+   Step 2: Build tools (extractors)
+     Right-click mapextractor, vmap4extractor, vmap4assembler,
+     mmaps_generator -> Build each
+
+   Step 3: Build "worldserver" (the big one, ~30-60 minutes)
+     Right-click worldserver -> Build
+
+   Alternative: Build ALL_BUILD to build everything at once.
+
+4d. If you see many "deprecated-declarations" warnings (yellow triangles),
+    these are BENIGN. Only red "errors" matter. See section 6.
+
+
+5. INSTALL / COPY OUTPUTS
+--------------------------------------------------------------------------------
+
+After building, binaries are in:
+   C:\path\to\Psycho_Core-8.3.7\bld\bin\Release\
+
+Copy these to a runtime folder (e.g., C:\Psycho_Server\):
+
+Required binaries:
+   bnetserver.exe
+   worldserver.exe
+   worldserver.conf.dist   -> rename to worldserver.conf
+   bnetserver.conf.dist    -> rename to bnetserver.conf
+   mod_psychobot.conf.dist -> rename to mod_psychobot.conf (if using bots)
+
+Required DLLs (copy from their install locations):
+   From Boost: boost_system-vc143-mt-x64-1_83.dll, boost_filesystem-... etc.
+     (or all boost_*.dll from BOOST_LIBRARYDIR)
+   From OpenSSL: libssl-3-x64.dll, libcrypto-3-x64.dll
+     (from C:\Program Files\OpenSSL-Win64\bin\)
+   From MariaDB: libmariadb.dll (or libmysql.dll)
+     (from C:\Program Files\MariaDB 10.6\lib\)
+
+   Alternatively, add these directories to your system PATH.
+
+Optional (for debugging):
+   .pdb files next to each .exe (if built RelWithDebInfo)
+
+
+6. KNOWN BENIGN WARNINGS (safe to ignore)
+--------------------------------------------------------------------------------
+
+These warnings appear during compilation but do NOT indicate errors:
+
+ a) "'std::iterator' is deprecated" in protobuf / g3d / DBStorageIterator
+    Cause: GCC 14 / MSVC 2022 deprecates std::iterator base class.
+    Fix: None needed; the code is correct and will work for years.
+    To suppress: set WITH_WARNINGS=OFF in CMake.
+
+ b) "RSA_size is deprecated: Since OpenSSL 3.0" in RSA.cpp
+    Cause: OpenSSL 3.x marks RSA_* functions deprecated but keeps them working.
+    Fix: Already guarded in code; the 3.x path uses RSA_get0_key().
+    Safe to ignore.
+
+ c) "PEM_read_bio_RSAPublicKey is deprecated"
+    Same as (b). Safe to ignore.
+
+ If you see ANY red errors (not warnings), those must be fixed. Paste the
+ exact error text to the agent and we will fix it.
+
+
+7. TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Q: CMake says "Could not find Boost".
+A: Double-check BOOST_ROOT points to the extracted boost folder. The folder
+   must contain: boost/ (headers), lib64-msvc-*/ (compiled libs). If using
+   vcpkg, set CMAKE_TOOLCHAIN_FILE to your vcpkg.cmake path.
+
+Q: CMake says "Could not find OpenSSL".
+A: Ensure OPENSSL_ROOT_DIR is set. On Windows, CMake looks for:
+   C:/Program Files/OpenSSL-Win64/ or C:/OpenSSL-Win64/.
+   If you installed elsewhere, set the variable manually.
+
+Q: CMake says "Could not find MySQL".
+A: Ensure MariaDB "Development Components" were installed (headers + lib).
+   Set MYSQL_INCLUDE_DIR and MYSQL_LIBRARY manually if needed.
+
+Q: Build fails with "LNK1104: cannot open file 'boost_system-...'".
+A: The Boost library names mismatch your MSVC version. Example:
+   - VS2019 uses vc142
+   - VS2022 uses vc143
+   Rename/copy the .lib files, or rebuild Boost with:
+     bootstrap.bat
+     b2.exe --toolset=msvc-14.3 address-model=64
+
+Q: Build fails with "fatal error C1128: number of sections exceeded".
+A: This is a known MSVC issue with large Unity/PCH builds. Add:
+   /bigobj  compiler flag to the affected target in CMake or VS properties.
+
+Q: worldserver crashes immediately on startup.
+A: Check that all required DLLs (Boost, OpenSSL, MariaDB) are in the same folder
+   as worldserver.exe or in the system PATH. Use Dependency Walker or
+   "dumpbin /dependents worldserver.exe" to find missing DLLs.
+
+Q: "Cannot find maps/vmaps/mmaps/dbc".
+A: You need to extract these from a real BfA 8.3.7 client using the tools.
+   See section 8 "Client Data Extraction".
+
+Q: CMake says "No C++14 compiler found".
+A: Make sure the "Desktop development with C++" workload is installed in
+   Visual Studio. Re-run the Visual Studio Installer and add it.
+
+
+8. CLIENT DATA EXTRACTION (maps, vmaps, mmaps, DB2)
+--------------------------------------------------------------------------------
+
+After building the tools (step 4c), extract data from a real BfA 8.3.7 client:
+
+1. Copy these tool binaries to your WoW client folder:
+   mapextractor.exe
+   vmap4extractor.exe
+   vmap4assembler.exe
+   mmaps_generator.exe
+
+2. Open a Command Prompt in the client folder and run:
+   mapextractor.exe          -> creates /maps and /dbc and /db2
+   vmap4extractor.exe        -> creates /vmaps_raw
+   vmap4assembler.exe        -> creates /vmaps from /vmaps_raw
+   mmaps_generator.exe         -> creates /mmaps (takes HOURS, be patient)
+
+3. Move the generated folders to your server runtime folder:
+   C:\Psycho_Server\maps\, \vmaps\, \mmaps\, \db2\, \dbc\
+
+4. In worldserver.conf, set:
+   DataDir = "."
+   (or the full path to where these folders live)
+
+
+9. FIRST-RUN SETUP
+--------------------------------------------------------------------------------
+
+9a. Configure databases
+   - Install MariaDB Server (if not already installed during step 2d).
+   - Open HeidiSQL or MySQL Workbench.
+   - Run: /path/to/Psycho_Core-8.3.7/sql/create/create_mysql.sql
+     This creates: auth, characters, world, hotfixes databases + trinity user.
+
+9b. Import TDB world + hotfixes
+   - Download TDB_full_837.20101_2020_10_20.7z from TrinityCore GitHub releases.
+   - Extract the .sql files next to your worldserver.exe.
+   - The auto-updater will import them on first run (if Updates.EnableDatabases=15).
+
+9c. Apply mod-psychobot SQL (if using the bot module)
+   - In MySQL/MariaDB client, run:
+     USE characters;
+     SOURCE /path/to/Psycho_Core-8.3.7/modules/mod-psychobot/sql/characters/psychobot_strategies.sql;
+
+9d. Configure config files
+   - Copy *.conf.dist to *.conf (remove .dist)
+   - Edit worldserver.conf database connection strings
+   - Edit bnetserver.conf for auth server settings
+   - Edit mod_psychobot.conf for bot settings (follow distance, population, etc.)
+
+9e. Start the servers
+   - First: bnetserver.exe
+   - Then: worldserver.exe
+   - Watch the console for "World initialized" and "Worldserver ready"
+
+9f. In-game bot commands
+   - .psychobot add <character_name>    — login an offline alt as a bot
+   - .psychobot remove <name>           — remove a bot
+   - .psychobot list                    — list active bots
+   - .psychobot spec <name> <0-3>      — change bot spec
+   - .psychobot group <name>            — group bot with you
+   - .psychobot follow / stay / attack / cast <spell> / strategy <name>
+   - .psychobot help                    — full command list
+
+
+10. MODULE-SPECIFIC NOTES (mod-psychobot)
+--------------------------------------------------------------------------------
+
+- The module is enabled by default in CMake (MODULES=static).
+- It compiles into worldserver.exe as a static library; no separate .dll needed.
+- S28 core edits (WorldSession.h/.cpp, World.cpp, CharacterHandler.cpp) are
+  already applied in the source tree — they compile as part of the core.
+- The bot AI uses the 8.3.7 DB2 spell data from the extracted client.
+  If a spell name is wrong (e.g. "Frostbolt" vs "Frost Bolt"), the bot simply
+  skips that ability — nothing crashes.
+- For population spawning (RandomPlayerbotMgr), you need the extracted client
+  data and the worldserver running. The config controls min/max bots, levels,
+  and scaling features.
+
+
+11. OPTIMIZATION TIPS
+--------------------------------------------------------------------------------
+
+- Use RelWithDebInfo for development (has debug symbols but is fast).
+- Use Release for production servers (fastest, no debug symbols).
+- Enable Unity Build in CMake if supported: -DUNITY_BUILD=ON (faster compile).
+- For faster iteration, build only the target you changed (e.g., just
+  worldserver if you only edited bot files, or just scripts if you edited
+  a script module).
+- Use SSD for build directory; linking large binaries is I/O heavy.
+- If you have 16+ GB RAM, use more parallel jobs: /MP in MSVC or -j in MSBuild.
+
+
+12. UPGRADING / UPDATING
+--------------------------------------------------------------------------------
+
+When the repo is updated (git pull):
+1. Re-run CMake Configure + Generate (CMake GUI "Configure" then "Generate").
+2. Re-build ALL_BUILD or the specific targets that changed.
+3. If you see "file not found" errors after pulling, check if files were
+   moved/renamed and update your Visual Studio solution accordingly (re-run
+   CMake Generate).
+
+================================================================================
+ END OF WINDOWS BUILD GUIDE
+================================================================================

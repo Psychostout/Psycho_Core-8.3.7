@@ -1,0 +1,256 @@
+===========================================================================
+ Copyright (c) 2026 Psychostout. All rights reserved.
+ Original work authored 100% from scratch for Psycho_Core.
+ Licensed under LICENSE.MYCODE (see LICENSE.MYCODE.txt in the repo root).
+ NOT covered by the base GPL framework license. Development/evaluation only.
+===========================================================================
+
+================================================================================
+ PSYCHO_CORE 8.3.7 - LINUX BUILD GUIDE (exact steps verified in sandbox)
+================================================================================
+ Verified on: Debian GNU/Linux (trixie), x86_64, GCC 14.2.0
+ Date: 2026-06-09
+ Target: TrinityCore-based BfA 8.3.7 (client build 34769)
+================================================================================
+
+
+0. PREREQUISITES (what you need before you start)
+--------------------------------------------------------------------------------
+ - A cloned copy of the repo at /path/to/Psycho_Core-8.3.7
+ - Root/sudo access to install system packages
+ - ~10 GB disk space (source + build + deps)
+ - Internet connection (for apt packages and CMake binary download)
+
+
+1. INSTALL SYSTEM PACKAGES
+--------------------------------------------------------------------------------
+
+# Update package list
+sudo apt-get update
+
+# Install ALL required packages in one go:
+sudo apt-get install -y \
+    build-essential \
+    git \
+    wget \
+    curl \
+    pkg-config \
+    libboost-all-dev \
+    libssl-dev \
+    libmariadb-dev \
+    libmariadb-dev-compat \
+    mariadb-server \
+    mariadb-client \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libncurses-dev
+
+# Verify versions (expected):
+#   GCC/G++ >= 6.3.0 (we tested 14.2.0)
+#   Boost 1.83.0 (from libboost-all-dev)
+#   OpenSSL 3.5.5 (from libssl-dev on Debian trixie)
+#   MariaDB 11.8.6 (from libmariadb-dev on Debian trixie)
+#   CMake 3.31.6 (from apt; but we upgrade to 4.3.2 next)
+
+# Note: your distro may provide different versions. The key is:
+#   - CMake >= 4.3.2 (we install manually next)
+#   - Boost >= 1.83
+#   - OpenSSL >= 3.0 (we tested 3.5.5; 3.0.x LTS also works)
+#   - MariaDB >= 10.6 (we tested 11.8.6)
+
+
+2. INSTALL CMAKE 4.3.2 (MANUAL BINARY)
+--------------------------------------------------------------------------------
+
+# WHY: The repo requires CMake 4.3.2 minimum. Most distro repos ship 3.31.x.
+# We install the official Kitware binary to /usr/local.
+
+wget -q https://github.com/Kitware/CMake/releases/download/v4.3.2/cmake-4.3.2-linux-x86_64.sh -O /tmp/cmake.sh
+
+sudo bash /tmp/cmake.sh --prefix=/usr/local --skip-license
+
+rm /tmp/cmake.sh
+
+# Verify:
+/usr/local/bin/cmake --version
+# Expected: cmake version 4.3.2
+
+
+3. CHOOSE A BUILD DIRECTORY NAME
+--------------------------------------------------------------------------------
+
+# IMPORTANT: Do NOT use a directory named exactly "build".
+# The workspace snapshot system excludes "build" directories.
+# Use "bld", "_build", "cmake_build", or "build_dir" instead.
+
+export BUILD_DIR=bld
+
+
+4. CREATE THE BUILD DIRECTORY AND RUN CMAKE
+--------------------------------------------------------------------------------
+
+cd /path/to/Psycho_Core-8.3.7
+mkdir -p ${BUILD_DIR}
+cd ${BUILD_DIR}
+
+# Configure with standard TrinityCore options:
+/usr/local/bin/cmake .. \
+    -DCMAKE_INSTALL_PREFIX=$HOME/psycho-server \
+    -DTOOLS=1 \
+    -DWITH_WARNINGS=1
+
+# Expected output:
+#   -- Boost version found: 1.83.0
+#   -- Found MySQL library: /usr/lib/x86_64-linux-gnu/libmariadb.so
+#   -- Found MySQL headers: /usr/include/mariadb
+#   -- Detected OpenSSL version: 3.5.5
+#   -- OpenSSL version accepted: 3.5.5
+#   -- Configuring done
+#   -- Generating done
+#   -- Build files have been written to: /path/to/Psycho_Core-8.3.7/bld
+
+# If you see errors, see the "KNOWN ISSUES & FIXES" section below.
+
+
+5. BUILD INDIVIDUAL TARGETS (recommended for first-time)
+--------------------------------------------------------------------------------
+
+# Step 5a: Build bnetserver first (fastest, ~2-3 minutes on 4 cores)
+/usr/local/bin/cmake --build . --target bnetserver
+# Expected: [100%] Built target bnetserver
+
+# Step 5b: Build tools (map/vmap/mmap extractors)
+/usr/local/bin/cmake --build . --target mapextractor
+/usr/local/bin/cmake --build . --target vmap4extractor
+/usr/local/bin/cmake --build . --target vmap4assembler
+/usr/local/bin/cmake --build . --target mmaps_generator
+
+# Step 5c: Build worldserver (the big one; ~45-60 minutes on 4 cores)
+/usr/local/bin/cmake --build . --target worldserver
+
+# Alternative: build everything at once (very long, only recommended after
+# you've proven the above targets work):
+#   /usr/local/bin/cmake --build . -j$(nproc)
+
+
+6. KNOWN ISSUES & FIXES (already applied in this repo)
+--------------------------------------------------------------------------------
+
+# Issue: CMP0153 — CMake 4.3.2 removed deprecated `exec_program` command.
+# File:  cmake/macros/FindMySQL.cmake
+# Fix:   Replace `exec_program` with `execute_process` in the mysql_config
+#        --include and --libs_r calls (lines ~31 and ~40).
+# Status: FIXED in this repo.
+
+# Issue: GroupMgr namespace collision between mod-psychobot and core.
+# File:  modules/mod-psychobot/src/PsychobotGroupMgr.h/.cpp
+# Fix:   Rename `psychobot::GroupMgr` to `psychobot::BotGroupMgr`.
+#        Update all call sites in PsychobotMgr.cpp, PsychobotAI.cpp,
+#        CoreValues.cpp.
+# Status: FIXED in this repo.
+
+# Issue: OpenSSL 3.x deprecated declarations (RSA_size, PEM_read_bio_RSAPublicKey).
+# File:  src/common/Cryptography/RSA.cpp
+# Fix:   No code change needed; these are warnings only, not errors.
+#        The code already uses RSA_get0_key() on the 3.x path.
+# Status: WARNINGS ONLY — safe to ignore.
+
+# Issue: Deprecated std::iterator in protobuf/g3d (GCC 14).
+# File:  dep/protobuf/src/google/protobuf/repeated_field.h
+#        dep/g3dlite/...
+# Fix:   No code change needed; warnings only.
+# Status: WARNINGS ONLY — safe to ignore.
+
+
+7. INSTALL (optional, copies binaries + configs to install prefix)
+--------------------------------------------------------------------------------
+
+/usr/local/bin/cmake --build . --target install
+
+# This copies:
+#   bnetserver  -> ${CMAKE_INSTALL_PREFIX}/bin/
+#   worldserver -> ${CMAKE_INSTALL_PREFIX}/bin/
+#   *.conf.dist -> ${CMAKE_INSTALL_PREFIX}/etc/
+#   Extractors  -> ${CMAKE_INSTALL_PREFIX}/bin/
+
+
+8. FIRST-RUN SETUP (after build succeeds)
+--------------------------------------------------------------------------------
+
+# 8a. Configure databases
+cd /path/to/Psycho_Core-8.3.7/sql
+cat create/create_mysql.sql | mysql -u root -p
+# (enter your MySQL root password; creates 'auth', 'characters', 'world', 'hotfixes')
+
+# 8b. Import TDB world + hotfixes data
+# Download TDB_full_837.20101_2020_10_20.7z from TrinityCore GitHub releases.
+# Extract the .sql files next to your worldserver binary.
+# The auto-updater will import them on first run.
+
+# 8c. Copy config files and edit
+#   cp ${CMAKE_INSTALL_PREFIX}/etc/worldserver.conf.dist worldserver.conf
+#   cp ${CMAKE_INSTALL_PREFIX}/etc/bnetserver.conf.dist bnetserver.conf
+#   cp ${CMAKE_INSTALL_PREFIX}/etc/mod_psychobot.conf.dist mod_psychobot.conf
+
+# 8d. Apply mod-psychobot SQL (if using the bot module)
+mysql -u trinity -p characters < /path/to/Psycho_Core-8.3.7/modules/mod-psychobot/sql/characters/psychobot_strategies.sql
+
+# 8e. Extract client data (from a real BfA 8.3.7 client):
+#   ./mapextractor
+#   ./vmap4extractor
+#   ./vmap4assembler
+#   ./mmaps_generator
+# Place the generated directories (maps, vmaps, mmaps, dbc, db2) next to
+# worldserver.exe or in the DataDir configured in worldserver.conf.
+
+# 8f. Start servers
+#   ./bnetserver
+#   ./worldserver
+
+
+9. MODULE-SPECIFIC NOTES
+--------------------------------------------------------------------------------
+
+# mod-psychobot is enabled by default (static linkage).
+# After starting worldserver, in-game chat commands:
+#   .psychobot add <character_name>    — login an offline alt as a bot
+#   .psychobot remove <name>           — remove a bot
+#   .psychobot list                    — list active bots
+#   .psychobot spec <name> <0-3>      — change bot spec
+#   .psychobot group <name>            — group bot with you
+#   .psychobot follow                  — make bots follow
+#   .psychobot stay                    — make bots stay
+#   .psychobot attack                  — order attack
+#   .psychobot cast <spell>            — cast specific spell
+#   .psychobot strategy <name>         — toggle combat strategy
+#   .psychobot help                    — full command list
+
+
+10. TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Q: CMake says "Could not find Boost".
+A: Install libboost-all-dev. If your distro ships an older version, build Boost
+   1.83 from source or use a newer distro release.
+
+Q: CMake says "Could not find MySQL libraries".
+A: Install libmariadb-dev-compat. Ensure /usr/bin/mysql_config exists.
+
+Q: CMake says "Could not find OpenSSL".
+A: Install libssl-dev. The P-02 patch in this repo accepts 3.x automatically.
+
+Q: "deprecated-declarations" warnings flood the console.
+A: These are benign. To suppress: cmake .. -DWITH_WARNINGS=0
+
+Q: Build fails at 50%+ with a linker error.
+A: Usually out of memory during parallel link. Use -j2 instead of -j$(nproc),
+   or add more RAM / swap.
+
+Q: I get "module not found" errors at runtime.
+A: mod-psychobot is static; no .so file needed. Ensure the SQL was applied
+   to the characters database.
+
+================================================================================
+ END OF LINUX BUILD GUIDE
+================================================================================

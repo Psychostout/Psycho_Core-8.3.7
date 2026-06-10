@@ -1,6 +1,6 @@
 ========================================================================
 IMPORTANT NOTICE: This repository is a mixed-license project. 
-The standard 'LICENSE' file applies to the base MaNGOS platform. 
+The standard 'COPYING' file applies to the base TrinityCore framework. 
 THIS file ('LICENSE.MYCODE') applies EXCLUSIVELY to the original modules, 
 scripts, and .bat files authored by [Psychostout].
 ========================================================================
@@ -20,7 +20,7 @@ No user has permission to use the Software or its Source Code on a live commerci
 The author retains 100% exclusive copyright and commercial rights. The author reserves the right to close public access and transition the Software and its Source Code into a paid, encrypted, commercial product at any time in the future.
 
 5. LIMITATION OF CLAIMS AND UPSTREAM COMPLIANCE
-This license, and the copyright protections therein, applies STRICTLY and EXCLUSIVELY to the original source code, logic, algorithms, and architectures authored 100% from scratch by the copyright holder. This license does not assert ownership, copyright, or restrictions over any underlying open-source project frameworks, including but not limited to MaNGOS platform code, which remains governed by its respective GNU GPLv2 licensing.
+This license, and the copyright protections therein, applies STRICTLY and EXCLUSIVELY to the original source code, logic, algorithms, and architectures authored 100% from scratch by the copyright holder. This license does not assert ownership, copyright, or restrictions over any underlying open-source project frameworks, including but not limited to TrinityCore framework code, which remains governed by its respective GNU GPLv2 licensing.
 
 6. DISCLAIMER OF WARRANTY
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH THE USER.

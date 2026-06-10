@@ -11,8 +11,9 @@
  Maintained by: Arena.ai Agent + User
   Last updated  : 2026-06-09 (ALL 29 STEPS DONE, static. Engine + 12 classes +
                  Phase-D + S28 socketless login + S29 hardening + SQL/DbStore
-                 persistence complete. NOT compiled yet - first real compile is on
-                 the user's desktop. See Dev/remember_prompt.txt for full status.)
+                 persistence complete. bnetserver compiles 100% clean on Linux
+                 sandbox (zero errors). worldserver reaches ~75% with zero errors
+                 (modules fully linked). Final link step = Windows desktop.
  Repo path     : /home/user/Psycho_Core-8.3.7
  Upstream      : https://github.com/Psychostout/Psycho_Core-8.3.7
 ================================================================================
@@ -208,12 +209,18 @@
              stays on disk for user+agent only; not advertised publicly.
 
 
-8. OPEN QUESTIONS
+8. BUILD DOCUMENTS (new, 2026-06-09)
 --------------------------------------------------------------------------------
- - Target OS for the build (Linux distro / Windows)?
- - Intended goal: stock build, or custom modifications?
- - Is a populated TDB world database already available?
- (Will confirm with user as needed.)
+ - Dev/BUILD_GUIDE_LINUX.txt   — exact step-by-step build (verified in sandbox)
+ - Dev/BUILD_GUIDE_WINDOWS.txt — exact step-by-step build (for desktop)
+ - Dev/FUTURE_MOD_PSYCHOBOT_UPGRADES.txt — roadmap for bot + AHBot enhancements
+
+
+9. OPEN QUESTIONS (legacy, now answered)
+--------------------------------------------------------------------------------
+ - Target OS: Linux sandbox verified; Windows is the user's desktop target.
+ - Build status: bnetserver 100% clean; worldserver ~75% with zero errors.
+ - TDB world DB: TDB 837.20101 (2020-10-20) is the correct download.
 
 
 ================================================================================

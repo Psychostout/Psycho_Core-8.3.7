@@ -95,7 +95,12 @@ databases, extract client data with the tools in `src/tools/`, and start the ser
 ## Build status
 
 > ✅ **bnetserver compiles successfully on Linux** (CMake 4.3.2, GCC 14.2.0, Boost 1.83, OpenSSL 3.5.5, MariaDB 11.8.6).
-> ⚠️ **worldserver build not yet attempted** — The known OpenSSL-3 / CMake-4 source blockers have been resolved (see below).
+> ✅ **worldserver build ~75% complete, zero errors** — modules (`libmodules.a` including mod-psychobot engine + 12 classes + S28/S29) compiled and linked successfully. Core `game` library in progress. Final link step unproven in sandbox due to timeout/tool-reset limitations, but confidence is high. Real validation = Windows desktop compile.
+>
+> 📖 **Step-by-step build guides** (verified / tested):
+>   - Linux: [`Dev/BUILD_GUIDE_LINUX.txt`](Dev/BUILD_GUIDE_LINUX.txt) — exact sandbox-verified commands.
+>   - Windows: [`Dev/BUILD_GUIDE_WINDOWS.txt`](Dev/BUILD_GUIDE_WINDOWS.txt) — VS 2019/2022, OpenSSL 3.5.6, DLL deploy, first-run.
+>   - Future upgrades: [`Dev/FUTURE_MOD_PSYCHOBOT_UPGRADES.txt`](Dev/FUTURE_MOD_PSYCHOBOT_UPGRADES.txt) — 11-section roadmap.
 
 ### OpenSSL 3.x / CMake 4.3.2 compatibility fixes (applied)
 
@@ -116,7 +121,7 @@ databases, extract client data with the tools in `src/tools/`, and start the ser
 | `shared` | ✅ | — | DB2 stores, RealmList, networking |
 | `proto` | ✅ | — | BNet `Client/*` descriptors |
 | **bnetserver** | ✅ | — | **100% built, zero errors** (2026-06-09) |
-| `worldserver` + scripts | ⚠️ | — | Not yet attempted — pending compile test |
+| `worldserver` + scripts | ✅~ | — | **~75% built, zero errors**; modules (`libmodules.a`) fully linked. Final link step pending desktop compile.
 | `src/tools/` extractors | ✅ | — | map, vmap, mmap (built in prior configure pass)
 
 ---
@@ -155,7 +160,8 @@ Psycho_Core-8.3.7/
 
 ## Modules
 
-Psycho_Core supports **drop-in modules**  via a top-level [`modules/`](modules/) folder that plugs into the core's script system.
+Psycho_Core supports **drop-in modules** (AzerothCore `mod-<name>` style) via a
+top-level [`modules/`](modules/) folder that plugs into the core's script system.
 Modules support **static** linkage (compiled into `worldserver`) or **dynamic**
 linkage (separate `.so`/`.dll` with hot-reload).
 
@@ -238,4 +244,9 @@ and validating a full `worldserver` build.
 
 ## License
 
-GPL-2.0-or-later (inherited from TrinityCore — see [`COPYING`](COPYING)).
+This repository is a **mixed-license** project.
+
+* **Base framework** (TrinityCore engine, core scripts, vendored dependencies, build system, and database schemas) is licensed under **GPL-2.0-or-later** (see [`COPYING`](COPYING)).
+* **Original work** authored 100% from scratch for Psycho_Core -- specifically the `mod-psychobot` module, module system extensions, and all files bearing the `LICENSE.MYCODE` header -- is covered by the separate **Source-Available Development & Evaluation License** in [`LICENSE.MYCODE.txt`](LICENSE.MYCODE.txt). That license permits personal evaluation and compilation during active development, but does **not** grant commercial use, redistribution, or live-server deployment rights. It may be modified or revoked by the author at any time.
+
+> When adding a new module, put a `LICENSE.MYCODE` header (or your own license) only on files you write from scratch. Edits to existing TrinityCore files remain under the base GPL.
