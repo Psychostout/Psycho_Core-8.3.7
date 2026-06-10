@@ -11,6 +11,7 @@
  Purpose : Running record of the conversation between the user and the agent.
  Timezone: Australia/Adelaide (ACST)
  Started : 2026-06-07
+ LAST VERIFIED / UPDATED: 2026-06-10 11:15:06 ACST
 ================================================================================
 
 
@@ -1517,3 +1518,21 @@ Build time: ~2m22s. No further edits needed for bnetserver.
   all present and consistent. Awaiting next step.
 --------------------------------------------------------------------------------
 
+
+
+--------------------------------------------------------------------------------
+[2026-06-10 11:15:06 ACST] -- DOC VERIFICATION & TIMESTAMP PASS
+--------------------------------------------------------------------------------
+USER:
+  "Please verify all docs/readme etc are up to date. Also FROM NOW ON we must
+   include date and time stamps in the main Dev docs: Changelog.txt, Chatlog.txt,
+   and Psycho_CoreREADME.txt."
+
+AGENT:
+  - Verified all living docs exist and are consistent (no stale status markers).
+  - Updated Chatlog.txt header: added LAST VERIFIED / UPDATED timestamp.
+  - Updated Changelog.txt header: added LAST VERIFIED / UPDATED timestamp.
+  - Updated Psycho_CoreREADME.txt: refreshed Last updated line with timestamp.
+  - Appended verification entry to Changelog.txt.
+  - Appended this turn to Chatlog.txt.
+  - Reported full doc status table and awaiting next step.

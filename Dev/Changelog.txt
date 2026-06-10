@@ -12,6 +12,7 @@
  Format  : [DATE] (category) description  -- by agent/user
  Note    : Categories = [SETUP] [CORE] [SQL] [BUILD] [CONFIG] [SCRIPT]
                         [FIX] [DOC] [DEP]
+ LAST VERIFIED / UPDATED: 2026-06-10 11:15:06 ACST
 ================================================================================
 
 
@@ -1641,3 +1642,19 @@ VERIFIED: remember_prompt.txt, Chatlog.txt, Changelog.txt, BUILD_CONFIG_REPORT.t
 Psycho_CoreREADME.txt, Mod-Psychobots-Checklist.txt, Mod-Psychobots-Ref.txt,
 ModuleAPI_Reference.txt all updated or consistent. No stale status markers.
 
+
+
+================================================================================
+ DOC VERIFICATION PASS  [2026-06-10 11:15:06 ACST]
+================================================================================
+[DOC]    Verified all living docs are consistent and up-to-date:
+           - Chatlog.txt, Changelog.txt, Psycho_CoreREADME.txt: timestamps added.
+           - remember_prompt.txt, BUILD_CONFIG_REPORT.txt, CRITICAL_BUILD_RULE.txt: OK.
+           - BUILD_GUIDE_LINUX.txt, BUILD_GUIDE_WINDOWS.txt: OK.
+           - FUTURE_MOD_PSYCHOBOT_UPGRADES.txt: OK.
+           - Mod-Psychobots-Checklist.txt, Mod-Psychobots-Ref.txt, ModuleAPI_Reference.txt: OK.
+           - Root README.md: updated (mixed-license, build guide links).
+           - LICENSE.MYCODE.txt: MaNGOS->TrinityCore fixed.
+           - mod-skeleton/README.md, modules/README.md, docs/HOW_TO_BUILD_A_MODULE.md: OK.
+[DOC]    Added LAST VERIFIED / UPDATED timestamp to all three main Dev docs.
+         Going forward, every edit to these files must update the timestamp.

@@ -9,7 +9,7 @@
  PSYCHO_CORE 8.3.7  -  BUILD / PLAN / REFERENCE
 ================================================================================
  Maintained by: Arena.ai Agent + User
-  Last updated  : 2026-06-09 (ALL 29 STEPS DONE, static. Engine + 12 classes +
+  Last updated  : 2026-06-10 11:15:06 ACST (ALL 29 STEPS DONE, static. Engine + 12 classes +
                  Phase-D + S28 socketless login + S29 hardening + SQL/DbStore
                  persistence complete. bnetserver compiles 100% clean on Linux
                  sandbox (zero errors). worldserver reaches ~75% with zero errors
